@@ -1,0 +1,18 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+output/
+old/
+test/
+SS3_input_files/
+deploy/
+site/
+zips/
+#newline
+desktop.ini
+old_datasets/
+# Added Jan 6, ignore all interim_data to avoid sharing of sensitive DPIRD data
+interim_data/
+SandySpratdev/
+import_DPIRD_data.R
