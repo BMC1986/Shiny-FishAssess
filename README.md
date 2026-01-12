@@ -1,86 +1,64 @@
 # Shiny-FishAssess: Fisheries Stock Assessment Prep Tool
 
-[![Shiny app](https://img.shields.io/badge/Shiny-v1.7.4-brightgreen)](https://shiny.rstudio.com/)  
+[![Shiny app](https://img.shields.io/badge/Shiny-v1.8.0-brightgreen)](https://shiny.rstudio.com/)  
 [![R version](https://img.shields.io/badge/R-4.5.0-blue)](https://www.r-project.org/)  
 [![License](https://img.shields.io/badge/License-MIT-yellowgreen)](https://opensource.org/licenses/MIT)
 
-**Shiny-FishAssess** is a R Shiny application designed to streamline the preparation of input data for fisheries stock assessments. It provides a user-friendly interface to explore, filter, and compile essential data from various sources, facilitating the creation of input files for stock assessment models like SS3.
+**Shiny-FishAssess** is an R Shiny application designed to streamline the preparation of input data for fisheries stock assessments. It provides a user-friendly interface to explore, filter, and compile essential data, generate SS3 input files, and perform advanced model diagnostics including sensitivity analyses, bias tuning, and model comparisons.
 
 ## Key Features
 
-* **Data Exploration:** Interactive dashboards for visualizing and filtering catch, indices, length, and age data.
-* **Species Selection:** Easily select and focus on specific species using searchable dropdown menus.
-* **Data Inclusion Control:** Choose which data types (Catch, Indices, Length, Age, Biological Parameters, Fishery Parameters) to include in the analysis.
-* **Parameter Specification:** Define or customize biological and fishery parameters, such as natural mortality, steepness, and initial recruitment.
-* **SS3 Input Generation:** Automatically generate formatted input files for the SS3 stock assessment model.
-* **Data Download:** Download processed data and configurations in a convenient ZIP archive.
-* **Console Output:** Monitor processing steps and any warnings or errors via an integrated console log.
+* **Data Exploration:** Interactive dashboards for visualising and filtering catch, indices, length, and age data.
+* **Species Selection:** Select and focus on specific species using searchable dropdown menus.
+* **Assessment Inputs:** Control which data types (Catch, Indices, Length, Age) and parameters (Biological, Fishery) to include.
+* **Parameter Specification:** Customise biological and fishery parameters, including time-varying growth/selectivity, natural mortality, and recruitment deviations.
+* **SS3 Input Generation:** Automatically generate formatted `datafile.dat`, `controlfile.ctl`, `starter.ss`, and `forecast.ss` files.
+* **Sensitivity Analysis:** Run parallelised sensitivity tests including Jitter analysis, Retrospective analysis, and Likelihood profiles ($R_0$, $M$, $h$, Depletion).
+* **Bias & Tuning:** Automated tools for bias ramp adjustment and composition weighting (Francis and Dirichlet methods).
+* **Model Comparison:** Compare multiple model runs with generated plots and summaries.
+* **Parallel Processing:** Leverages multiple cores for efficient batch processing of SS3 models.
+* **DPIRD Styling:** Custom plot outputs tailored for reporting.
 
 ## Application Files
 
-The repository includes the following R scripts:
+The repository includes the following key R scripts:
 
-* `app.R`:  The main Shiny application script, defining the user interface and server logic.
-* `import_data.R`:  Script for importing and preprocessing raw data from various sources (e.g., databases, CSV files).
+* `app.R`: The main Shiny application script containing UI and server logic.
+* `SS_input.R`: Script to format and generate SS3 input files from the processed data.
+* `SS_sensitivities.R`: Script to run sensitivity analyses (Jitter, Retro, Profiles) in parallel.
+* `SS_bias_tuning.R`: Script handling automated bias adjustment and data weighting.
 * `BiolTable.R`: Script to generate the biological parameters table.
-* `SS_input.R`:  Script to format and generate SS3 input files from the processed data.
-* `SS3_sensitivities.R`:  Script to run run sensitivity analyses
-
-## Data Sources
-
-The application integrates data from several sources, including:
-
-* Fixed Site Survey data (Kimberley)
-* Pilbara and Kimberley biological databases
-* WCD database
-* Catch time-series data
-* Indices time-series data
-* Biological Unit Parameters database 
+* `SSplotComparisonsREP.R`: Helper script for generating model comparison plots.
+* `import_DPIRD_data.R`: **(Internal Only)** Script for importing raw database data, available only to DPIRD staff. *Note: As this file is not part of the public repository, the app defaults to "Restricted Mode," which focuses on analysing and manipulating existing SS3 model outputs.*
 
 ## Setup and Usage
 
 1.  **Prerequisites:**
-    * R (>= 4.2.0)
-    * RStudio (recommended)
-    * r4ss: Installed from GitHub: 
+    Ensure you have R (>= 4.2.0) and RStudio installed. You will need the following packages:
+    ```r
+    install.packages(c("shiny", "shinyWidgets", "shinyjs", "shinyFiles", "bslib", 
+                       "dplyr", "ggplot2", "tidyr", "data.table", "stringr", 
+                       "doParallel", "foreach", "processx", "fs", "zip", 
+                       "DT", "kableExtra", "remotes"))
     
-```S
-remotes::install_github("r4ss/r4ss")
-```
+    # Install r4ss from GitHub
+    remotes::install_github("r4ss/r4ss")
+    ```
 
 2.  **Installation:**
-    * Clone or download the repository to your local machine.
-    * Place the necessary data files in the appropriate directories as expected by the R scripts.
-    * Ensure all the required R packages are installed.
-        
-    
+    * Clone or download this repository.
+    * Place the `Stock_Synthesis_latest/ss.exe` executable in the project root if you intend to run models locally.
+
 3.  **Running the App:**
-    * Open the `app.R` script in RStudio (or your preferred R environment).
-    * Run the application using the `shiny::runApp()` function or the "Run App" button in RStudio.
-    * Recommend using the "`Run External`" option within the "`Run App`" button 
+    * Open `app.R` in RStudio.
+    * Run using `shiny::runApp()` or the "Run App" button.
+    * **Note:** For best performance, use the "Run External" option in RStudio.
 
 4.  **Workflow:**
-    * Use the sidebar panel to select the species, data types, and parameters for your assessment.
-    * Explore the data in the main panel's tabs (Catch, Indices, Length, Age, etc.).
-    * Adjust parameters and filtering options as needed.
-    * Click the "Generate SS3 Files" button to generate and download the SS3 input files and a summary of your selections.
+    * **Restricted Mode (Public Users):** Upon launch, the app will detect that the data import script is missing. The app will focus on the **SS3 Sensitivity Analysis** and **Bias and Tuning** tabs. You can upload existing SS3 model folders (zipped) to perform diagnostics, comparisons, and tuning.
+    * **Full Mode (DPIRD Staff):** With the internal data script present, users can load raw data, filter species/fleets, and generate new SS3 input files from scratch via the "Data Preparation" tabs.
 
-## SS3 Input Files
-
-The application generates the following files for use with the SS3 stock assessment model:
-
-* `datafile.dat`:  The main data file containing catch, indices, and biological information.
-* `controlfile.ctl`:  The control file specifying model settings and parameters.
-* `starter.ss`:   The SS3 starter file.
-* `forecast.ss`:  The forecast file for future projections.
-
-## Important Notes
-
-* Ensure that your data files are correctly formatted and located as expected by the `import_data.R` script.
-* Carefully review the console output for any warnings or errors during data processing.
-* This tool is designed to aid in data preparation; users are responsible for the validity and appropriateness of the data and assessment settings.
-
-## Process flowchart
+## Process Flowchart
 
 ```mermaid
 %%{init: {
@@ -95,139 +73,72 @@ The application generates the following files for use with the SS3 stock assessm
   }
 }}%%
 graph LR
-  subgraph Raw_Data_Inputs
+  subgraph Data_Inputs
     direction LR
-    A1_sql["SQL Server"]:::rawdata
-    A1_mdb["Access DBs"]:::rawdata
-    A1_csv["CSV Files<br>(Catch, Indices)"]:::rawdata
-    A1_rdata["XLSX Files<br>(Testing)"]:::rawdata
+    A1_script["Import Script<br>(DPIRD Internal)"]:::rawdata
+    A1_zip["Upload ZIP<br>(Existing Models)"]:::rawdata
   end
 
   subgraph User_Interface
     direction TB
     UI("Shiny UI<br>(app.R)"):::usercontrol
-    UI_inputs("User Inputs<br>(Species, Filters)"):::usercontrol
+    UI_inputs("User Inputs<br>(Species, Filters, Params)"):::usercontrol
   end
 
-  subgraph Data_Processing
+  subgraph Processing_&_Analysis
     direction TB
-    P1("Import Data<br>(import_data.R)"):::processing
-    P2("Bio Parameters<br>(BiolTable.R)"):::processing
-    P3("Filter & Aggregate<br>(app.R server)"):::processing
-    P4("SS3 Input Files<br>(SS_input.R)"):::processing
+    P1("SS3 Input Gen<br>(SS_input.R)"):::processing
+    P2("Sensitivities<br>(SS_sensitivities.R)"):::processing
+    P3("Bias & Tuning<br>(SS_bias_tuning.R)"):::processing
   end
 
-  subgraph Intermediate_Data
+  subgraph Outputs
     direction TB
-    D1("Fixedsite Data"):::interdata
-    D2("Merged Bio Data"):::interdata
-    D3("Catch TS"):::interdata
-    D4("Effort TS"):::interdata
-    D5("FIS Age Data"):::interdata
-    D6("Bio Params Table"):::interdata
-    D7("Fishery Parameters"):::interdata
-    D8("Length Comps"):::interdata
-    D9("Age Comps"):::interdata
-    D10("CPUE/Survey"):::interdata
-    D11("SS3 Catch Data"):::interdata
-  end
-
-  subgraph SS3_Model
-    direction TB
-    O1("starter.ss"):::ss3output
-    O2("controlfile.ctl"):::ss3output
-    O3("datafile.dat"):::ss3output
-    O4("forecast.ss"):::ss3output
-    M1{"SS3 Run<br>(r4ss::run)"}:::ss3output
-    O5("SS3 Plots<br>(r4ss::SS_plots)"):::ss3output
-    O6("ZIP Archive"):::ss3output
+    O1("SS3 Input Files<br>(.dat, .ctl, .ss)"):::ss3output
+    O2("Model Runs<br>(Parallel)"):::ss3output
+    O3("Comparisons & Plots"):::ss3output
+    O4("ZIP Archive"):::ss3output
   end
 
   %% Action Nodes
-  ActionRunModel([Run Model]):::actionbutton
-  ActionGenerateFiles([Generate Files]):::actionbutton
-  ActionBookmark([Bookmark]):::actionbutton
+  ActionGenerate([Generate Inputs]):::actionbutton
+  ActionRun([Run/Tune Model]):::actionbutton
 
   %% Data Flow
-  A1_sql --> P1
-  A1_mdb --> P1
-  A1_csv --> P1
-  A1_rdata --> P1
-
+  A1_script -.-> UI
+  A1_zip -.-> UI
+  
   UI --> UI_inputs
-
-  P1 --> D1
-  P1 --> D2
-  P1 --> D3
-  P1 --> D4
-  P1 --> D5
-  
-  A1_rdata --> P2
+  UI_inputs --> P1
   UI_inputs --> P2
-  P2 --> D6
-
   UI_inputs --> P3
-  D1 --> P3
-  D2 --> P3
-  D3 --> P3
-  D4 --> P3
-  D5 --> P3
-  D6 --> P3
-  P3 --> D7
-  P3 --> D8
-  P3 --> D9
-  P3 --> D10
-  P3 --> D11
 
-  D6 --> P4
-  D7 --> P4
-  D8 --> P4
-  D9 --> P4
-  D10 --> P4
-  D11 --> P4
-  UI_inputs --> P4
-
-  P4 --> O1
-  P4 --> O2
-  P4 --> O3
-  P4 --> O4
+  P1 --> O1
+  O1 --> O4
   
-  UI_inputs --> ActionRunModel --> M1
-  O1 --> M1
-  O2 --> M1
-  O3 --> M1
-  O4 --> M1
-  M1 --> O5
+  P2 --> O2
+  P3 --> O2
   
-  UI_inputs --> ActionGenerateFiles --> O6
-  O1 --> O6
-  O2 --> O6
-  O3 --> O6
-  O4 --> O6
-  P3 -->|Summary| O6
-  UI_inputs --> ActionBookmark --> O6
+  O2 --> O3
+  
+  UI_inputs --> ActionGenerate --> O4
+  UI_inputs --> ActionRun --> O2
 
-  %% Styling - DPIRD Theme
-  classDef rawdata fill:#8E5F7E,stroke:#42797F,color:#FFFFFF,stroke-width:1.5px,stroke-dasharray:5,border-radius:5px
+  %% Styling
+  classDef rawdata fill:#8E5F7E,stroke:#42797F,color:#FFFFFF,stroke-width:1.5px,border-radius:5px
   classDef usercontrol fill:#BFD7DF,stroke:#003F51,color:#000000,stroke-width:1.5px,border-radius:5px
   classDef processing fill:#CC9950,stroke:#003F51,color:#FFFFFF,stroke-width:1.5px,border-radius:5px
-  classDef interdata fill:#94B237,stroke:#DEE2E6,color:#000000,stroke-width:1.5px,border-radius:5px
   classDef ss3output fill:#003F51,stroke:#BFD7DF,color:#FFFFFF,stroke-width:1.5px,border-radius:5px
-  classDef actionbutton fill:#42797F,stroke:#42797F,color:#FFFFFF,stroke-width:1.5px,border-radius:10px,padding:5px
+  classDef actionbutton fill:#42797F,stroke:#42797F,color:#FFFFFF,stroke-width:1.5px,border-radius:10px
 
-  class A1_sql,A1_mdb,A1_csv,A1_rdata rawdata
+  class A1_script,A1_zip rawdata
   class UI,UI_inputs usercontrol
-  class P1,P2,P3,P4 processing
-  class D1,D2,D3,D4,D5,D6,D7,D8,D9,D10,D11 interdata
-  class O1,O2,O3,O4,M1,O5,O6 ss3output
-  class ActionRunModel,ActionGenerateFiles,ActionBookmark actionbutton
+  class P1,P2,P3 processing
+  class O1,O2,O3,O4 ss3output
+  class ActionGenerate,ActionRun actionbutton
 
-
-  %% Subgraph specific styling
-  style Raw_Data_Inputs fill:#F0F7F9,stroke:#003F51,color:#003F51,stroke-width:1.5px,border-radius:5px
-  style User_Interface fill:#F0F7F9,stroke:#003F51,color:#003F51,stroke-width:1.5px,border-radius:5px
-  style Data_Processing fill:#F0F7F9,stroke:#003F51,color:#003F51,stroke-width:1.5px,border-radius:5px
-  style Intermediate_Data fill:#F0F7F9,stroke:#003F51,color:#003F51,stroke-width:1.5px,border-radius:5px
-  style SS3_Model fill:#F0F7F9,stroke:#003F51,color:#003F51,stroke-width:1.5px,border-radius:5px
-
+  style Data_Inputs fill:#F0F7F9,stroke:#003F51
+  style User_Interface fill:#F0F7F9,stroke:#003F51
+  style Processing_&_Analysis fill:#F0F7F9,stroke:#003F51
+  style Outputs fill:#F0F7F9,stroke:#003F51
 ```
