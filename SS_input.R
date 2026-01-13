@@ -961,6 +961,10 @@ if(is.na(bio_params$LengthWeightParamsMale_1)) {
   
 }
 
+
+# Maturity ----------------------------------------------------------------
+
+
 if(is.na(bio_params$MaturityParamsFemale_3)) {
   
   cat("Not age-based maturity params, using length-converted\n")
@@ -2123,10 +2127,17 @@ if(!is.na(fixedsiteonly$LengthClass[1])) {
   # Need dynamic here for datasource
   SS_max_size_bioparams <- bio_params$MaximumLength/10
   SS_max_size_Biodata <- max(merged_kim_pilb$LengthClass,na.rm = T)/10
-  # SS_max_size <- max(SS_max_size_bioparams,SS_max_size_Biodata) # THis caused error because decimals
   SS_max_size <- round(max(SS_max_size_bioparams,SS_max_size_Biodata),0)
 
 }
+
+# --- NEW: Override with Custom Max Size ---
+if(isTRUE(fishery_parameters$use_custom_max_size)) {
+  cat("Overriding SS_max_size with custom value:", fishery_parameters$custom_max_size, "cm\n")
+  SS_max_size <- fishery_parameters$custom_max_size
+}
+# ------------------------------------------
+
 cat("SS_max_size",SS_max_size, "\n")
 # SS_length_bins <-  seq(1, SS_max_size, by = 1)
 # SS_length_bins <-  seq(1, SS_max_size, by = SS_length_binwidth)
@@ -2134,16 +2145,42 @@ SS_length_bins <-  seq(0, SS_max_size, by = SS_length_binwidth)
 SS_n_length_bins  <- length(SS_length_bins)
 
 
+# ## Age data formatting
+# if(SS_use_age){
+# 
+#   # SS_n_age_bins <- max(age_data$IntAge, na.rm = T)
+#   SS_n_age_bins <- max(combined_age_data$IntAge, na.rm = TRUE)
+#   # SS_age_bins <- seq(1, SS_n_age_bins, by = 1)
+#   SS_age_bins <- seq(0, SS_n_age_bins, by = 1)
+# } else {
+# 
+#   SS_n_age_bins <- bio_params$MaxObservedAge
+#   SS_age_bins <- 0
+# }
+# 
+# cat("SS_max_age (SS_n_age_bins):",SS_n_age_bins, "\n")
+
 ## Age data formatting
 if(SS_use_age){
-
-  # SS_n_age_bins <- max(age_data$IntAge, na.rm = T)
+  # SS_n_age_bins <- max(combined_age_data$IntAge, na.rm = TRUE)
+  # Default based on data
   SS_n_age_bins <- max(combined_age_data$IntAge, na.rm = TRUE)
-  # SS_age_bins <- seq(1, SS_n_age_bins, by = 1)
+} else {
+  # Default based on bio params
+  SS_n_age_bins <- bio_params$MaxObservedAge
+}
+
+# --- NEW: Override with Custom Max Age ---
+if(isTRUE(fishery_parameters$use_custom_max_age)) {
+  cat("Overriding SS_n_age_bins with custom value:", fishery_parameters$custom_max_age, "years\n")
+  SS_n_age_bins <- fishery_parameters$custom_max_age
+}
+# ----------------------------------------
+
+# Re-calculate bins based on final SS_n_age_bins
+if(SS_use_age){
   SS_age_bins <- seq(0, SS_n_age_bins, by = 1)
 } else {
-
-  SS_n_age_bins <- bio_params$MaxObservedAge
   SS_age_bins <- 0
 }
 

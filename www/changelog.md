@@ -50,12 +50,24 @@ Catch rates to 2022 - M:\\Fisheries Research\\FinFish\\South Coast Demersal\\Sto
 M:\\Fisheries Research\FinFish\\South Coast Demersal\SRFAR\\2024-25  
 File: Graphs for SoFAR SCD to 2023-24.JNB  
 
+__v0.81__  
+**Enhanced Sensitivity Analysis:** - Added "Fixed Parameter Scenarios" to easily test sensitivity to fixed $M$, $h$, and $\sigma_R$.  
+  - Added Data Weighting Scenarios (Double/Halve weights) for composition and index data.  
+**Workflow & Maintenance:** - Added "Folder Cleanup" utility to batch delete `.exe` files from output directories to save space.  
+  - Improved "Task Manager" integration for Windows users.  
+**Batch Processing:** - Streamlined batch SS3 execution for multiple uploaded ZIP files.  
+  - Added option to automatically run model comparisons after batch processing completes.  
+**UI/UX:** - Refined conditional visibility for input parameters (e.g., Time-varying blocks, Initial Catch).  
+  - Improved console logging and error handling for background parallel processes.
+  - Added ability to manually set maximum population size and age
+  - App loads in limited state by default, with option to load extra data tabs, increases speed.
+  - Added option to force show all species for biological parameter selection, helps when testing a species with no available biological parameters.
+
 __v0.80__  
 Comp data that has sexes and some NAs. App now uses both - Andre suggests to do this.
 Added model comparison section - Francis and Dirichlet
 Added bias and tuning section
 Changed catch_ts format to long, so it matches effort and is better for migration into SQL
-
 
 
 __v0.79__  

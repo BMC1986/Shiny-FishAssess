@@ -328,7 +328,7 @@ ui <- function(request) {
               ),
               # br(),br(),
               tags$div(
-                tags$a("v0.80", href = "changelog.html", target = "_blank"),
+                tags$a("v0.81", href = "changelog.html", target = "_blank"),
                 style="text-align: right; font-size: 0.9em; margin-top:15px;"
               )
             )
@@ -442,6 +442,9 @@ ui <- function(request) {
                                  br(),
                                  textOutput("bio_subset_text"),
                                  uiOutput("bio_species_select_ui"),
+                                 # --- NEW: Checkbox to force show all ---
+                                 checkboxInput("show_all_bio_species", "Force show all species", value = FALSE),
+                                 # ---------------------------------------
                                  actionButton("bio_refresh_btn", "Refresh", icon = icon("sync"), class = "btn-default"),
                                  uiOutput("bio_warning_ui"),
                                  br(), br(), br(),
@@ -479,6 +482,24 @@ ui <- function(request) {
                                  hr(),
                                  h5("Modify biological and fishery parameters"),
                                  checkboxInput("use_1_sex_model", "Use 1-sex model", value = FALSE),
+                                 # --- NEW: Custom Max Size/Age Inputs ---
+                                 checkboxInput("use_custom_max_size", "Specify Custom Max Population Size", value = FALSE),
+                                 conditionalPanel(
+                                   condition = "input.use_custom_max_size == true",
+                                   div(style = "padding-left: 30px;",
+                                       numericInput("custom_max_size", "Max Population Size (cm):", value = 100, min = 1, step = 1),
+                                       helpText("Overrides the automatically calculated max length bin.")
+                                   )
+                                 ),
+                                 checkboxInput("use_custom_max_age", "Specify Custom Max Population Age", value = FALSE),
+                                 conditionalPanel(
+                                   condition = "input.use_custom_max_age == true",
+                                   div(style = "padding-left: 30px;",
+                                       numericInput("custom_max_age", "Max Population Age (years):", value = 40, min = 1, step = 1),
+                                       helpText("Overrides the max observed age. Sets the accumulator age.")
+                                   )
+                                 ),
+                                 # -------------------------------------
                                  checkboxInput("use_custom_M", "Specify Custom Natural Mortality ($M$)", value = FALSE),
                                  conditionalPanel(
                                    condition = "input.use_custom_M == true",
@@ -2308,11 +2329,19 @@ server <- function(input, output, session) {
           if (!exists("bupBiologicalUnitParam") || is.null(bupBiologicalUnitParam$BiologicalUnitName)) {
             stop("BiolTable.R did not create 'bupBiologicalUnitParam' with 'BiologicalUnitName'")
           }
-          csiro_codes <- selected_csiro()
+          
+          # Default to the full loaded dataset
           bio_data <- bupBiologicalUnitParam
-          if ("CSIRO" %in% names(bio_data) && any(bio_data$CSIRO %in% csiro_codes)) {
-            bio_data <- bio_data %>% filter(CSIRO %in% csiro_codes)
+          
+          # --- MODIFIED: Only filter by CSIRO if the "Show All" checkbox is NOT checked ---
+          if (!isTRUE(input$show_all_bio_species)) {
+            csiro_codes <- selected_csiro()
+            if ("CSIRO" %in% names(bio_data) && any(bio_data$CSIRO %in% csiro_codes)) {
+              bio_data <- bio_data %>% filter(CSIRO %in% csiro_codes)
+            }
           }
+          # --------------------------------------------------------------------------------
+          
           unique_bio_species <- c(setNames(sort(unique(bio_data$BiologicalUnitName)),
                                            sort(unique(bio_data$BiologicalUnitName))))
           bio_species_choices(unique_bio_species)
@@ -2753,10 +2782,17 @@ server <- function(input, output, session) {
       })
       
       # Biological Parameters table reactive
+      # Biological Parameters table reactive
       bio_tab <- eventReactive(list(input$bio_refresh_btn, refresh_trigger()), {
+        
+        # --- MODIFIED: Reverted to standard selection logic ---
+        # Ensure a specific species is selected from the dropdown
         req(input$bio_species_select)
+        
         local({
           selected_bio_species <- input$bio_species_select
+          # ----------------------------------------------------
+          
           create_biol_table <- TRUE
           source("BiolTable.R", local = TRUE)
           if (!exists("result") || !is.list(result) || is.null(result$tabdat) || is.null(result$parameters_s)) {
@@ -4121,6 +4157,10 @@ server <- function(input, output, session) {
         params <- data.frame(
           use_initial_catch = input$use_initial_catch,
           use_1_sex_model = input$use_1_sex_model,
+          # --- NEW: Add flags to dataframe ---
+          use_custom_max_size = input$use_custom_max_size,
+          use_custom_max_age = input$use_custom_max_age,
+          # -----------------------------------
           use_custom_M = input$use_custom_M,
           use_custom_sigma_r = input$use_custom_sigma_r,
           use_age_post_settlement = input$use_age_post_settlement,
@@ -4143,6 +4183,20 @@ server <- function(input, output, session) {
             year0fleet = input$year0fleet
           ))
         }
+        
+        # --- NEW: Add values to dataframe if selected ---
+        if (input$use_custom_max_size) {
+          params <- cbind(params, data.frame(
+            custom_max_size = input$custom_max_size
+          ))
+        }
+        if (input$use_custom_max_age) {
+          params <- cbind(params, data.frame(
+            custom_max_age = input$custom_max_age
+          ))
+        }
+        # ------------------------------------------------
+        
         if (input$use_custom_M) {
           params <- cbind(params, data.frame(
             custom_M = input$custom_M
