@@ -14,7 +14,7 @@
 * **Parameter Specification:** Customise biological and fishery parameters, including time-varying growth/selectivity, natural mortality, and recruitment deviations.
 * **SS3 Input Generation:** Automatically generate formatted `datafile.dat`, `controlfile.ctl`, `starter.ss`, and `forecast.ss` files.
 * **Sensitivity Analysis:** Run parallelised sensitivity tests including Jitter analysis, Retrospective analysis, and Likelihood profiles ($R_0$, $M$, $h$, Depletion).
-* **Bias & Tuning:** Automated tools for bias ramp adjustment and composition weighting (Francis and Dirichlet methods).
+* **Bias & Tuning:** Automated tools for parallelised bias ramp adjustment and composition weighting (Francis and Dirichlet methods).
 * **Model Comparison:** Compare multiple model runs with generated plots and summaries.
 * **Parallel Processing:** Leverages multiple cores for efficient batch processing of SS3 models.
 * **DPIRD Styling:** Custom plot outputs tailored for reporting.
@@ -64,72 +64,77 @@ The repository includes the following key R scripts:
 %%{init: {
   'flowchart': {
     'curve': 'basis',
-    'diagramPadding': 40,
-    'nodeSpacing': 40,
-    'rankSpacing': 60
+    'diagramPadding': 20,
+    'nodeSpacing': 50,
+    'rankSpacing': 80
   },
   'themeVariables': {
-    'fontSize': '40px'
+    'fontSize': '16px',
+    'fontFamily': 'arial'
   }
 }}%%
 graph LR
-  subgraph Data_Inputs
-    direction LR
+  %% --- Data Inputs ---
+  subgraph Data_Inputs [Data Inputs]
     A1_script["Import Script<br>(DPIRD Internal)"]:::rawdata
     A1_zip["Upload ZIP<br>(Existing Models)"]:::rawdata
   end
 
-  subgraph User_Interface
-    direction TB
+  %% --- User Interface ---
+  subgraph User_Interface [User Interface]
     UI("Shiny UI<br>(app.R)"):::usercontrol
     UI_inputs("User Inputs<br>(Species, Filters, Params)"):::usercontrol
+    
+    %% Action Buttons moved inside UI for cleaner flow
+    ActionGenerate([Generate Inputs]):::actionbutton
+    ActionRun([Run/Tune Model]):::actionbutton
   end
 
-  subgraph Processing_&_Analysis
-    direction TB
+  %% --- Processing ---
+  subgraph Processing_Analysis [Processing & Analysis]
     P1("SS3 Input Gen<br>(SS_input.R)"):::processing
     P2("Sensitivities<br>(SS_sensitivities.R)"):::processing
     P3("Bias & Tuning<br>(SS_bias_tuning.R)"):::processing
   end
 
+  %% --- Outputs ---
   subgraph Outputs
-    direction TB
     O1("SS3 Input Files<br>(.dat, .ctl, .ss)"):::ss3output
+    O4("ZIP Archive"):::ss3output
     O2("Model Runs<br>(Parallel)"):::ss3output
     O3("Comparisons & Plots"):::ss3output
-    O4("ZIP Archive"):::ss3output
   end
 
-  %% Action Nodes
-  ActionGenerate([Generate Inputs]):::actionbutton
-  ActionRun([Run/Tune Model]):::actionbutton
-
-  %% Data Flow
-  A1_script -.-> UI
-  A1_zip -.-> UI
+  %% --- Relationships ---
   
+  %% Inputs to UI
+  A1_script & A1_zip -.-> UI
   UI --> UI_inputs
-  UI_inputs --> P1
-  UI_inputs --> P2
-  UI_inputs --> P3
+  
+  %% UI Inputs to Buttons (The Trigger)
+  UI_inputs --> ActionGenerate
+  UI_inputs --> ActionRun
 
-  P1 --> O1
-  O1 --> O4
-  
-  P2 --> O2
-  P3 --> O2
-  
-  O2 --> O3
-  
-  UI_inputs --> ActionGenerate --> O4
-  UI_inputs --> ActionRun --> O2
+  %% Button Flow 1: Generation
+  ActionGenerate --> P1
+  P1 --> O1 --> O4
 
-  %% Styling
-  classDef rawdata fill:#8E5F7E,stroke:#42797F,color:#FFFFFF,stroke-width:1.5px,border-radius:5px
-  classDef usercontrol fill:#BFD7DF,stroke:#003F51,color:#000000,stroke-width:1.5px,border-radius:5px
-  classDef processing fill:#CC9950,stroke:#003F51,color:#FFFFFF,stroke-width:1.5px,border-radius:5px
-  classDef ss3output fill:#003F51,stroke:#BFD7DF,color:#FFFFFF,stroke-width:1.5px,border-radius:5px
-  classDef actionbutton fill:#42797F,stroke:#42797F,color:#FFFFFF,stroke-width:1.5px,border-radius:10px
+  %% Button Flow 2: Running/Tuning
+  ActionRun --> P2 & P3
+  P2 & P3 --> O2 --> O3
+
+  %% --- Invisible Edges for Vertical Alignment (Tricks the engine) ---
+  A1_script ~~~ A1_zip
+  P1 ~~~ P2 ~~~ P3
+  O1 ~~~ O2
+  O2 ~~~ O3
+
+  %% --- Styling ---
+  classDef rawdata fill:#8E5F7E,stroke:#42797F,color:#FFFFFF,stroke-width:0px,rx:5
+  classDef usercontrol fill:#BFD7DF,stroke:#003F51,color:#000000,stroke-width:1.5px,rx:5
+  classDef processing fill:#CC9950,stroke:#003F51,color:#FFFFFF,stroke-width:0px,rx:5
+  classDef ss3output fill:#003F51,stroke:#BFD7DF,color:#FFFFFF,stroke-width:0px,rx:5
+  classDef actionbutton fill:#42797F,stroke:#42797F,color:#FFFFFF,stroke-width:0px,rx:20
 
   class A1_script,A1_zip rawdata
   class UI,UI_inputs usercontrol
@@ -137,8 +142,8 @@ graph LR
   class O1,O2,O3,O4 ss3output
   class ActionGenerate,ActionRun actionbutton
 
-  style Data_Inputs fill:#F0F7F9,stroke:#003F51
+  style Data_Inputs fill:#F9F9F9,stroke:#ddd,stroke-dasharray: 5 5
   style User_Interface fill:#F0F7F9,stroke:#003F51
-  style Processing_&_Analysis fill:#F0F7F9,stroke:#003F51
-  style Outputs fill:#F0F7F9,stroke:#003F51
+  style Processing_Analysis fill:#FFF8E1,stroke:#CC9950
+  style Outputs fill:#EEF4F6,stroke:#003F51
 ```
