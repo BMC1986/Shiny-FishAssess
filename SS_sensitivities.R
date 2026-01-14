@@ -1189,7 +1189,79 @@ if (length(params_to_run) > 0) {
         # Write the modified content back to the file
         writeLines(lines, par_file)
         
+        # message(lines)
+        
         message("Fixed SRparm labels in ", par_file)
+        
+        message("Start SS_readpar_3.30")
+        
+        message("run_dir: ", run_dir )
+        
+        # --- START FIX: Handle mismatched recdev_early_start ---
+        # Problem: If control file has "2" but par file has 75 devs, SS_readpar crashes.
+        # Solution: Count devs in par file and auto-correct control file before reading.
+        
+        local({
+          ctl_path <- file.path(run_dir, "control_modified.ss")
+          par_path <- file.path(run_dir, "ss3.par")
+          
+          if(file.exists(ctl_path) && file.exists(par_path)) {
+            ctl_lines <- readLines(ctl_path)
+            par_lines <- readLines(par_path)
+            
+            # 1. Find recdev_early_start in Control file
+            idx_start <- grep("recdev_early_start", ctl_lines)
+            if (length(idx_start) > 0) {
+              # Extract the value (assumes format "VALUE #_comment")
+              val_str <- strsplit(trimws(ctl_lines[idx_start]), "\\s+")[[1]][1]
+              val <- suppressWarnings(as.numeric(val_str))
+              
+              # Check if it's a suspicious value (e.g., small integer like 2, but not 0 or negative)
+              # Standard years are usually > 1900.
+              if (!is.na(val) && val > 0 && val < 1800) {
+                message("Detected suspicious 'recdev_early_start' value: ", val, ". Attempting to fix...")
+                
+                # 2. Count actual early devs in Par file
+                # Find the line starting with "# recdev_early"
+                idx_par_section <- grep("^# recdev_early", par_lines)
+                
+                if (length(idx_par_section) > 0) {
+                  # Find the start of the NEXT section (next line starting with #)
+                  all_hash_lines <- grep("^#", par_lines)
+                  idx_next_section <- all_hash_lines[all_hash_lines > idx_par_section][1]
+                  
+                  if(!is.na(idx_next_section)) {
+                    # Extract lines between header and next section
+                    dev_lines <- par_lines[(idx_par_section + 1):(idx_next_section - 1)]
+                    
+                    # Convert to one long string and split by whitespace to count numbers
+                    dev_vals <- as.numeric(unlist(strsplit(paste(dev_lines, collapse=" "), "\\s+")))
+                    dev_vals <- dev_vals[!is.na(dev_vals)] # Remove NAs from empty lines/spaces
+                    n_early_devs <- length(dev_vals)
+                    
+                    message("...Found ", n_early_devs, " early recruitment deviations in ss3.par.")
+                    
+                    # 3. Find MainRdevYrFirst to calculate the correct Start Year
+                    idx_main_yr <- grep("first year of main recr_devs", ctl_lines)
+                    if(length(idx_main_yr) > 0) {
+                      main_yr_str <- strsplit(trimws(ctl_lines[idx_main_yr]), "\\s+")[[1]][1]
+                      main_yr <- as.numeric(main_yr_str)
+                      
+                      # Calculate correct start year: MainYear - NumberOfDevs
+                      correct_start <- main_yr - n_early_devs
+                      
+                      # 4. Modify Control File
+                      ctl_lines[idx_start] <- paste0(correct_start, " #_recdev_early_start (Auto-corrected from ", val, " by SS_sensitivities.R)")
+                      writeLines(ctl_lines, ctl_path)
+                      message("...Updated control_modified.ss: changed recdev_early_start to ", correct_start)
+                    }
+                  }
+                }
+              }
+            }
+          }
+        })
+        # --- END FIX ---
         
         # read the par file
         par <- SS_readpar_3.30(parfile = file.path(run_dir, "ss3.par"), datsource = file.path(run_dir,"datafile.dat"),
@@ -1198,6 +1270,7 @@ if (length(params_to_run) > 0) {
         # par <- SS_readpar_3.30(parfile = file.path(model_dir, "ss3.par"), datsource = file.path(model_dir,"datafile.dat"),
                                # ctlsource = file.path(model_dir, "controlfile.ctl"), verbose = T)
         
+        message("Finished SS_readpar_3.30")
         
         if (param == "SR_LN(R0)") {
           message("Changing SR_LN(R0) in par file")
