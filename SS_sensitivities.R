@@ -516,16 +516,42 @@ if (sensitivity_options$retrospective) {
                     minbthresh = 0.2,
                     png = TRUE)
   
-  mohns <- SSmohnsrho(retroSummary, endyrvec, verbose = TRUE)
+  # message("Before calulcatuion of SSmohnsrho.")
+  # # mohns <- SSmohnsrho(retroSummary, endyrvec, verbose = TRUE)
+  # mohns <- SSmohnsrho(retroSummary, endyrvec, startyr = head(retroSummary$SpawnBio$Yr[1]), verbose = TRUE)
+  # 
+  # library(tibble)
+  # message("Before enframe(mohns).")
+  # df <- enframe(mohns)
+  # message("Before apply(df, 2, as.character)")
+  # df <- apply(df, 2, as.character)
+  # write.csv(df, file = file.path(plot_dir, "MohnsRho.csv"))
+  # 
+  # ## Stop the cluster
+  # message("Shutting down parallel cluster.")
+  # parallel::stopCluster(my_cluster)
   
-  library(tibble)
-  df <- enframe(mohns)
-  df <- apply(df, 2, as.character)
-  write.csv(df, file = file.path(plot_dir, "MohnsRho.csv"))
+  message("Attempting calculation of SSmohnsrho...")
   
-  ## Stop the cluster
-  message("Shutting down parallel cluster.")
-  parallel::stopCluster(my_cluster)
+  tryCatch({
+    # Attempt to calculate Mohn's Rho
+    # Note: I also tweaked the startyr extraction to be a bit safer: head(..., 1)
+    mohns <- SSmohnsrho(retroSummary, endyrvec, startyr = head(retroSummary$SpawnBio$Yr, 1), verbose = TRUE)
+    
+    library(tibble)
+    # message("Before enframe(mohns).")
+    df <- enframe(mohns)
+    # message("Before apply(df, 2, as.character)")
+    df <- apply(df, 2, as.character)
+    write.csv(df, file = file.path(plot_dir, "MohnsRho.csv"))
+    message("Mohn's Rho calculated and saved successfully.")
+    
+  }, error = function(e) {
+    # This block runs if SSmohnsrho (or the saving steps) fail
+    message("\nWARNING: SSmohnsrho crashed. Skipping Mohn's Rho calculation.")
+    message("The specific error was: ", conditionMessage(e))
+    message("Continuing with the rest of the script...\n")
+  })
   
 }
 
