@@ -2525,6 +2525,58 @@ if(any(sensitivity_options$fixed_param_scenarios,
   message("Fixed parameter scenarios and data weighting are not enabled. Skipping this section.")
 }
 
+# --- DIAGNOSTICS: CONSOLIDATE PLOTS ---
+message("\n--- Consolidating Key Diagnostic Plots ---")
+
+# 1. Create the diagnostics folder
+diagnostics_dir <- file.path(sensitivity_options$model_folder, "diagnostics")
+if (!dir.exists(diagnostics_dir)) {
+  dir.create(diagnostics_dir, recursive = TRUE)
+  message(paste("Created diagnostics directory:", diagnostics_dir))
+}
+
+# 2. Define the list of files to look for (Relative paths)
+#    Note: We check multiple potential paths for NatM just in case
+plots_to_copy <- c(
+  # Jitter
+  file.path("jitter_parallel", "plots", "Jitter_Comparison_Plot.png"),
+  
+  # Retrospective
+  file.path("retro", "plots", "compare4_Bratio_uncertainty.png"),
+  
+  # Fixed Parameter Scenarios
+  file.path("fixed_parameter_scenarios", "plots", "compare7_Fvalue.png"),
+  file.path("fixed_parameter_scenarios", "plots", "compare3_Bratio.png"),
+  file.path("fixed_parameter_scenarios", "plots", "compare11_recdevs.png"),
+  
+  # Profiles - Depletion & Biomass (Underscore separator in filename)
+  file.path("profile", "Depl", "plots", "profile_plot_likelihood_Current depletion.png"),
+  file.path("profile", "CurSB", "plots", "profile_plot_likelihood_Current spawning biomass.png"),
+  
+  # Profiles - Parameters (Dash separator in filename)
+  file.path("profile", "SR_BH_steep", "plots", "profile_plot_likelihood - Steepness (h).png"),
+  file.path("profile", "SR_LN(R0)", "plots", "profile_plot_likelihood - SR_LN(R0).png"),
+  file.path("profile", "NatM_uniform_Fem_GP_1", "plots", "profile_plot_likelihood - Natural mortality (M).png"),
+  
+  # Fallback for NatM vector if used
+  file.path("profile", "NatM_vector", "plots", "profile_plot_likelihood - Natural mortality (M) vector.png")
+)
+
+# 3. Copy the files
+count_copied <- 0
+for (rel_path in plots_to_copy) {
+  full_source_path <- file.path(sensitivity_options$model_folder, rel_path)
+  
+  if (file.exists(full_source_path)) {
+    success <- file.copy(from = full_source_path, to = diagnostics_dir, overwrite = TRUE)
+    if (success) {
+      count_copied <- count_copied + 1
+    }
+  }
+}
+
+message(paste("Successfully copied", count_copied, "plots to the 'diagnostics' folder."))
+
 # --- GLOBAL ERROR HANDLER END ---
 }, error = function(e) {
   # This block runs if ANYTHING in the script crashes

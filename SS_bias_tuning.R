@@ -12,8 +12,11 @@ generate_DPIRD_plots <- function(replist, output_dir) {
   dpird_dir <- file.path(output_dir, "DPIRD_plots")
   if (!dir.exists(dpird_dir)) dir.create(dpird_dir, recursive = TRUE, showWarnings = FALSE)
   
-  # Load ggplot2 if not already loaded (useful for background scripts)
+  # Load ggplot2 if not already loaded
   if (!"package:ggplot2" %in% search()) suppressPackageStartupMessages(library(ggplot2))
+  
+  # Retrieve the model end year to distinguish history from forecast
+  end_year <- replist$endyr
   
   # =========================================================================
   # PLOT 1: FRACTION OF UNFISHED SPAWNING BIOMASS (Depletion)
@@ -28,14 +31,19 @@ generate_DPIRD_plots <- function(replist, output_dir) {
     df$Year <- as.numeric(sub("Bratio_", "", df$Label))
     df <- df[order(df$Year), ]
     
-    # Intervals
+    # Calculate Intervals
     df$lo_95 <- pmax(0, df$Value - 1.96 * df$StdDev)
     df$hi_95 <- df$Value + 1.96 * df$StdDev
     z_60 <- qnorm(0.8) 
     df$lo_60 <- pmax(0, df$Value - z_60 * df$StdDev)
     df$hi_60 <- df$Value + z_60 * df$StdDev
     
-    p_dep <- ggplot(df, aes(x = Year, y = Value)) +
+    # Split into Historical and Forecast data frames
+    # Overlapping at end_year ensures the lines connect
+    df_hist <- df[df$Year <= end_year, ]
+    df_fore <- df[df$Year >= end_year, ]
+    
+    p_dep <- ggplot(data = df, aes(x = Year, y = Value)) +
       # Reference Lines
       geom_hline(yintercept = 0.4, linetype = "dashed", color = "darkgreen", linewidth = 0.7) + 
       annotate("text", x = min(df$Year), y = 0.4, label = "Target (0.4)", hjust = 0, vjust = -0.5, color = "darkgreen", size = 3.5, fontface = "bold") +
@@ -43,14 +51,27 @@ generate_DPIRD_plots <- function(replist, output_dir) {
       annotate("text", x = min(df$Year), y = 0.3, label = "Threshold (0.3)", hjust = 0, vjust = -0.5, color = "orange", size = 3.5, fontface = "bold") +
       geom_hline(yintercept = 0.2, linetype = "dashed", color = "red", linewidth = 0.7) + 
       annotate("text", x = min(df$Year), y = 0.2, label = "Limit (0.2)", hjust = 0, vjust = -0.5, color = "red", size = 3.5, fontface = "bold") +
-      # Ribbons & Line
-      geom_ribbon(aes(ymin = lo_95, ymax = hi_95), fill = "grey80", alpha = 0.6) +
-      geom_ribbon(aes(ymin = lo_60, ymax = hi_60), fill = "grey60", alpha = 0.6) +
-      geom_line(linewidth = 1.2, color = "black") +
+      
+      # Historical Ribbons (Darker/Standard)
+      geom_ribbon(data = df_hist, aes(ymin = lo_95, ymax = hi_95), fill = "grey80", alpha = 0.6) +
+      geom_ribbon(data = df_hist, aes(ymin = lo_60, ymax = hi_60), fill = "grey60", alpha = 0.6) +
+      
+      # Forecast Ribbons (Lighter/Different to distinguish)
+      geom_ribbon(data = df_fore, aes(ymin = lo_95, ymax = hi_95), fill = "grey95", alpha = 0.6) +
+      geom_ribbon(data = df_fore, aes(ymin = lo_60, ymax = hi_60), fill = "grey85", alpha = 0.6) +
+      
+      # Historical Line (Solid)
+      geom_line(data = df_hist, linewidth = 1.2, color = "black", linetype = "solid") +
+      
+      # Forecast Line (Dotted)
+      geom_line(data = df_fore, linewidth = 1.2, color = "black", linetype = "dotted") +
+      
       # Formatting
       scale_y_continuous(expand = expansion(mult = c(0, 0.05)), limits = c(0, NA)) +
       scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
-      labs(title = "Fraction of Unfished Spawning Biomass", subtitle = "Shading: 60% (dark) and 95% (light) intervals", y = "Fraction of Unfished", x = "Year") +
+      labs(title = "Fraction of Unfished Spawning Biomass", 
+           subtitle = "Solid: Historical | Dotted: Forecast (lighter shading)", 
+           y = "Fraction of Unfished", x = "Year") +
       theme_classic(base_family = "Arial") +
       theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 16),
             plot.subtitle = element_text(hjust = 0.5, size = 12),
@@ -82,19 +103,21 @@ generate_DPIRD_plots <- function(replist, output_dir) {
     df_f$lo_60 <- pmax(0, df_f$Value - z_60 * df_f$StdDev)
     df_f$hi_60 <- df_f$Value + z_60 * df_f$StdDev
     
+    # Split into Historical and Forecast data frames
+    df_f_hist <- df_f[df_f$Year <= end_year, ]
+    df_f_fore <- df_f[df_f$Year >= end_year, ]
+    
     # 3. Calculate Reference Points based on Natural Mortality (M)
     NatM <- NA
-    # Search parameters for M (usually NatM_uniform_Fem_GP_1 or similar)
     m_match <- grep("NatM", replist$parameters$Label)
     if (length(m_match) > 0) {
       NatM <- replist$parameters$Value[m_match[1]]
     }
     
-    p_f <- ggplot(df_f, aes(x = Year, y = Value))
+    p_f <- ggplot(data = df_f, aes(x = Year, y = Value))
     
     # Add Reference Lines if M was found
     if (!is.na(NatM)) {
-      # Standard DPIRD Reference Points
       F_targ <- (2/3) * NatM
       F_thresh <- NatM
       F_lim <- 1.5 * NatM
@@ -118,13 +141,26 @@ generate_DPIRD_plots <- function(replist, output_dir) {
     
     # Add Ribbons and Lines
     p_f <- p_f +
-      geom_ribbon(aes(ymin = lo_95, ymax = hi_95), fill = "grey80", alpha = 0.6) +
-      geom_ribbon(aes(ymin = lo_60, ymax = hi_60), fill = "grey60", alpha = 0.6) +
-      geom_line(linewidth = 1.2, color = "black") +
+      # Historical Ribbons
+      geom_ribbon(data = df_f_hist, aes(ymin = lo_95, ymax = hi_95), fill = "grey80", alpha = 0.6) +
+      geom_ribbon(data = df_f_hist, aes(ymin = lo_60, ymax = hi_60), fill = "grey60", alpha = 0.6) +
+      
+      # Forecast Ribbons (Lighter)
+      geom_ribbon(data = df_f_fore, aes(ymin = lo_95, ymax = hi_95), fill = "grey95", alpha = 0.6) +
+      geom_ribbon(data = df_f_fore, aes(ymin = lo_60, ymax = hi_60), fill = "grey85", alpha = 0.6) +
+      
+      # Historical Line (Solid)
+      geom_line(data = df_f_hist, linewidth = 1.2, color = "black", linetype = "solid") +
+      
+      # Forecast Line (Dotted)
+      geom_line(data = df_f_fore, linewidth = 1.2, color = "black", linetype = "dotted") +
+      
       # Formatting
       scale_y_continuous(expand = expansion(mult = c(0, 0.05)), limits = c(0, NA)) +
       scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
-      labs(title = "Fishing Mortality (F)", subtitle = "Shading: 60% (dark) and 95% (light) intervals", y = "Fishing Mortality (F)", x = "Year") +
+      labs(title = "Fishing Mortality (F)", 
+           subtitle = "Solid: Historical | Dotted: Forecast (lighter shading)", 
+           y = "Fishing Mortality (F)", x = "Year") +
       theme_classic(base_family = "Arial") +
       theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 16),
             plot.subtitle = element_text(hjust = 0.5, size = 12),
@@ -319,12 +355,15 @@ tryCatch({
   } else if (run_step == "full_sequence") {
     cat("--- EXECUTING: Full Tuning Sequence ---\n")
     
-    ## MODIFIED: Define the weighting suffix and combine it with the base name to create a full prefix for all subsequent folders.
+    # Initialize a list to track folders we want to delete later
+    dirs_to_remove <- c()
+    
+    ## MODIFIED: Define the weighting suffix and combine it with the base name
     weighting_suffix <- if (!is.null(weighting_method)) {
       switch(weighting_method,
              "francis" = "_WtFr",
              "dirichlet" = "_WtDir",
-             "") # Default case
+             "") 
     } else {
       ""
     }
@@ -335,8 +374,12 @@ tryCatch({
       
       replist1 <- r4ss::SS_output(dir = model_dir, verbose = FALSE, printstats = FALSE, covar = TRUE)
       
-      ## MODIFIED: Use the new full_prefix for the folder name.
+      ## Step 2.2: First Bias Adjustment
       first_bias_dir_name <- paste0(full_prefix, "_first_bias_adj")
+      
+      # Mark this folder for deletion later
+      dirs_to_remove <- c(dirs_to_remove, file.path(tuning_dir, first_bias_dir_name))
+      
       replist2 <- perform_bias_ramp(replist1, first_bias_dir_name)
       
       cat(paste("Step 2.3: Performing Composition Weighting using", weighting_method, "method...\n"))
@@ -344,10 +387,12 @@ tryCatch({
       replist_before_final_bias_adj <- NULL
       
       cat("    -> Francis Tuning (3 iterations)...\n")
+      
       # Iteration 1
-      ## MODIFIED: Use the new full_prefix for the folder name.
       modelrun3_dir_name <- paste0(full_prefix, "_francis1")
       modelrun3_dir <- file.path(tuning_dir, modelrun3_dir_name)
+      dirs_to_remove <- c(dirs_to_remove, modelrun3_dir) # Mark for deletion
+      
       r4ss::copy_SS_inputs(dir.old = replist2$inputs$dir, dir.new = modelrun3_dir, overwrite = TRUE, copy_exe = TRUE)
       tuning_table_1 <- r4ss::tune_comps(replist2, option = "Francis", write = TRUE, dir = modelrun3_dir, verbose = FALSE, plot = FALSE)
       ctl_2 <- r4ss::SS_readctl(file.path(replist2$inputs$dir, starter_file_orig$ctlfile), verbose = FALSE, use_datlist = TRUE, datlist = file.path(replist2$inputs$dir, starter_file_orig$datfile))
@@ -365,9 +410,10 @@ tryCatch({
       replist3 <- r4ss::SS_output(dir = modelrun3_dir, verbose = FALSE, printstats = FALSE, covar = TRUE)
       
       # Iteration 2
-      ## MODIFIED: Use the new full_prefix for the folder name.
       modelrun4_dir_name <- paste0(full_prefix, "_francis2")
       modelrun4_dir <- file.path(tuning_dir, modelrun4_dir_name)
+      dirs_to_remove <- c(dirs_to_remove, modelrun4_dir) # Mark for deletion
+      
       r4ss::copy_SS_inputs(dir.old = modelrun3_dir, dir.new = modelrun4_dir, overwrite = TRUE, copy_exe = TRUE)
       tuning_table_2 <- r4ss::tune_comps(replist3, option = "Francis", write = TRUE, dir = modelrun4_dir, verbose = FALSE, plot = FALSE)
       ctl_3 <- r4ss::SS_readctl(file.path(modelrun3_dir, starter_file_orig$ctlfile), verbose = FALSE, use_datlist = TRUE, datlist = file.path(modelrun3_dir, starter_file_orig$datfile))
@@ -378,9 +424,10 @@ tryCatch({
       replist4 <- r4ss::SS_output(dir = modelrun4_dir, verbose = FALSE, printstats = FALSE, covar = TRUE)
       
       # Iteration 3
-      ## MODIFIED: Use the new full_prefix for the folder name.
       modelrun5_dir_name <- paste0(full_prefix, "_francis3")
       modelrun5_dir <- file.path(tuning_dir, modelrun5_dir_name)
+      dirs_to_remove <- c(dirs_to_remove, modelrun5_dir) # Mark for deletion
+      
       r4ss::copy_SS_inputs(dir.old = modelrun4_dir, dir.new = modelrun5_dir, overwrite = TRUE, copy_exe = TRUE)
       tuning_table_3 <- r4ss::tune_comps(replist4, option = "Francis", write = TRUE, dir = modelrun5_dir, verbose = FALSE, plot = FALSE)
       ctl_4 <- r4ss::SS_readctl(file.path(modelrun4_dir, starter_file_orig$ctlfile), verbose = FALSE, use_datlist = TRUE, datlist = file.path(modelrun4_dir, starter_file_orig$datfile))
@@ -399,19 +446,16 @@ tryCatch({
       
       cat("    -> Dirichlet Tuning ...\n")
       
-      ## MODIFIED: Use the new full_prefix for the folder name.
       modelrun3_dir_name <- paste0(full_prefix, "_dirichlet1")
       modelrun3_dir <- file.path(tuning_dir, modelrun3_dir_name)
-      # r4ss::copy_SS_inputs(dir.old = replist1$inputs$dir, dir.new = modelrun3_dir, overwrite = TRUE, copy_exe = TRUE)
       
-      # --- FIX STARTS HERE ---
-      # 1. Copy inputs but NOT the exe (set copy_exe = FALSE)
+      dirs_to_remove <- c(dirs_to_remove, modelrun3_dir) # Mark for deletion
+      
+      # 1. Copy inputs but NOT the exe
       r4ss::copy_SS_inputs(dir.old = replist1$inputs$dir, dir.new = modelrun3_dir, overwrite = TRUE, copy_exe = FALSE)
       
-      # 2. Manually copy the clean executable from the source path
-      # This ensures you aren't copying a potentially locked/corrupted file from the previous folder
+      # 2. Manually copy the clean executable
       file.copy(exe_path, file.path(modelrun3_dir, exe_name), overwrite = TRUE)
-      # --- FIX ENDS HERE ---
       
       ctl_dirichlet <- r4ss::SS_readctl(file.path(modelrun3_dir, starter_file_orig$ctlfile), verbose = FALSE, use_datlist = TRUE, datlist = file.path(modelrun3_dir, starter_file_orig$datfile))
       dat_dirichlet <- r4ss::SS_readdat(file.path(modelrun3_dir, starter_file_orig$datfile), verbose = FALSE)
@@ -458,9 +502,11 @@ tryCatch({
       stop(paste("Unknown weighting method provided:", weighting_method))
     }
     
-    # Step 2.4: Final Bias Ramp Adjustment
-    ## MODIFIED: Use the new full_prefix for the folder name.
+    # Step 2.4: Final Bias Ramp Adjustment (The one we keep!)
     final_model_dir_name <- paste0(full_prefix, "_final_model")
+    
+    # NOTE: We do NOT add final_model_dir_name to dirs_to_remove because we want to keep it.
+    
     replist_final <- perform_bias_ramp(replist_before_final_bias_adj, final_model_dir_name)
     
     # Step 2.5: Generate plots for the final model
@@ -486,6 +532,21 @@ tryCatch({
     }, error = function(e) {
       cat(paste("Error generating DPIRD plots:", e$message, "\n"))
     })
+    
+    # --- CLEANUP STEP ---
+    cat("\n--- CLEANUP: Removing intermediate model runs ---\n")
+    if (length(dirs_to_remove) > 0) {
+      for (dir_path in dirs_to_remove) {
+        if (dir.exists(dir_path)) {
+          cat(paste("Removing:", dir_path, "\n"))
+          unlink(dir_path, recursive = TRUE)
+        } else {
+          cat(paste("Skipping (not found):", dir_path, "\n"))
+        }
+      }
+    } else {
+      cat("No intermediate folders marked for removal.\n")
+    }
     
     cat("\nFull Tuning Sequence Complete! ✅\n")
     cat(paste("Final tuned model is ready for inspection in:", final_model_dir, "\n"))
