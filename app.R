@@ -370,6 +370,8 @@ ui <- function(request) {
                                                              value = 10, min = 1, max = 100, step = 1, width = '15%'),
                                                 numericInput("min_length_input", "Minimum Length (mm, applies to length and age)",
                                                              value = 0, min = 0, step = 1, width = '15%'),
+                                                numericInput("min_sample_size_length", "Minimum Sample Size (n):",
+                                                             value = 1, min = 0, step = 1, width = '15%'),
                                                 radioButtons("length_color_by", "Colour Plots By:",
                                                              choices = c("BioRegion", "Zone", "Location", "Sector", "Sex"),
                                                              selected = "Sex",
@@ -3240,7 +3242,7 @@ server <- function(input, output, session) {
         
         
       })
-      
+
       # EventReactive data for Length Plot 1 - Retained Catch
       length_plot_data1_retained <- eventReactive(list(input$refresh_btn, refresh_trigger()), {
         current_use_fis_length <- isolate(input$use_fis_length)
@@ -3268,6 +3270,19 @@ server <- function(input, output, session) {
           filter(year %in% valid_years,
                  Discarded. == "No",
                  Location %in% valid_locations)
+        
+        # --- NEW: Minimum Sample Size Filter ---
+        if (!is.null(input$min_sample_size_length) && input$min_sample_size_length > 0) {
+          years_with_enough_data <- data %>%
+            group_by(year) %>%
+            summarise(n = n()) %>%
+            filter(n >= input$min_sample_size_length) %>%
+            pull(year)
+          
+          data <- data %>% filter(year %in% years_with_enough_data)
+        }
+        # ---------------------------------------
+        
         data
       })
       
@@ -3304,6 +3319,18 @@ server <- function(input, output, session) {
         data_released <- data_released %>%
           filter(year %in% valid_years,
                  Location %in% valid_locations)
+        
+        # --- NEW: Minimum Sample Size Filter ---
+        if (!is.null(input$min_sample_size_length) && input$min_sample_size_length > 0) {
+          years_with_enough_data <- data_released %>%
+            group_by(year) %>%
+            summarise(n = n()) %>%
+            filter(n >= input$min_sample_size_length) %>%
+            pull(year)
+          
+          data_released <- data_released %>% filter(year %in% years_with_enough_data)
+        }
+        # ---------------------------------------
         
         message("length_plot_data1_released: Rows after filtering = ", nrow(data_released))
         data_released
@@ -3345,6 +3372,18 @@ server <- function(input, output, session) {
                    BioRegion %in% sel_bioregions,
                    Zone %in% sel_zones,
                    Location %in% sel_locations)
+          
+          # --- NEW: Minimum Sample Size Filter ---
+          if (!is.null(input$min_sample_size_length) && input$min_sample_size_length > 0) {
+            years_with_enough_data <- filtered_data %>%
+              group_by(year) %>%
+              summarise(n = n()) %>%
+              filter(n >= input$min_sample_size_length) %>%
+              pull(year)
+            
+            filtered_data <- filtered_data %>% filter(year %in% years_with_enough_data)
+          }
+          # ---------------------------------------
           
           if (nrow(filtered_data) == 0) {
             return(data.frame()) # Return empty data frame if filters yield no results
@@ -3926,11 +3965,18 @@ server <- function(input, output, session) {
         num_fill_values <- length(valid_fill_values)
         legend_ncol <- if (num_fill_values > 0) min(num_fill_values, 3) else 1
         
+        # ggplot(data, aes(x = .data[[age_col]], fill = .data[[fill_col]])) +
+        #   geom_bar(aes(y = after_stat(count) / tapply(after_stat(count), after_stat(PANEL), sum)[after_stat(PANEL)]),
+        #            colour = "black") +
+        #   labs(x = "Age (years)", y = "Proportion", fill = fill_col) +
+        #   facet_rep_wrap(year ~ ., scales = "fixed", ncol = 1, dir = "v") +
+        #   theme_classic(base_family = "Arial") +
+        #   theme(strip.background = element_blank(), strip.text = element_blank(),
         ggplot(data, aes(x = .data[[age_col]], fill = .data[[fill_col]])) +
           geom_bar(aes(y = after_stat(count) / tapply(after_stat(count), after_stat(PANEL), sum)[after_stat(PANEL)]),
                    colour = "black") +
           labs(x = "Age (years)", y = "Proportion", fill = fill_col) +
-          facet_rep_wrap(year ~ ., scales = "fixed", ncol = 1, dir = "v") +
+          facet_wrap(~ year, scales = "fixed", ncol = 1, dir = "v") +      # <--- FIXED
           theme_classic(base_family = "Arial") +
           theme(strip.background = element_blank(), strip.text = element_blank(),
                 legend.title.position = "top", legend.key.width = unit(0.5, "cm"),
@@ -5187,7 +5233,7 @@ server <- function(input, output, session) {
       })
       # --- END: Observer for Loading State from Uploaded ZIP ---
       
-      
+
       # Handler for batch running SS3 with multiple uploaded ZIP files (PARALLEL VERSION)
       observeEvent(input$run_batch_ss3_btn, {
         req(input$upload_zip)
@@ -5215,10 +5261,13 @@ server <- function(input, output, session) {
         
         results <- foreach(
           i = seq_len(nrow(zip_files)),
-          .packages = c('r4ss', 'zip', 'stringr'),
+          # 1. LOAD NECESSARY PACKAGES (ggplot2 is critical for DPIRD plots)
+          .packages = c('r4ss', 'zip', 'stringr', 'ggplot2', 'dplyr'),
+          # 2. EXPORT CUSTOM FUNCTION so workers can see it
+          .export = c('generate_DPIRD_plots'),
           .errorhandling = 'pass'
         ) %dopar% {
-          # MODIFIED: Initialize variables to be returned
+          
           log_output <- c()
           output_dir <- NULL
           success_flag <- FALSE
@@ -5237,20 +5286,17 @@ server <- function(input, output, session) {
             
             log_output <- c(log_output, paste("Worker", i, "processing:", current_zip_filename))
             
-            # Define the output directory path
             output_dir <- file.path(root_dir, "output", zip_basename)
             
+            # Define worker-specific zip extraction
             extract_and_validate_zip_worker <- function(zip_path, temp_dir, species) {
               unzip_dir <- file.path(temp_dir, "zip_extract")
               dir.create(unzip_dir, showWarnings = FALSE)
               zip::unzip(zip_path, exdir = unzip_dir)
               
               ss_files_to_find <- c("controlfile.ctl", "datafile.dat", "starter.ss", "forecast.ss")
-              
               input_dir_check <- file.path(unzip_dir, paste0("SS3_input_files/", species))
-              if (!dir.exists(input_dir_check)) {
-                input_dir_check <- unzip_dir 
-              }
+              if (!dir.exists(input_dir_check)) input_dir_check <- unzip_dir 
               
               found_files_paths <- file.path(input_dir_check, ss_files_to_find)
               if (!all(file.exists(found_files_paths))) {
@@ -5286,17 +5332,17 @@ server <- function(input, output, session) {
             
             r4ss::SS_plots(replist, dir = output_dir, png = TRUE, html = TRUE, printfolder = "r4ss")
             
-            
-            # DPIRD PLOTS
+            # --- DPIRD PLOTS with Fixed Logging ---
             tryCatch({
               generate_DPIRD_plots(replist, output_dir)
               log_output <- c(log_output, paste("Worker", i, "generated DPIRD plots."))
             }, error = function(e_dpird) {
-              log_output <- c(log_output, paste("Worker", i, "DPIRD Plot Error:", e_dpird$message))
+              # CRITICAL FIX: Use <<- to ensure the log update persists outside this error block
+              log_output <<- c(log_output, paste("Worker", i, "DPIRD Plot Error:", e_dpird$message))
             })
+            # ---------------------------------------
             
-            # --- START: ADDED CODE BLOCK ---
-            # Retitle HTML files to match the ZIP name for easy identification
+            # Retitle HTML files
             r4ss_plots_dir <- file.path(output_dir, "r4ss")
             if (dir.exists(r4ss_plots_dir)) {
               html_files_to_retitle <- list.files(path = r4ss_plots_dir, pattern = "\\.html$", full.names = TRUE)
@@ -5307,13 +5353,10 @@ server <- function(input, output, session) {
                   content <- stringr::str_replace_all(content, "<title>SS Output</title>", paste0("<title>", zip_basename, "</title>"))
                   writeLines(content, html_file)
                 }, error = function(e_retitle) {
-                  log_output <- c(log_output, paste("Worker", i, "failed to retitle", basename(html_file), ":", e_retitle$message))
+                  log_output <<- c(log_output, paste("Worker", i, "failed to retitle", basename(html_file), ":", e_retitle$message))
                 })
               }
-            } else {
-              log_output <- c(log_output, paste("Worker", i, "Warning: r4ss plot directory not found at", r4ss_plots_dir))
             }
-            # --- END: ADDED CODE BLOCK ---
             
             main_html_path <- file.path(output_dir, "r4ss", "00_Summary.html")
             if(!file.exists(main_html_path)) main_html_path <- NULL
@@ -5327,7 +5370,6 @@ server <- function(input, output, session) {
           })
           
           unlink(temp_dir_worker, recursive = TRUE)
-          # MODIFIED: Return a list with success status and output dir
           return(list(log = log_output, html = main_html_path, output_dir = output_dir, success = success_flag))
         }
         
@@ -5347,39 +5389,22 @@ server <- function(input, output, session) {
         
         if (length(html_files_to_open) > 0) {
           append_to_log("Opening summary HTML files for successful runs...")
-          for(html_path in html_files_to_open) {
-            browseURL(html_path)
-          }
+          for(html_path in html_files_to_open) browseURL(html_path)
         }
         
-        # --- START: New logic for automatic comparison ---
         if (isTRUE(isolate(input$run_comparison_after_batch))) {
           append_to_log("--- Checking for automatic model comparison ---")
-          
           successful_runs <- Filter(function(res) !inherits(res, "error") && isTRUE(res$success) && !is.null(res$output_dir), results)
           
           if (length(successful_runs) >= 2) {
             successful_output_dirs <- sapply(successful_runs, function(res) res$output_dir)
-            
-            append_to_log(paste("Found", length(successful_output_dirs), "successful model runs to compare:"))
-            append_to_log(paste(successful_output_dirs, collapse="\n"))
-            
-            # Wait a moment for file systems to catch up before starting the next background task
+            append_to_log(paste("Found", length(successful_output_dirs), "successful model runs to compare."))
             Sys.sleep(2) 
-            
-            # Use the refactored comparison function, which you already have in your app
-            start_model_comparison(
-              folder_paths = successful_output_dirs,
-              comparison_name_prefix = "Batch_Comparison"
-            )
-            
+            start_model_comparison(folder_paths = successful_output_dirs, comparison_name_prefix = "Batch_Comparison")
           } else {
             append_to_log("Skipping automatic comparison: Fewer than 2 successful model runs completed.")
           }
-        } else {
-          append_to_log("Skipping automatic comparison: checkbox was not selected.")
         }
-        # --- END: New logic for automatic comparison ---
       })
       
       # Handler for running SS3 with uploaded ZIP
