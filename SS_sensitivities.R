@@ -1921,221 +1921,6 @@ if (length(params_to_run) > 0) {
   message("No parameters were selected. Skipping profiling run.")
 }
 
-# # --- Fixed Parameter Scenarios (M, h, SigmaR) --------------------------------
-# if(sensitivity_options$fixed_param_scenarios) {
-#   message("\n--- Starting Fixed Parameter Scenarios (M, h, SigmaR) ---\n")
-#   
-#   # Base model directory
-#   model_name <- sensitivity_options$model_folder
-#   base_model_dir <- model_name
-#   
-#   # Define the main directory for these scenarios
-#   scenarios_main_dir <- file.path(base_model_dir, "fixed_parameter_scenarios")
-#   unlink(scenarios_main_dir, recursive = TRUE, force = TRUE) # Clean up old runs
-#   dir.create(scenarios_main_dir, showWarnings = FALSE, recursive = TRUE)
-#   plotdir <- file.path(scenarios_main_dir, "plots")
-#   dir.create(plotdir, showWarnings = FALSE, recursive = TRUE)
-#   
-#   # Load the base model output to get initial parameter values
-#   # This replist will also be part of the comparison
-#   replist_base <- SS_output(dir = base_model_dir,
-#                             verbose = FALSE,
-#                             printstats = FALSE,
-#                             covar = TRUE)
-#   
-#   # --- Retrieve initial values for h, M, and SigmaR from replist_base ---
-#   # Using the specific locations within replist_base as demonstrated in other working sections.
-#   
-#   # Helper function to safely retrieve parameter value from replist_base$parameters
-#   # This helper is generic, but we'll use specific paths for M and h.
-#   get_param_from_replist_parameters_df <- function(replist_obj, param_label) {
-#     value <- replist_obj$parameters[replist_obj$parameters$Label == param_label, "Value"]
-#     if (length(value) == 1 && !is.na(value) && is.numeric(value)) {
-#       return(value)
-#     } else {
-#       # Return NULL if not found, allowing for conditional handling for optional parameters
-#       return(NULL)
-#     }
-#   }
-#   
-#   # Steepness (h)
-#   # Access from estimated_non_dev_parameters or fallback to overall parameters
-#   h_base_val <- replist_base$estimated_non_dev_parameters["SR_BH_steep", "Value"]
-#   if (length(h_base_val) != 1 || is.na(h_base_val) || !is.numeric(h_base_val)) {
-#     # Fallback: if not in estimated_non_dev_parameters (e.g., if fixed), check overall parameters
-#     h_base_val <- get_param_from_replist_parameters_df(replist_base, "SR_BH_steep")
-#   }
-#   if (is.null(h_base_val)) { # Use is.null for robustness against get_param_from_replist_parameters_df returning NULL
-#     stop("Error: Could not retrieve a valid base value for Steepness (SR_BH_steep). Please check model outputs or control file for this parameter.")
-#   }
-#   message(paste0("Retrieved base value for Steepness (h): ", round(h_base_val, 5)))
-#   
-#   
-#   # Natural Mortality (M) for female and male
-#   # Access from MGparmAdj, as used in the profiling section
-#   M_fem_base_val <- replist_base$MGparmAdj$NatM_uniform_Fem_GP_1[1]
-#   if (length(M_fem_base_val) != 1 || is.na(M_fem_base_val) || !is.numeric(M_fem_base_val)) {
-#     stop("Error: Could not retrieve a valid base value for Female Natural Mortality (NatM_uniform_Fem_GP_1). This parameter is mandatory.")
-#   }
-#   message(paste0("Retrieved base value for Female M: ", round(M_fem_base_val, 5)))
-#   
-#   # Check for Male Natural Mortality parameter (optional in one-sex models)
-#   M_mal_base_val <- replist_base$MGparmAdj$NatM_uniform_Mal_GP_1[1]
-#   # Determine if it's a one-sex model or if male M is not found
-#   is_one_sex_model <- (length(M_mal_base_val) != 1 || is.na(M_mal_base_val) || !is.numeric(M_mal_base_val))
-#   
-#   if (is_one_sex_model) {
-#     message("Note: Male Natural Mortality (NatM_uniform_Mal_GP_1) not found or invalid. Assuming a one-sex model or only female M is specified.")
-#     # For calculation purposes, set male M to female M, though it won't be used in changepars
-#     M_mal_base_val <- M_fem_base_val 
-#   } else {
-#     message(paste0("Retrieved base value for Male M: ", round(M_mal_base_val, 5)))
-#   }
-#   
-#   
-#   # SigmaR
-#   # Access from overall parameters, as it's typically a top-level parameter
-#   SigmaR_base_val <- get_param_from_replist_parameters_df(replist_base, "SR_sigmaR")
-#   if (is.null(SigmaR_base_val)) {
-#     stop("Error: Could not retrieve a valid base value for SigmaR (SR_sigmaR). Please check model outputs or control file for this parameter.")
-#   }
-#   message(paste0("Retrieved base value for SigmaR: ", round(SigmaR_base_val, 5)))
-#   
-#   
-#   # Define scenarios and their parameters dynamically based on model type
-#   scenarios <- list(
-#     # Steepness (h)
-#     "h_plus_0.1" = list(param = "SR_BH_steep", value = h_base_val + 0.1, label = "h + 0.1"),
-#     "h_minus_0.1" = list(param = "SR_BH_steep", value = h_base_val - 0.1, label = "h - 0.1")
-#   )
-#   
-#   # Dynamically add M scenarios based on whether it's a one-sex model
-#   if (is_one_sex_model) {
-#     message("Adding M scenarios for one-sex model (only NatM_uniform_Fem_GP_1 modified).")
-#     scenarios[["M_plus_0.02"]] <- list(param = "NatM_uniform_Fem_GP_1", value = M_fem_base_val + 0.02, label = "M + 0.02")
-#     scenarios[["M_minus_0.02"]] <- list(param = "NatM_uniform_Fem_GP_1", value = M_fem_base_val - 0.02, label = "M - 0.02")
-#   } else {
-#     message("Adding M scenarios for two-sex model (both NatM_uniform_Fem_GP_1 and NatM_uniform_Mal_GP_1 modified).")
-#     scenarios[["M_plus_0.02"]] <- list(param = c("NatM_uniform_Fem_GP_1", "NatM_uniform_Mal_GP_1"), value = c(M_fem_base_val + 0.02, M_mal_base_val + 0.02), label = "M + 0.02")
-#     scenarios[["M_minus_0.02"]] <- list(param = c("NatM_uniform_Fem_GP_1", "NatM_uniform_Mal_GP_1"), value = c(M_fem_base_val - 0.02, M_mal_base_val - 0.02), label = "M - 0.02")
-#   }
-#   
-#   # Add Sigma R scenarios
-#   scenarios[["SigmaR_plus_0.1"]] <- list(param = "SR_sigmaR", value = SigmaR_base_val + 0.1, label = "SigmaR + 0.1")
-#   scenarios[["SigmaR_minus_0.1"]] <- list(param = "SR_sigmaR", value = SigmaR_base_val - 0.1, label = "SigmaR - 0.1")
-#   
-#   
-#   # Prepare directories for each scenario
-#   scenario_dirs <- character(length(scenarios))
-#   scenario_labels <- character(length(scenarios))
-#   names(scenario_dirs) <- names(scenarios)
-#   names(scenario_labels) <- names(scenarios)
-#   
-#   message("Setting up scenario directories...")
-#   for (i in seq_along(scenarios)) {
-#     scenario_name <- names(scenarios)[i]
-#     current_scenario <- scenarios[[i]]
-#     dir_path <- file.path(scenarios_main_dir, scenario_name)
-#     dir.create(dir_path, showWarnings = FALSE, recursive = TRUE)
-#     
-#     # Copy base model files
-#     r4ss::copy_SS_inputs(
-#       dir.old = base_model_dir,
-#       dir.new = dir_path,
-#       overwrite = TRUE,
-#       copy_exe = TRUE,
-#       verbose = FALSE
-#     )
-#     
-#     # Modify the control file for the specific scenario
-#     new_ctl_file <- "control_scenario.ss"
-#     SS_changepars(
-#       dir = dir_path,
-#       ctlfile = "controlfile.ctl",
-#       newctlfile = new_ctl_file,
-#       strings = current_scenario$param,
-#       newvals = current_scenario$value,
-#       verbose = FALSE,
-#       # Ensure 'estimate' is a vector of FALSE values, matching the length of 'strings'
-#       estimate = rep(FALSE, length(current_scenario$param))
-#     )
-#     
-#     # Modify the starter file to point to the new control file
-#     starter_path <- file.path(dir_path, "starter.ss")
-#     starter <- SS_readstarter(starter_path, verbose = FALSE)
-#     starter[["ctlfile"]] <- new_ctl_file
-#     SS_writestarter(starter, dir = dir_path, overwrite = TRUE, verbose = FALSE)
-#     
-#     scenario_dirs[i] <- dir_path
-#     scenario_labels[i] <- current_scenario$label
-#   }
-#   message("Scenario directories prepared.")
-#   
-#   # Run models in parallel
-#   n_cores <- parallel::detectCores() - 1 # Use all but one core
-#   if (n_cores < 1) n_cores <- 1 # Ensure at least one core is used
-#   
-#   message(paste("Running", length(scenarios), "fixed parameter scenarios on", n_cores, "cores."))
-#   my_cluster <- parallel::makeCluster(n_cores)
-#   doParallel::registerDoParallel(my_cluster)
-#   
-#   start_time <- Sys.time()
-#   message(paste("Parallel execution started:", start_time))
-#   
-#   
-#   foreach(
-#     dir = scenario_dirs,
-#     .packages = 'r4ss'
-#   ) %dopar% {
-#     r4ss::run(dir = dir, exe = "ss")
-#   }
-#   
-#   parallel::stopCluster(my_cluster)
-#   message("Finished running all fixed parameter scenario models.")
-#   
-#   end_time <- Sys.time()
-#   duration_paralell.fixed_params <- end_time - start_time
-#   message(paste("Fixed Parameter Scenarios Parallel execution took:", round(duration_paralell.fixed_params, 2), units(duration_paralell.fixed_params)))
-#   
-#   
-#   # Gather results and plot comparisons
-#   message("Gathering results for comparison...")
-#   
-#   # Include the base model in the list of directories to summarize
-#   all_dirs_to_summarize <- c(base_model_dir, scenario_dirs)
-#   all_labels <- c("Base Model", scenario_labels)
-#   
-#   # Get outputs from all models
-#   all_models_output <- SSgetoutput(
-#     dirvec = all_dirs_to_summarize,
-#     getcovar = FALSE # Only need Report.sso and CompReport.sso for comparisons
-#   )
-#   
-#   # Summarize the outputs
-#   all_summary <- SSsummarize(all_models_output)
-#   message("All model outputs summarised.")
-#   
-#   # Plot comparisons
-#   message("Generating comparison plots...")
-#   SSplotComparisons(
-#     summaryoutput = all_summary,
-#     legendlabels = all_labels,
-#     plotdir = plotdir,
-#     plot = FALSE, # Set to FALSE if you only want PNGs, TRUE for interactive plots
-#     print = TRUE, # Always print to PNG
-#     png = TRUE, # Explicitly save as PNG
-#     btarg = 0.4, # Example: target biomass level
-#     minbthresh = 0.2, # Example: minimum biomass threshold
-#     verbose = FALSE
-#   )
-#   
-#   message("Fixed Parameter Scenarios analysis complete. Plots saved to ", plotdir)
-# } else {
-#   message("Fixed parameter scenarios are not enabled. Skipping this section.")
-# }
-# 
-# 
-# 
 
 
 # --- Fixed Parameter Scenarios (M, h, SigmaR, and Data Weighting) --------------------------------
@@ -2149,19 +1934,6 @@ if(any(sensitivity_options$fixed_param_scenarios,
   # Base model directory
   model_name <- sensitivity_options$model_folder
   base_model_dir <- model_name
-  
-  
-  
-  ## START - Manual values for testing
-  # model_name <- "aa_est"
-  # base_model_dir <- "C:/Users/bxc/OneDrive - Department of Primary Industries And Regional Development/SADA/Shiny-FishAssess/output/aa_est"
-  # 
-  # sensitivity_options <- list(
-  #   fixed_param_scenarios = FALSE,
-  #   comp_weight_scenario = TRUE,
-  #   index_weight_scenario = FALSE
-  # )
-  ## END - Manual values for testing
   
   # Define the main directory for these scenarios
   scenarios_main_dir <- file.path(base_model_dir, "fixed_parameter_scenarios")
@@ -2181,6 +1953,7 @@ if(any(sensitivity_options$fixed_param_scenarios,
   
   # --- Define Scenarios for M, h, SigmaR if selected ---
   if(isTRUE(sensitivity_options$fixed_param_scenarios)) {
+    
     # Helper function to safely retrieve parameter value
     get_param_from_replist_parameters_df <- function(replist_obj, param_label) {
       value <- replist_obj$parameters[replist_obj$parameters$Label == param_label, "Value"]
@@ -2196,110 +1969,120 @@ if(any(sensitivity_options$fixed_param_scenarios,
     if (length(h_base_val) != 1 || is.na(h_base_val) || !is.numeric(h_base_val)) {
       h_base_val <- get_param_from_replist_parameters_df(replist_base, "SR_BH_steep")
     }
-    if (is.null(h_base_val)) { stop("Error: Could not retrieve a valid base value for Steepness (SR_BH_steep).") }
-    message(paste0("Retrieved base value for Steepness (h): ", round(h_base_val, 5)))
-    
-    # # Natural Mortality (M)
-    # M_fem_base_val <- replist_base$MGparmAdj$NatM_uniform_Fem_GP_1[1]
-    # if (length(M_fem_base_val) != 1 || is.na(M_fem_base_val) || !is.numeric(M_fem_base_val)) { stop("Error: Could not retrieve a valid base value for Female Natural Mortality (NatM_uniform_Fem_GP_1).") }
-    # message(paste0("Retrieved base value for Female M: ", round(M_fem_base_val, 5)))
-    # 
-    # M_mal_base_val <- replist_base$MGparmAdj$NatM_uniform_Mal_GP_1[1]
-    # is_one_sex_model <- (length(M_mal_base_val) != 1 || is.na(M_mal_base_val) || !is.numeric(M_mal_base_val))
-    # 
-    # if (is_one_sex_model) {
-    #   message("Note: Male Natural Mortality not found. Assuming a one-sex model.")
-    #   M_mal_base_val <- M_fem_base_val 
-    # } else {
-    #   message(paste0("Retrieved base value for Male M: ", round(M_mal_base_val, 5)))
-    # }
-    
-    # --- Natural Mortality (M) ---
-    # Step 1: Get base VALUES from Report file (replist_base)
-    # We use the report file to get the starting value (1.05, etc.)
-    mg_param_names <- names(replist_base$MGparmAdj)
-    
-    # Find the report file name (e.g., "NatM_uniform_Fem_GP_1")
-    M_fem_name_report <- grep("NatM.*Fem.*GP_1", mg_param_names, value = TRUE)[1]
-    
-    if (is.na(M_fem_name_report)) {
-      stop("Error: Could not find a parameter matching 'NatM.*Fem.*GP_1' in Report file.")
-    }
-    
-    # Retrieve base value
-    M_fem_base_val <- replist_base$MGparmAdj[[M_fem_name_report]][1]
-    message(paste0("Retrieved base value for Female M: ", round(M_fem_base_val, 5)))
-    
-    # Check for Male M in Report
-    M_mal_name_report <- grep("NatM.*Mal.*GP_1", mg_param_names, value = TRUE)[1]
-    
-    is_one_sex_model <- FALSE
-    if (is.na(M_mal_name_report)) {
-      message("Note: Male Natural Mortality parameter not found in Report. Assuming a one-sex model.")
-      is_one_sex_model <- TRUE
-      M_mal_base_val <- M_fem_base_val 
+    if (is.null(h_base_val)) { 
+      warning("Could not retrieve a valid base value for Steepness (SR_BH_steep).") 
     } else {
-      M_mal_base_val <- replist_base$MGparmAdj[[M_mal_name_report]][1]
-      message(paste0("Retrieved base value for Male M: ", round(M_mal_base_val, 5)))
+      message(paste0("Retrieved base value for Steepness (h): ", round(h_base_val, 5)))
     }
     
-    # --- Step 2: Resolve Control File LABELS (Critical Fix) ---
-    # SS_changepars looks at the control file, not the report file. 
-    # The names can differ (e.g. "NatM_uniform..." vs "NatM_p_1...").
-    # We must find the EXACT label used in the .ctl file.
+    # --- Natural Mortality (M) Logic ---
+    use_M_vector_strategy <- FALSE
+    M_fem_name_ctl <- NA
+    M_mal_name_ctl <- NA
+    is_one_sex_model <- FALSE
     
+    # Try to find SINGLE parameters first
     ctl_params <- r4ss::SS_parlines(ctlfile = file.path(base_model_dir, "controlfile.ctl"), verbose = FALSE)
-    
-    # Find Female Label in Control File
     M_fem_name_ctl <- grep("NatM.*Fem.*GP_1", ctl_params$Label, value = TRUE)[1]
     
     if (is.na(M_fem_name_ctl)) {
-      # If not found in CTL, warn and fallback to report name (risky but better than crashing immediately)
-      warning("Could not find NatM label in Control File matching regex. Trying Report label.")
-      M_fem_name_ctl <- M_fem_name_report 
+      message("Single NatM parameter not found in Control File. Assuming NatM Vector configuration.")
+      use_M_vector_strategy <- TRUE
     } else {
       message(paste0("Identified Control File label for Female M: '", M_fem_name_ctl, "'"))
-    }
-    
-    # Find Male Label in Control File (if two-sex)
-    M_mal_name_ctl <- NULL
-    if (!is_one_sex_model) {
+      
+      # Retrieve base value for reporting
+      M_fem_base_val <- get_param_from_replist_parameters_df(replist_base, M_fem_name_ctl)
+      
+      # Fallback for Female M
+      if(is.null(M_fem_base_val)) {
+        mg_param_names <- names(replist_base$MGparmAdj)
+        M_fem_name_report <- grep("NatM.*Fem.*GP_1", mg_param_names, value = TRUE)[1]
+        if(!is.na(M_fem_name_report)) M_fem_base_val <- replist_base$MGparmAdj[[M_fem_name_report]][1]
+      }
+      
+      # Check for Male M (if two-sex)
       M_mal_name_ctl <- grep("NatM.*Mal.*GP_1", ctl_params$Label, value = TRUE)[1]
       
       if (is.na(M_mal_name_ctl)) {
-        warning("Could not find Male NatM label in Control File. Using Report label.")
-        M_mal_name_ctl <- M_mal_name_report 
+        is_one_sex_model <- TRUE
       } else {
         message(paste0("Identified Control File label for Male M: '", M_mal_name_ctl, "'"))
+        
+        # Retrieve base value for Male M
+        M_mal_base_val <- get_param_from_replist_parameters_df(replist_base, M_mal_name_ctl)
+        
+        # Fallback for Male M if direct lookup fails
+        if(is.null(M_mal_base_val)) {
+          mg_param_names <- names(replist_base$MGparmAdj)
+          M_mal_name_report <- grep("NatM.*Mal.*GP_1", mg_param_names, value = TRUE)[1]
+          if(!is.na(M_mal_name_report)) {
+            M_mal_base_val <- replist_base$MGparmAdj[[M_mal_name_report]][1]
+            message(paste0("Retrieved base value for Male M from MGparmAdj: ", round(M_mal_base_val, 5)))
+          }
+        }
+        
+        # Final Safety Check for Male M
+        if(is.null(M_mal_base_val)) {
+          message("Warning: Could not retrieve Male M value from output. Using Female M value as proxy for offset calculation.")
+          M_mal_base_val <- M_fem_base_val
+        }
       }
     }
     
     # --- SigmaR ---
     SigmaR_base_val <- get_param_from_replist_parameters_df(replist_base, "SR_sigmaR")
-    if (is.null(SigmaR_base_val)) { stop("Error: Could not retrieve a valid base value for SigmaR.") }
-    message(paste0("Retrieved base value for SigmaR: ", round(SigmaR_base_val, 5)))
+    if (is.null(SigmaR_base_val)) { message("Warning: Could not retrieve a valid base value for SigmaR.") }
+    else { message(paste0("Retrieved base value for SigmaR: ", round(SigmaR_base_val, 5))) }
     
-    # --- Define Scenarios using the CONTROL FILE names ---
-    param_scenarios <- list(
-      "h_plus_0.1" = list(type = "param_change", param = "SR_BH_steep", value = h_base_val + 0.1, label = "h + 0.1"),
-      "h_minus_0.1" = list(type = "param_change", param = "SR_BH_steep", value = h_base_val - 0.1, label = "h - 0.1")
-    )
     
-    if (is_one_sex_model) {
-      # Use M_fem_name_ctl
-      param_scenarios[["M_plus_0.02"]] <- list(type = "param_change", param = M_fem_name_ctl, value = M_fem_base_val + 0.02, label = "M + 0.02")
-      param_scenarios[["M_minus_0.02"]] <- list(type = "param_change", param = M_fem_name_ctl, value = M_fem_base_val - 0.02, label = "M - 0.02")
+    # --- Define Scenarios ---
+    
+    # 1. Steepness
+    if (!is.null(h_base_val)) {
+      param_scenarios <- list(
+        "h_plus_0.1" = list(type = "param_change", param = "SR_BH_steep", value = h_base_val + 0.1, label = "h + 0.1"),
+        "h_minus_0.1" = list(type = "param_change", param = "SR_BH_steep", value = h_base_val - 0.1, label = "h - 0.1")
+      )
     } else {
-      # Use M_fem_name_ctl AND M_mal_name_ctl
-      param_scenarios[["M_plus_0.02"]] <- list(type = "param_change", param = c(M_fem_name_ctl, M_mal_name_ctl), value = c(M_fem_base_val + 0.02, M_mal_base_val + 0.02), label = "M + 0.02")
-      param_scenarios[["M_minus_0.02"]] <- list(type = "param_change", param = c(M_fem_name_ctl, M_mal_name_ctl), value = c(M_fem_base_val - 0.02, M_mal_base_val - 0.02), label = "M - 0.02")
+      param_scenarios <- list()
     }
     
-    param_scenarios[["SigmaR_plus_0.1"]] <- list(type = "param_change", param = "SR_sigmaR", value = SigmaR_base_val + 0.1, label = "SigmaR + 0.1")
-    param_scenarios[["SigmaR_minus_0.1"]] <- list(type = "param_change", param = "SR_sigmaR", value = SigmaR_base_val - 0.1, label = "SigmaR - 0.1")
+    # 2. Natural Mortality
+    if (use_M_vector_strategy) {
+      # VECTOR M STRATEGY
+      message("Adding NatM Vector scenarios (M vector +/- 0.02).")
+      param_scenarios[["M_plus_0.02"]] <- list(type = "natm_vector_offset", value = 0.02, label = "M vector + 0.02")
+      param_scenarios[["M_minus_0.02"]] <- list(type = "natm_vector_offset", value = -0.02, label = "M vector - 0.02")
+      
+    } else {
+      # SINGLE PARAMETER STRATEGY
+      if (is_one_sex_model) {
+        param_scenarios[["M_plus_0.02"]] <- list(type = "param_change", param = M_fem_name_ctl, value = M_fem_base_val + 0.02, label = "M + 0.02")
+        param_scenarios[["M_minus_0.02"]] <- list(type = "param_change", param = M_fem_name_ctl, value = M_fem_base_val - 0.02, label = "M - 0.02")
+      } else {
+        # Two-sex: Modify both
+        param_scenarios[["M_plus_0.02"]] <- list(type = "param_change", param = c(M_fem_name_ctl, M_mal_name_ctl), value = c(M_fem_base_val + 0.02, M_mal_base_val + 0.02), label = "M + 0.02")
+        param_scenarios[["M_minus_0.02"]] <- list(type = "param_change", param = c(M_fem_name_ctl, M_mal_name_ctl), value = c(M_fem_base_val - 0.02, M_mal_base_val - 0.02), label = "M - 0.02")
+      }
+    }
+    
+    # 3. SigmaR
+    if(!is.null(SigmaR_base_val)){
+      param_scenarios[["SigmaR_plus_0.1"]] <- list(type = "param_change", param = "SR_sigmaR", value = SigmaR_base_val + 0.1, label = "SigmaR + 0.1")
+      param_scenarios[["SigmaR_minus_0.1"]] <- list(type = "param_change", param = "SR_sigmaR", value = SigmaR_base_val - 0.1, label = "SigmaR - 0.1")
+    }
     
     scenarios <- c(scenarios, param_scenarios)
-    # print(comp_scenarios)
+  }
+  
+  # --- Define Scenarios for Composition Data Weighting if selected ---
+  if(isTRUE(sensitivity_options$comp_weight_scenario)) {
+    comp_scenarios <- list(
+      "comp_x2" = list(type = "lambda_change", component = c(4, 5), factor = 2, label = "Comp Weight x2"),
+      "comp_x0.5" = list(type = "lambda_change", component = c(4, 5), factor = 0.5, label = "Comp Weight x0.5")
+    )
+    scenarios <- c(scenarios, comp_scenarios)
   }
   
   # --- Define Scenarios for Index Data Weighting if selected ---
@@ -2309,12 +2092,6 @@ if(any(sensitivity_options$fixed_param_scenarios,
       "index_x0.5" = list(type = "lambda_change", component = 1, factor = 0.5, label = "Index Weight x0.5")
     )
     scenarios <- c(scenarios, index_scenarios)
-    
-    # message("index_scenarios")
-    # print(index_scenarios)
-    
-    # message("scenarios")
-    # print(scenarios)
   }
   
   # --- Proceed only if there are scenarios to run ---
@@ -2340,15 +2117,14 @@ if(any(sensitivity_options$fixed_param_scenarios,
         verbose = FALSE
       )
       
-      # Modify the control file for the specific scenario
+      # Define the new control file name
       new_ctl_file <- "control_scenario.ss"
       
-      # print(current_scenario$type)
-      
-      # message("Start parameter change")
+      # --- HANDLE DIFFERENT SCENARIO TYPES ---
       
       if (current_scenario$type == "param_change") {
-        # Existing logic for M, h, SigmaR
+        
+        # Standard Single Parameter Change (M, h, SigmaR)
         SS_changepars(
           dir = dir_path,
           ctlfile = "controlfile.ctl",
@@ -2358,96 +2134,62 @@ if(any(sensitivity_options$fixed_param_scenarios,
           verbose = FALSE,
           estimate = rep(FALSE, length(current_scenario$param))
         )
-      } else if (current_scenario$type == "lambda_change") {
-        # New logic for data weighting
-        message("Starting lambda_change \n")
+        
+      } else if (current_scenario$type == "natm_vector_offset") {
+        
+        # Vector NatM Change
+        message(paste0("...Scenario '", scenario_name, "': Applying offset of ", current_scenario$value, " to NatM vector."))
+        
         dat_file_path <- file.path(dir_path, "datafile.dat")
         ctl_file_path <- file.path(dir_path, "controlfile.ctl")
         dat <- r4ss::SS_readdat(dat_file_path, verbose = FALSE)
         ctl <- r4ss::SS_readctl(file = ctl_file_path, datlist = dat, verbose = FALSE)
         
-        # --- START: Added logic to populate lambdas if they are missing ---
-        # Check if lambdas are explicitly defined. If not, create them.
+        # Modify the NatM vector
+        ctl$natM <- ctl$natM + current_scenario$value
+        
+        r4ss::SS_writectl(ctl, outfile = file.path(dir_path, new_ctl_file), overwrite = TRUE, verbose = FALSE)
+        
+      } else if (current_scenario$type == "lambda_change") {
+        
+        # Data Weighting Change
+        message(paste0("...Scenario '", scenario_name, "': Changing data weighting."))
+        dat_file_path <- file.path(dir_path, "datafile.dat")
+        ctl_file_path <- file.path(dir_path, "controlfile.ctl")
+        dat <- r4ss::SS_readdat(dat_file_path, verbose = FALSE)
+        ctl <- r4ss::SS_readctl(file = ctl_file_path, datlist = dat, verbose = FALSE)
+        
+        # Populate lambdas if missing
         if (is.null(ctl$lambdas) || nrow(ctl$lambdas) == 0) {
-          message(paste0("...Scenario '", scenario_name, "': No lambdas found in control file. Populating defaults."))
+          message("...No lambdas found in control file. Populating defaults.")
+          new_lambdas <- data.frame(like_comp = integer(), fleet = integer(), phase = integer(), value = numeric(), sizefreq_method = numeric(), stringsAsFactors = FALSE)
           
-
-          
-          # Initialize an empty data frame to hold the new lambdas
-          new_lambdas <- data.frame(
-            like_comp = integer(),
-            fleet = integer(),
-            phase = integer(),
-            value = numeric(),
-            sizefreq_method = numeric(),
-            # fleetstring = character(),
-            stringsAsFactors = FALSE
-          )
-
-          # Retrieve all the fleet names
-          fleet_names <- dat$fleetinfo$fleetname
-
-          # 1. Add lambdas for survey data (indices); like_comp = 1
+          # Survey
           survey_fleets <- which(dat$fleetinfo$type == 3)
           if (length(survey_fleets) > 0) {
-            for (f in survey_fleets) {
-              new_lambdas <- rbind(new_lambdas, data.frame(
-                like_comp = 1, fleet = f, phase = 1, value = 1, sizefreq_method = 0
-                # like_comp = 1, phase = 1, value = 1, fleet = f #, string = fleet_names[f]
-              ))
-            }
+            for (f in survey_fleets) new_lambdas <- rbind(new_lambdas, data.frame(like_comp = 1, fleet = f, phase = 1, value = 1, sizefreq_method = 0))
           }
-
-          new_lambdas # Seems to be working for FISTrap
-          
-          # cat("### ERROR STARTS HERE no such things as dat$N_lencomp")
-          # cat("It no runs through but doesnt seem to change anything")
-          # 2. Add lambdas for length composition data; like_comp = 4
+          # Length
           if (dat$N_lbins > 0) {
             len_fleets <- unique(dat$lencomp$fleet)
-            for (f in len_fleets) {
-              new_lambdas <- rbind(new_lambdas, data.frame(
-                like_comp = 4, fleet = f, phase = 1, value = 1, sizefreq_method = 0
-                # like_comp = 4, phase = 1, value = 1, fleet = f#, string = fleet_names[f]
-              ))
-            }
+            for (f in len_fleets) new_lambdas <- rbind(new_lambdas, data.frame(like_comp = 4, fleet = f, phase = 1, value = 1, sizefreq_method = 0))
           }
-
-          new_lambdas  # Seems to be have added the FIS
-          
-          # 3. Add lambdas for age composition data; like_comp = 5
+          # Age
           if (dat$N_agebins > 0) {
             age_fleets <- unique(dat$agecomp$fleet)
-            # Have to remove ghost fleets
             age_fleets <- age_fleets[age_fleets > 0]
-            for (f in age_fleets) {
-              new_lambdas <- rbind(new_lambdas, data.frame(
-                like_comp = 5, fleet = f, phase = 1, value = 1, sizefreq_method = 0
-                # like_comp = 5, phase = 1, value = 1, fleet = f#, string = fleet_names[f]
-              ))
-            }
+            for (f in age_fleets) new_lambdas <- rbind(new_lambdas, data.frame(like_comp = 5, fleet = f, phase = 1, value = 1, sizefreq_method = 0))
           }
-
-          new_lambdas
-          
-          # Assign the newly created data frame to the control list object
           ctl$lambdas <- new_lambdas
-          # Set the number of lambdas in the control object as well
           ctl$N_lambdas <- nrow(new_lambdas)
         }
-        # --- END: Added logic ---
         
-        # Find active rows for specified likelihood components (1=survey, 4=length, 5=age)
-        # This logic now works because ctl$lambdas is guaranteed to exist.
         rows_to_modify <- ctl$lambdas$like_comp %in% current_scenario$component & ctl$lambdas$phase > 0
-        
         if (any(rows_to_modify)) {
           ctl$lambdas$value[rows_to_modify] <- ctl$lambdas$value[rows_to_modify] * current_scenario$factor
-          message(paste0("...Scenario '", scenario_name, "': Modified lambdas for components ",
-                         paste(current_scenario$component, collapse = ", "), " by factor ", current_scenario$factor, "."))
+          message(paste0("...Scenario '", scenario_name, "': Modified lambdas by factor ", current_scenario$factor))
         } else {
-          message(paste0("...Warning for scenario '", scenario_name, "': No active lambda components found for types: ",
-                         paste(current_scenario$component, collapse = ", ")))
+          message(paste0("...Warning: No active lambda components found for ", scenario_name))
         }
         
         r4ss::SS_writectl(ctl, outfile = file.path(dir_path, new_ctl_file), overwrite = TRUE, verbose = FALSE)
@@ -2462,6 +2204,7 @@ if(any(sensitivity_options$fixed_param_scenarios,
       scenario_dirs[i] <- dir_path
       scenario_labels[i] <- current_scenario$label
     }
+    
     message("Scenario directories prepared.")
     
     # Run models in parallel
@@ -2484,10 +2227,6 @@ if(any(sensitivity_options$fixed_param_scenarios,
     
     parallel::stopCluster(my_cluster)
     message("Finished running all fixed parameter scenario models.")
-    
-    end_time <- Sys.time()
-    duration_paralell.fixed_params <- end_time - start_time
-    message(paste("Fixed Parameter Scenarios Parallel execution took:", round(duration_paralell.fixed_params, 2), units(duration_paralell.fixed_params)))
     
     # Gather results and plot comparisons
     message("Gathering results for comparison...")
@@ -2518,13 +2257,93 @@ if(any(sensitivity_options$fixed_param_scenarios,
     
     message("Fixed Parameter Scenarios analysis complete. Plots saved to ", plotdir)
     
+    # --- NEW: Generate Sorted Summary CSV Table ---
+    message("Generating sorted summary CSV table...")
+    
+    # Define desired order
+    desired_order <- c(
+      "Base_Model",
+      "M_minus_0.02",
+      "M_plus_0.02",
+      "h_minus_0.1",
+      "h_plus_0.1",
+      "SigmaR_minus_0.1",
+      "SigmaR_plus_0.1",
+      "index_x0.5",
+      "index_x2",
+      "comp_x0.5",
+      "comp_x2"
+    )
+    
+    summary_results <- data.frame(
+      Model = character(),
+      SSB_Virgin = numeric(),
+      SSB_Final = numeric(),
+      Bratio_Final = numeric(),
+      stringsAsFactors = FALSE
+    )
+    
+    for(curr_dir in all_dirs_to_summarize) {
+      if(curr_dir == base_model_dir) {
+        m_name <- "Base_Model"
+      } else {
+        m_name <- basename(curr_dir)
+      }
+      
+      rep_file <- file.path(curr_dir, "Report.sso")
+      if(file.exists(rep_file)) {
+        tryCatch({
+          # Load model output (fast)
+          replist_quick <- r4ss::SS_output(dir = curr_dir, verbose = FALSE, printstats = FALSE, covar = FALSE)
+          endyr <- replist_quick$endyr
+          dq <- replist_quick$derived_quants
+          
+          # Extract Values
+          ssb_v_row <- dq[rownames(dq) %in% c("SSB_Virgin", "SSB_Unfished"), ]
+          val_v <- if(nrow(ssb_v_row)>0) ssb_v_row$Value[1] else NA
+          
+          ssb_f_row <- dq[rownames(dq) == paste0("SSB_", endyr), ]
+          val_f <- if(nrow(ssb_f_row)>0) ssb_f_row$Value[1] else NA
+          
+          br_f_row <- dq[rownames(dq) == paste0("Bratio_", endyr), ]
+          val_br <- if(nrow(br_f_row)>0) br_f_row$Value[1] else NA
+          
+          summary_results <- rbind(summary_results, data.frame(
+            Model = m_name,
+            SSB_Virgin = val_v,
+            SSB_Final = val_f,
+            Bratio_Final = val_br,
+            stringsAsFactors = FALSE
+          ))
+        }, error = function(e) {
+          message(paste("Error extracting from", m_name))
+        })
+      }
+    }
+    
+    # Sort Logic
+    existing_models <- summary_results$Model
+    others <- setdiff(existing_models, desired_order)
+    full_sort <- c(intersect(desired_order, existing_models), sort(others))
+    
+    summary_results$Model <- factor(summary_results$Model, levels = full_sort)
+    summary_results <- summary_results[order(summary_results$Model), ]
+    
+    # Format and Save
+    summary_results$SSB_Virgin <- round(summary_results$SSB_Virgin, 2)
+    summary_results$SSB_Final <- round(summary_results$SSB_Final, 2)
+    summary_results$Bratio_Final <- round(summary_results$Bratio_Final, 3)
+    
+    out_csv_path <- file.path(scenarios_main_dir, "Scenario_Summary_Table.csv")
+    write.csv(summary_results, out_csv_path, row.names = FALSE)
+    message("Scenario Summary Table saved to: ", out_csv_path)
+    
   } else {
     message("No fixed parameter or data weighting scenarios were defined to run.")
   }
 } else {
   message("Fixed parameter scenarios and data weighting are not enabled. Skipping this section.")
 }
-
 # --- DIAGNOSTICS: CONSOLIDATE PLOTS ---
 message("\n--- Consolidating Key Diagnostic Plots ---")
 
