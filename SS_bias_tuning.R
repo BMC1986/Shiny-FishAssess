@@ -503,7 +503,8 @@ tryCatch({
     }
     
     # Step 2.4: Final Bias Ramp Adjustment (The one we keep!)
-    final_model_dir_name <- paste0(full_prefix, "_final_model")
+    # final_model_dir_name <- paste0(full_prefix, "_final_model")
+    final_model_dir_name <- full_prefix
     
     # NOTE: We do NOT add final_model_dir_name to dirs_to_remove because we want to keep it.
     
@@ -533,13 +534,52 @@ tryCatch({
       cat(paste("Error generating DPIRD plots:", e$message, "\n"))
     })
     
+    # # --- CLEANUP STEP ---
+    # cat("\n--- CLEANUP: Removing intermediate model runs ---\n")
+    # if (length(dirs_to_remove) > 0) {
+    #   for (dir_path in dirs_to_remove) {
+    #     if (dir.exists(dir_path)) {
+    #       cat(paste("Removing:", dir_path, "\n"))
+    #       unlink(dir_path, recursive = TRUE)
+    #     } else {
+    #       cat(paste("Skipping (not found):", dir_path, "\n"))
+    #     }
+    #   }
+    # } else {
+    #   cat("No intermediate folders marked for removal.\n")
+    # }
+    
     # --- CLEANUP STEP ---
     cat("\n--- CLEANUP: Removing intermediate model runs ---\n")
+    
+    # 1. Force R to release any file locks
+    gc() 
+    
+    # 2. Wait a moment for the OS to release handles (Windows fix)
+    Sys.sleep(2) 
+    
     if (length(dirs_to_remove) > 0) {
       for (dir_path in dirs_to_remove) {
         if (dir.exists(dir_path)) {
           cat(paste("Removing:", dir_path, "\n"))
-          unlink(dir_path, recursive = TRUE)
+          
+          # Attempt deletion
+          result <- unlink(dir_path, recursive = TRUE, force = TRUE)
+          
+          # Retry mechanism if deletion fails (common on Windows)
+          if (dir.exists(dir_path)) {
+            cat("  -> First delete attempt failed (folder locked?). Retrying in 2 seconds...\n")
+            Sys.sleep(2)
+            unlink(dir_path, recursive = TRUE, force = TRUE)
+          }
+          
+          # Final check
+          if (dir.exists(dir_path)) {
+            cat("  -> WARNING: Could not delete folder. You may need to delete it manually.\n")
+          } else {
+            cat("  -> Deleted successfully.\n")
+          }
+          
         } else {
           cat(paste("Skipping (not found):", dir_path, "\n"))
         }
