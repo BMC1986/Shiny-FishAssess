@@ -563,6 +563,10 @@ param_map <- c(
   profile_r0 = "SR_LN(R0)",
   profile_m  = "NatM_uniform_Fem_GP_1",
   profile_h  = "SR_BH_steep",
+  profile_l_amax_fem = "L_at_Amax_Fem_GP_1",
+  profile_l_amax_mal = "L_at_Amax_Mal_GP_1",
+  profile_k_fem = "VonBert_K_Fem_GP_1",
+  profile_k_mal = "VonBert_K_Mal_GP_1",
   profile_final_depletion = "Depl", # Assuming this is the name in SS
   profile_current_spawning_biomass = "CurSB" # Assuming this is the name in SS
 )
@@ -818,7 +822,37 @@ if (length(params_to_run) > 0) {
       }
       
 
+      # --- ADD THE NEW LOGIC HERE ---
+    } else if (param %in% c("L_at_Amax_Fem_GP_1", "L_at_Amax_Mal_GP_1", "VonBert_K_Fem_GP_1", "VonBert_K_Mal_GP_1")) {
       
+      message(paste("Setting up range for growth parameter:", param))
+      est_params <- replist$estimated_non_dev_parameters
+      
+      # Try to find the parameter in the estimated parameters list
+      if (param %in% rownames(est_params)) {
+        val <- est_params[param, "Value"]
+        sd_val <- est_params[param, "Parm_StDev"]
+        
+        # Use 1.96 standard deviations to create the profile range
+        if (sd_val > 0) {
+          lower <- val - (1.96 * sd_val)
+          upper <- val + (1.96 * sd_val)
+        } else {
+          # Fallback if SD is 0 but parameter is estimated
+          lower <- val * 0.9
+          upper <- val * 1.1
+        }
+      } else {
+        # Fallback if the parameter is currently fixed (not being estimated)
+        val <- replist$parameters[replist$parameters$Label == param, "Value"]
+        lower <- val * 0.8
+        upper <- val * 1.2
+      }
+      
+      # Create a vector of 7 points for the profile
+      vec <- seq(lower, upper, length.out = 7)
+      profile.label <- param
+      # --- END OF NEW LOGIC ---
 
       # START OF NEWLY ADDED CODE (PART 1 of 2)
 
@@ -1155,6 +1189,15 @@ if (length(params_to_run) > 0) {
           p.string <- "R0"
         } else if (param == "SR_BH_steep") {
           p.string <- "steep"
+        } else if (param == "L_at_Amax_Fem_GP_1") {
+          p.string <- "L_at_Amax_Fem"
+        } else if (param == "L_at_Amax_Mal_GP_1") {
+          p.string <- "L_at_Amax_Mal"
+        } else if (param == "VonBert_K_Fem_GP_1") {
+          p.string <- "VonBert_K_Fem"
+        } else if (param == "VonBert_K_Mal_GP_1") {
+          p.string <- "VonBert_K_Mal"
+          
         } else if (param == "NatM_uniform_Fem_GP_1") {
           
           # --- FIX: Search the CONTROL file for the actual parameter label ---
@@ -1322,6 +1365,30 @@ if (length(params_to_run) > 0) {
           par$MG_parms["NatM_p_1_Fem_GP_1", "ESTIM"] <-  vec[i] # not sure if this is necessary but changed this too, just to be on the safe side
           # SS_writepar_3.30(par,outfile = file.path(run_dir, "ss3.par"), overwrite = TRUE)
         }
+        
+        if (param == "L_at_Amax_Fem_GP_1") {
+          message("Changing L_at_Amax_Fem_GP_1 in par file")
+          # Ensure exact matching of the parameter name in the par file
+          par$MG_parms["L_at_Amax_Fem_GP_1", "INIT"] <- vec[i]
+          par$MG_parms["L_at_Amax_Fem_GP_1", "ESTIM"] <- vec[i]
+        }
+        if (param == "L_at_Amax_Mal_GP_1") {
+          message("Changing L_at_Amax_Mal_GP_1 in par file")
+          par$MG_parms["L_at_Amax_Mal_GP_1", "INIT"] <- vec[i]
+          par$MG_parms["L_at_Amax_Mal_GP_1", "ESTIM"] <- vec[i]
+        }
+        if (param == "VonBert_K_Fem_GP_1") {
+          message("Changing VonBert_K_Fem_GP_1 in par file")
+          par$MG_parms["VonBert_K_Fem_GP_1", "INIT"] <- vec[i]
+          par$MG_parms["VonBert_K_Fem_GP_1", "ESTIM"] <- vec[i]
+        }
+        if (param == "VonBert_K_Mal_GP_1") {
+          message("Changing VonBert_K_Mal_GP_1 in par file")
+          par$MG_parms["VonBert_K_Mal_GP_1", "INIT"] <- vec[i]
+          par$MG_parms["VonBert_K_Mal_GP_1", "ESTIM"] <- vec[i]
+        }
+        
+        
 
         SS_writepar_3.30(par,outfile = file.path(run_dir, "ss3.par"), overwrite = TRUE)
 
@@ -1551,10 +1618,12 @@ if (length(params_to_run) > 0) {
     message(paste("Plotting profile for", param, "using string:", p.string))
     
     # --- Create ChangeInLikelihoods.csv and the main profile plot ---
-    best_model_idx <- which.min(profilesummary$likelihoods[1,])
+    # best_model_idx <- which.min(profilesummary$likelihoods[1,])
+    # Exclude the last column (Label) to ensure numeric calculation
+    best_model_idx <- which.min(suppressWarnings(as.numeric(profilesummary$likelihoods[1, -ncol(profilesummary$likelihoods)])))
     
-    if(length(best_model_idx) > 0 && !is.na(best_model_idx)) {
-      
+    # if(length(best_model_idx) > 0 && !is.na(best_model_idx)) {
+    if(!is.null(best_model_idx) && length(best_model_idx) > 0 && !is.na(best_model_idx)) {
 
       
       if (param %in% c("Depl", "CurSB","NatM_vector")) {
@@ -1647,16 +1716,55 @@ if (length(params_to_run) > 0) {
         
         # remove columns that have change less than minfraction change relative to total
         # column.max <- apply(prof.table[subset, ], 2, max)
+        # column.max <- apply(prof.table, 2, max)
+        # change.fraction <- column.max / column.max[1]
+        # minfraction <- 0.01
+        # include <- change.fraction >= minfraction
+        # 
+        # # prof.table <- prof.table[order(vec), include]
+        # prof.table <- prof.table[, include]
+        # 
+        # nlines <- sum(include)
+        # legend <- names(prof.table)
+        # remove columns that have change less than minfraction change relative to total
         column.max <- apply(prof.table, 2, max)
-        change.fraction <- column.max / column.max[1]
+        
+        # Check for zero total change to avoid error (using index 1 which is Total)
+        total_change <- column.max[1] 
+        if(total_change == 0) total_change <- 1e-10
+        
+        change.fraction <- column.max / total_change
         minfraction <- 0.01
         include <- change.fraction >= minfraction
         
-        # prof.table <- prof.table[order(vec), include]
+        # Filter the table
         prof.table <- prof.table[, include]
         
-        nlines <- sum(include)
+        # --- SORTING UPDATE: Descending Magnitude, but "Total" First ---
+        
+        # 1. Calculate max change for the remaining filtered columns
+        final_col_max <- apply(prof.table, 2, max)
+        
+        # 2. Get initial sort order (Largest change first)
+        ord <- order(final_col_max, decreasing = TRUE)
+        sorted_names <- names(prof.table)[ord]
+        
+        # 3. Force "Total" to the first position
+        # (This keeps Total at the top, followed by the rest sorted by magnitude)
+        if ("Total" %in% sorted_names) {
+          final_names <- c("Total", setdiff(sorted_names, "Total"))
+        } else {
+          final_names <- sorted_names
+        }
+        
+        # 4. Apply final order to table
+        prof.table <- prof.table[, final_names]
+        # ---------------------------------------------------------------
+        
+        nlines <- ncol(prof.table)
         legend <- names(prof.table)
+
+        
         ymax <- 1.1 * max(prof.table[subset, ])
         ylim <- c(0, ymax)
         
@@ -1785,36 +1893,59 @@ if (length(params_to_run) > 0) {
         
       } else {
         
-
-        # Use the new dynamic p.string variable here
+        # Check if likelihoods vary before plotting to prevent crashes
+        # We check the Total Likelihood (first row) for variance
+        total_likes <- as.numeric(profilesummary$likelihoods[1, -ncol(profilesummary$likelihoods)])
+        
+        if (max(total_likes) - min(total_likes) == 0) {
+          message(paste("WARNING: Profile for", param, "is flat (likelihoods did not change). Skipping plot to prevent crash."))
+          message("Check that 'init_values_src' is set to 0 in starter.ss so the model reads the modified control file.")
+        } else {
+          # Use the new dynamic p.string variable here
+          tryCatch({
+            results <- SSplotProfile(profilesummary,
+                                     profile.string = p.string,
+                                     profile.label = profile.label,
+                                     print = TRUE,
+                                     plot = FALSE, # stop the pdf
+                                     plotdir = plotdir,
+                                     png = TRUE,
+                                     add_cutoff = TRUE
+            )
+            write.csv(results, file = file.path(plotdir, "ChangeInLikelihoods.csv"))
+            
+            # Rename the default file to include the parameter label
+            old_name <- file.path(plotdir, "profile_plot_likelihood.png")
+            new_name <- file.path(plotdir, paste0("profile_plot_likelihood - ", profile.label, ".png"))
+            if(file.exists(old_name)) {
+              file.rename(from = old_name, to = new_name)
+            }
+          }, error = function(e) {
+            message(paste("Error in SSplotProfile for", param, ":", e$message))
+          })
+        }
+        
         # results <- SSplotProfile(profilesummary,
         #                          profile.string = p.string,
         #                          profile.label = profile.label,
         #                          print = TRUE,
         #                          plot = FALSE, # stop the pdf
         #                          plotdir = plotdir,
-        #                          png = TRUE
+        #                          png = TRUE,
+        #                          add_cutoff = TRUE
+        #                          
+        #                          
         # )
-        
-        results <- SSplotProfile(profilesummary,
-                                 profile.string = p.string,
-                                 profile.label = profile.label,
-                                 print = TRUE,
-                                 plot = FALSE, # stop the pdf
-                                 plotdir = plotdir,
-                                 png = TRUE,
-                                 add_cutoff = TRUE
-        )
-        
-
-        write.csv(results, file = file.path(plotdir, "ChangeInLikelihoods.csv"))
-        
-        # Define the old and new file paths
-        old_name <- file.path(plotdir, "profile_plot_likelihood.png")
-        new_name <- file.path(plotdir, paste0("profile_plot_likelihood - ",profile.label,".png"))
-        
-        # Rename the file
-        file.rename(from = old_name, to = new_name)
+        # 
+        # 
+        # write.csv(results, file = file.path(plotdir, "ChangeInLikelihoods.csv"))
+        # 
+        # # Define the old and new file paths
+        # old_name <- file.path(plotdir, "profile_plot_likelihood.png")
+        # new_name <- file.path(plotdir, paste0("profile_plot_likelihood - ",profile.label,".png"))
+        # 
+        # # Rename the file
+        # file.rename(from = old_name, to = new_name)
         
         
 
@@ -2344,57 +2475,94 @@ if(any(sensitivity_options$fixed_param_scenarios,
 } else {
   message("Fixed parameter scenarios and data weighting are not enabled. Skipping this section.")
 }
+
 # --- DIAGNOSTICS: CONSOLIDATE PLOTS ---
 message("\n--- Consolidating Key Diagnostic Plots ---")
 
-# 1. Create the diagnostics folder
+# 1. Create the diagnostics folder structure
 diagnostics_dir <- file.path(sensitivity_options$model_folder, "diagnostics")
-if (!dir.exists(diagnostics_dir)) {
-  dir.create(diagnostics_dir, recursive = TRUE)
-  message(paste("Created diagnostics directory:", diagnostics_dir))
-}
+diag_retro_dir <- file.path(diagnostics_dir, "retro")
+diag_fixed_dir <- file.path(diagnostics_dir, "fixed_parameter_scenarios")
 
-# 2. Define the list of files to look for (Relative paths)
-#    Note: We check multiple potential paths for NatM just in case
-plots_to_copy <- c(
+# Create main and sub-directories
+for (d in c(diagnostics_dir, diag_retro_dir, diag_fixed_dir)) {
+  if (!dir.exists(d)) {
+    dir.create(d, recursive = TRUE)
+  }
+}
+message(paste("Created diagnostics directory structure in:", diagnostics_dir))
+
+# ---------------------------------------------------------
+# GROUP 1: FILES FOR MAIN DIAGNOSTICS FOLDER
+# (Jitter, Profiles, CSV Table)
+# ---------------------------------------------------------
+files_to_root <- c(
   # Jitter
   file.path("jitter_parallel", "plots", "Jitter_Comparison_Plot.png"),
   
-  # Retrospective
-  file.path("retro", "plots", "compare4_Bratio_uncertainty.png"),
+  # Scenario Table
+  file.path("fixed_parameter_scenarios", "Scenario_Summary_Table.csv"),
   
-  # Fixed Parameter Scenarios
-  file.path("fixed_parameter_scenarios", "plots", "compare7_Fvalue.png"),
-  file.path("fixed_parameter_scenarios", "plots", "compare3_Bratio.png"),
-  file.path("fixed_parameter_scenarios", "plots", "compare11_recdevs.png"),
-  
-  # Profiles - Depletion & Biomass (Underscore separator in filename)
+  # Profiles - Depletion & Biomass
   file.path("profile", "Depl", "plots", "profile_plot_likelihood_Current depletion.png"),
   file.path("profile", "CurSB", "plots", "profile_plot_likelihood_Current spawning biomass.png"),
   
-  # Profiles - Parameters (Dash separator in filename)
+  # Profiles - Standard Parameters
   file.path("profile", "SR_BH_steep", "plots", "profile_plot_likelihood - Steepness (h).png"),
   file.path("profile", "SR_LN(R0)", "plots", "profile_plot_likelihood - SR_LN(R0).png"),
   file.path("profile", "NatM_uniform_Fem_GP_1", "plots", "profile_plot_likelihood - Natural mortality (M).png"),
+  
+  # Profiles - Growth Parameters (The 4 New Ones)
+  file.path("profile", "L_at_Amax_Fem_GP_1", "plots", "profile_plot_likelihood - L_at_Amax_Fem_GP_1.png"),
+  file.path("profile", "L_at_Amax_Mal_GP_1", "plots", "profile_plot_likelihood - L_at_Amax_Mal_GP_1.png"),
+  file.path("profile", "VonBert_K_Fem_GP_1", "plots", "profile_plot_likelihood - VonBert_K_Fem_GP_1.png"),
+  file.path("profile", "VonBert_K_Mal_GP_1", "plots", "profile_plot_likelihood - VonBert_K_Mal_GP_1.png"),
   
   # Fallback for NatM vector if used
   file.path("profile", "NatM_vector", "plots", "profile_plot_likelihood - Natural mortality (M) vector.png")
 )
 
-# 3. Copy the files
-count_copied <- 0
-for (rel_path in plots_to_copy) {
-  full_source_path <- file.path(sensitivity_options$model_folder, rel_path)
-  
-  if (file.exists(full_source_path)) {
-    success <- file.copy(from = full_source_path, to = diagnostics_dir, overwrite = TRUE)
-    if (success) {
-      count_copied <- count_copied + 1
+# ---------------------------------------------------------
+# GROUP 2: FILES FOR RETRO SUBFOLDER
+# ---------------------------------------------------------
+files_to_retro <- c(
+  file.path("retro", "plots", "compare4_Bratio_uncertainty.png"),
+  file.path("retro", "plots", "MohnsRho.csv") # Added Mohn's rho CSV if available
+)
+
+# ---------------------------------------------------------
+# GROUP 3: FILES FOR FIXED PARAM SCENARIOS SUBFOLDER
+# ---------------------------------------------------------
+files_to_fixed <- c(
+  file.path("fixed_parameter_scenarios", "plots", "compare7_Fvalue.png"),
+  file.path("fixed_parameter_scenarios", "plots", "compare3_Bratio.png"),
+  file.path("fixed_parameter_scenarios", "plots", "compare11_recdevs.png")
+)
+
+# ---------------------------------------------------------
+# HELPER FUNCTION TO COPY FILES
+# ---------------------------------------------------------
+copy_files_safe <- function(file_list, dest_dir) {
+  count <- 0
+  for (rel_path in file_list) {
+    full_source_path <- file.path(sensitivity_options$model_folder, rel_path)
+    if (file.exists(full_source_path)) {
+      file.copy(from = full_source_path, to = dest_dir, overwrite = TRUE)
+      count <- count + 1
     }
   }
+  return(count)
 }
 
-message(paste("Successfully copied", count_copied, "plots to the 'diagnostics' folder."))
+# Execute Copies
+n_root  <- copy_files_safe(files_to_root, diagnostics_dir)
+n_retro <- copy_files_safe(files_to_retro, diag_retro_dir)
+n_fixed <- copy_files_safe(files_to_fixed, diag_fixed_dir)
+
+message(paste0("Diagnostics Consolidaton Complete:",
+               "\n  - Copied ", n_root, " files to root diagnostics folder.",
+               "\n  - Copied ", n_retro, " files to 'retro' subfolder.",
+               "\n  - Copied ", n_fixed, " files to 'fixed_parameter_scenarios' subfolder."))
 
 # --- GLOBAL ERROR HANDLER END ---
 }, error = function(e) {
@@ -2407,3 +2575,67 @@ message(paste("Successfully copied", count_copied, "plots to the 'diagnostics' f
 }, finally = {
   message("Sensitivity script execution finished (or terminated).")
 })
+
+# # --- DIAGNOSTICS: CONSOLIDATE PLOTS ---
+# message("\n--- Consolidating Key Diagnostic Plots ---")
+# 
+# # 1. Create the diagnostics folder
+# diagnostics_dir <- file.path(sensitivity_options$model_folder, "diagnostics")
+# if (!dir.exists(diagnostics_dir)) {
+#   dir.create(diagnostics_dir, recursive = TRUE)
+#   message(paste("Created diagnostics directory:", diagnostics_dir))
+# }
+# 
+# # 2. Define the list of files to look for (Relative paths)
+# #    Note: We check multiple potential paths for NatM just in case
+# plots_to_copy <- c(
+#   # Jitter
+#   file.path("jitter_parallel", "plots", "Jitter_Comparison_Plot.png"),
+#   
+#   # Retrospective
+#   file.path("retro", "plots", "compare4_Bratio_uncertainty.png"),
+#   
+#   # Fixed Parameter Scenarios
+#   file.path("fixed_parameter_scenarios", "plots", "compare7_Fvalue.png"),
+#   file.path("fixed_parameter_scenarios", "plots", "compare3_Bratio.png"),
+#   file.path("fixed_parameter_scenarios", "plots", "compare11_recdevs.png"),
+#   
+#   # Profiles - Depletion & Biomass (Underscore separator in filename)
+#   file.path("profile", "Depl", "plots", "profile_plot_likelihood_Current depletion.png"),
+#   file.path("profile", "CurSB", "plots", "profile_plot_likelihood_Current spawning biomass.png"),
+#   
+#   # Profiles - Parameters (Dash separator in filename)
+#   file.path("profile", "SR_BH_steep", "plots", "profile_plot_likelihood - Steepness (h).png"),
+#   file.path("profile", "SR_LN(R0)", "plots", "profile_plot_likelihood - SR_LN(R0).png"),
+#   file.path("profile", "NatM_uniform_Fem_GP_1", "plots", "profile_plot_likelihood - Natural mortality (M).png"),
+#   
+#   # Fallback for NatM vector if used
+#   file.path("profile", "NatM_vector", "plots", "profile_plot_likelihood - Natural mortality (M) vector.png")
+# )
+# 
+# # 3. Copy the files
+# count_copied <- 0
+# for (rel_path in plots_to_copy) {
+#   full_source_path <- file.path(sensitivity_options$model_folder, rel_path)
+#   
+#   if (file.exists(full_source_path)) {
+#     success <- file.copy(from = full_source_path, to = diagnostics_dir, overwrite = TRUE)
+#     if (success) {
+#       count_copied <- count_copied + 1
+#     }
+#   }
+# }
+# 
+# message(paste("Successfully copied", count_copied, "plots to the 'diagnostics' folder."))
+# 
+# # --- GLOBAL ERROR HANDLER END ---
+# }, error = function(e) {
+#   # This block runs if ANYTHING in the script crashes
+#   message("\nCRITICAL ERROR IN SS_SENSITIVITIES.R:")
+#   message(conditionMessage(e))
+#   message("\nTraceback:")
+#   # Attempt to print traceback if available
+#   try(print(sys.calls())) 
+# }, finally = {
+#   message("Sensitivity script execution finished (or terminated).")
+# })
