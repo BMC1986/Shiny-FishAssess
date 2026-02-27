@@ -619,6 +619,7 @@ ui <- function(request) {
                                  verbatimTextOutput("dir_path_display", placeholder = TRUE),
                                  # hr(),
                                  actionButton("run_sensitivities_btn", "Run Sensitivities", class = "btn-primary"),
+                                 checkboxInput("cleanup_sens_files", "Clean up leftover model files after running", value = TRUE),
 
                                  hr(),
                                  h5("Jitter Analysis"),
@@ -1526,7 +1527,8 @@ server <- function(input, output, session) {
   sensitivity_options <- reactive({
     path <- selected_folder_path()
     list(
-      model_folder = if (length(path) > 0) path else NULL, # <-- ADD THIS
+      model_folder = if (length(path) > 0) path else NULL,
+      cleanup_files = input$cleanup_sens_files,
       jitter = input$jitter_checkbox,
       njitters = input$njitters,
       jitter_fraction = input$jitter_fraction,

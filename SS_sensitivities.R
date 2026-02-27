@@ -2564,6 +2564,56 @@ message(paste0("Diagnostics Consolidaton Complete:",
                "\n  - Copied ", n_retro, " files to 'retro' subfolder.",
                "\n  - Copied ", n_fixed, " files to 'fixed_parameter_scenarios' subfolder."))
 
+# --- CLEANUP SECTION ---
+if (isTRUE(sensitivity_options$cleanup_files)) {
+  message("\n--- Cleaning up intermediate model run folders and files ---")
+  
+  # 1. Jitter runs & loose files
+  jitter_dir <- file.path(sensitivity_options$model_folder, "jitter_parallel")
+  if (dir.exists(jitter_dir)) {
+    # Remove the jitter_1, jitter_2, etc. subfolders
+    jitter_runs <- list.dirs(jitter_dir, recursive = FALSE)
+    jitter_runs <- jitter_runs[grepl("jitter_[0-9]+", basename(jitter_runs))]
+    unlink(jitter_runs, recursive = TRUE)
+    
+    # Remove all loose files in the root of jitter_parallel (keeps the 'plots' directory safe)
+    jitter_loose_files <- list.files(jitter_dir, full.names = TRUE, recursive = FALSE)
+    jitter_loose_files <- jitter_loose_files[!file.info(jitter_loose_files)$isdir]
+    unlink(jitter_loose_files)
+  }
+  
+  # 2. Retro runs
+  retro_dir <- file.path(sensitivity_options$model_folder, "retro")
+  if (dir.exists(retro_dir)) {
+    retro_runs <- list.dirs(retro_dir, recursive = FALSE)
+    retro_runs <- retro_runs[grepl("retro-?[0-9]+", basename(retro_runs))]
+    unlink(retro_runs, recursive = TRUE)
+  }
+  
+  # 3. Profile runs
+  profile_dir <- file.path(sensitivity_options$model_folder, "profile")
+  if (dir.exists(profile_dir)) {
+    prof_params <- list.dirs(profile_dir, recursive = FALSE)
+    for (pd in prof_params) {
+      run_dirs <- list.dirs(pd, recursive = FALSE)
+      run_dirs <- run_dirs[grepl("run_[0-9]+", basename(run_dirs))]
+      unlink(run_dirs, recursive = TRUE)
+    }
+  }
+  
+  # 4. Fixed parameter scenario runs
+  fixed_dir <- file.path(sensitivity_options$model_folder, "fixed_parameter_scenarios")
+  if (dir.exists(fixed_dir)) {
+    fixed_runs <- list.dirs(fixed_dir, recursive = FALSE)
+    # Safely keep the 'plots' folder, delete the scenario run folders
+    fixed_runs <- fixed_runs[!grepl("^plots$", basename(fixed_runs))]
+    unlink(fixed_runs, recursive = TRUE)
+  }
+  
+  message("Cleanup complete. Heavy model output files and loose logs removed.")
+}
+# --- END CLEANUP SECTION ---
+
 # --- GLOBAL ERROR HANDLER END ---
 }, error = function(e) {
   # This block runs if ANYTHING in the script crashes
