@@ -442,23 +442,47 @@ tryCatch({
       
     } else if (weighting_method == "dirichlet") {
       
+      # replist1 <- r4ss::SS_output(dir = model_dir, verbose = FALSE, printstats = FALSE, covar = TRUE)
+      # 
+      # cat("    -> Dirichlet Tuning ...\n")
+      # 
+      # modelrun3_dir_name <- paste0(full_prefix, "_dirichlet1")
+      # modelrun3_dir <- file.path(tuning_dir, modelrun3_dir_name)
+      # 
+      # dirs_to_remove <- c(dirs_to_remove, modelrun3_dir) # Mark for deletion
+      # 
+      # # 1. Copy inputs but NOT the exe
+      # r4ss::copy_SS_inputs(dir.old = replist1$inputs$dir, dir.new = modelrun3_dir, overwrite = TRUE, copy_exe = FALSE)
+      # 
+      # # 2. Manually copy the clean executable
+      # file.copy(exe_path, file.path(modelrun3_dir, exe_name), overwrite = TRUE)
+      # 
+      # ctl_dirichlet <- r4ss::SS_readctl(file.path(modelrun3_dir, starter_file_orig$ctlfile), verbose = FALSE, use_datlist = TRUE, datlist = file.path(modelrun3_dir, starter_file_orig$datfile))
+      # dat_dirichlet <- r4ss::SS_readdat(file.path(modelrun3_dir, starter_file_orig$datfile), verbose = FALSE)
+      # 
       replist1 <- r4ss::SS_output(dir = model_dir, verbose = FALSE, printstats = FALSE, covar = TRUE)
       
       cat("    -> Dirichlet Tuning ...\n")
+      
+      # ADDED: First Bias Adjustment (Mirrors the Francis approach to ensure a bias-adjusted base)
+      first_bias_dir_name <- paste0(full_prefix, "_first_bias_adj")
+      dirs_to_remove <- c(dirs_to_remove, file.path(tuning_dir, first_bias_dir_name))
+      replist2 <- perform_bias_ramp(replist1, first_bias_dir_name)
       
       modelrun3_dir_name <- paste0(full_prefix, "_dirichlet1")
       modelrun3_dir <- file.path(tuning_dir, modelrun3_dir_name)
       
       dirs_to_remove <- c(dirs_to_remove, modelrun3_dir) # Mark for deletion
       
-      # 1. Copy inputs but NOT the exe
-      r4ss::copy_SS_inputs(dir.old = replist1$inputs$dir, dir.new = modelrun3_dir, overwrite = TRUE, copy_exe = FALSE)
+      # 1. Copy inputs but NOT the exe (MODIFIED: Use replist2 instead of replist1)
+      r4ss::copy_SS_inputs(dir.old = replist2$inputs$dir, dir.new = modelrun3_dir, overwrite = TRUE, copy_exe = FALSE)
       
       # 2. Manually copy the clean executable
       file.copy(exe_path, file.path(modelrun3_dir, exe_name), overwrite = TRUE)
       
       ctl_dirichlet <- r4ss::SS_readctl(file.path(modelrun3_dir, starter_file_orig$ctlfile), verbose = FALSE, use_datlist = TRUE, datlist = file.path(modelrun3_dir, starter_file_orig$datfile))
       dat_dirichlet <- r4ss::SS_readdat(file.path(modelrun3_dir, starter_file_orig$datfile), verbose = FALSE)
+      
       ctl_dirichlet$DoVar_adjust <- 0
       
       len_fleets_with_comps <- sort(unique(dat_dirichlet$lencomp$fleet[dat_dirichlet$lencomp$fleet >= 0]))
