@@ -1644,13 +1644,22 @@ server <- function(input, output, session) {
     
     append_to_log("--- Starting model comparison in background... ---")
     
+    # Establish base name
     comp_name <- comparison_name_prefix
     if (is.null(comp_name) || comp_name == "") {
-      comp_name <- paste0("comp_", format(Sys.time(), "%Y%m%d_%H%M%S"))
+      base_comp_name <- "comp"
     } else {
-      # Sanitize the name and add a timestamp
-      comp_name <- paste0(gsub("[^A-Za-z0-9_]", "_", comp_name), "_", format(Sys.time(), "%Y%m%d_%H%M%S"))
+      # Sanitise the name
+      base_comp_name <- gsub("[^A-Za-z0-9_]", "_", comp_name)
     }
+    
+    # Find the next available sequential number for the folder
+    plotdir_base <- file.path(getwd(), "output", "comparison")
+    seq_num <- 1
+    while(dir.exists(file.path(plotdir_base, paste0(base_comp_name, "_", seq_num)))) {
+      seq_num <- seq_num + 1
+    }
+    comp_name <- paste0(base_comp_name, "_", seq_num)
     
     # This background function now includes a tryCatch for robust error logging
     background_comparison_function <- function(folder_paths, filename_prefix) {
@@ -1691,7 +1700,7 @@ server <- function(input, output, session) {
           plotdir = plotdir,
           btarg = 0.4,
           minbthresh = 0.2,
-          filenameprefix = paste0(filename_prefix, "_"),
+          filenameprefix = "", # Removed the prefix so files are named simply
           legend = TRUE,
           legendlabels = model_names,
           png = TRUE
@@ -1699,31 +1708,24 @@ server <- function(input, output, session) {
         
         cat("Generating REP comparison plots...\n")
         
-        # NatMort = models_list$test_AgeErr0.5$MGparmAdj$NatM_uniform_Fem_GP_1[1]
-        
-        # NatMort_for_REP_Plot = 0.11
-        
         NatMort_for_REP_Plot = models_list[[1]]$MGparmAdj$NatM_uniform_Fem_GP_1[1]
         
         cat("NatMort is taken from first model selected, i.e. ", NatMort_for_REP_Plot, "\n")
-        # Ftarg = 2/3*NatMort
-        # Fthresh = NatMort
-        # Flim = 3/2*NatMort
         source("SSplotComparisonsREP.R")
         
         SSplotComparisons_REP(summaryoutput=mod.sum,
-                             plot = FALSE,
-                             print = TRUE,
-                             plotdir = plotdir,
-                             btarg = 0.4,
-                             minbthresh = 0.2,
-                             filenameprefix = paste0(filename_prefix, "_REP_"),
-                             legend=T,
-                             Ftarg = 2/3*NatMort_for_REP_Plot,
-                             Fthresh=NatMort_for_REP_Plot,
-                             Flim=3/2*NatMort_for_REP_Plot,
-                             legendlabels=model_names,
-                             png = TRUE)
+                              plot = FALSE,
+                              print = TRUE,
+                              plotdir = plotdir,
+                              btarg = 0.4,
+                              minbthresh = 0.2,
+                              filenameprefix = "REP_", # Used a static REP_ prefix to prevent overlapping with standard plots
+                              legend=T,
+                              Ftarg = 2/3*NatMort_for_REP_Plot,
+                              Fthresh=NatMort_for_REP_Plot,
+                              Flim=3/2*NatMort_for_REP_Plot,
+                              legendlabels=model_names,
+                              png = TRUE)
         
         cat("Comparison plots generated successfully.\n")
         
@@ -1752,9 +1754,6 @@ server <- function(input, output, session) {
       duration = 8
     )
   }
-  # --- END: New Refactored Function for Model Comparison ---
-  
-  # --- START: New Model Comparison Server Logic ---
   
   # Server-side logic for the 'add_comparison_dir_btn' file explorer
   shinyDirChoose(
