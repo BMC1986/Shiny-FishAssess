@@ -251,14 +251,43 @@ get_non_zero_data_columns <- function(df) {
   return(non_zero_col_names)
 }
 
-SS_n_fleets <- count_non_zero_data_columns(catch_data)
-SS_fleetnames <- get_non_zero_data_columns(catch_data)
+# SS_n_fleets <- count_non_zero_data_columns(catch_data)
+# SS_fleetnames <- get_non_zero_data_columns(catch_data)
+
+# 1. Extract fleets from Catch
+catch_fleetnames <- get_non_zero_data_columns(catch_data)
+
+# 2. Extract fleets from Biological Length data
+length_fleetnames <- character(0)
+if (exists("merged_kim_pilb") && !is.null(merged_kim_pilb) && "fleet" %in% colnames(merged_kim_pilb)) {
+  length_fleetnames <- unique(merged_kim_pilb$fleet)
+}
+
+# 3. Extract fleets from Age data
+age_fleetnames <- character(0)
+if (exists("combined_age_data") && !is.null(combined_age_data) && "fleet" %in% colnames(combined_age_data)) {
+  age_fleetnames <- unique(combined_age_data$fleet)
+}
+
+# Combine all unique fleets (excluding FIS/Survey which is appended later)
+SS_fleetnames <- unique(c(catch_fleetnames, length_fleetnames, age_fleetnames))
+SS_fleetnames <- SS_fleetnames[!is.na(SS_fleetnames) & SS_fleetnames != "" & SS_fleetnames != "FIS"]
+
+# Ensure all identified fleets exist as columns in catch_data
+# This prevents pivot_longer errors later on and ensures SS3 registers them
+for (flt in SS_fleetnames) {
+  if (!(flt %in% colnames(catch_data))) {
+    catch_data[[flt]] <- 0
+  }
+}
+
+SS_n_fleets <- length(SS_fleetnames)
 
 ### HAVE TO ADD SOMETHING HERE TO HANDLE FLEETS TALKED ABOUT IN INDICES
 
-# cat("\n")
-# print(SS_fleetnames)
-# cat("\n")
+cat("Fleetnames from all sources: \n")
+print(SS_fleetnames)
+cat("\n")
 
 
 SS_fleetnames_INDICES <- unique(effort_data$fleet)
@@ -272,6 +301,7 @@ SS_fleetnames_INDICES <- unique(effort_data$fleet)
 # cat("\n")
 
 ## Make sure always a FIS fleet
+
 SS_fleetnames_INDICES <- c(SS_fleetnames_INDICES,"FIS")
 
 
@@ -3558,11 +3588,26 @@ if(species == "Pristipomoides multidens") {
   forecast_catches <- c(0,0,0,0,435.538,0,0.09,0.018)
 }
 
+
 if(species == "Epinephelus rankini") {
   cat("DEBUG: TESTING MANUAL FORECAST CATCHES FOR Rankin Pilbara\n")
   
-  forecast_catches <- c(0,159,0,13.16,5.46,0,0,0,0)
-
+  # 1. Initialise the forecast catches to zero for all fleets
+  forecast_catches <- rep(0, nrow(SS_fleet_details))
+  
+  # 2. Define your desired forecast catches using the exact fleet names
+  target_catches <- c(
+    "Commercial.Trap" = 50, 
+    "Recreational" = 13.16, 
+    "Charter" = 5.46
+  )
+  
+  # 3. Find the matching indices in the SS_fleet_details dataframe
+  fleet_indices <- match(names(target_catches), SS_fleet_details$fleetname)
+  
+  # 4. Update the forecast_catches array only for the fleets that were found
+  valid_fleets <- !is.na(fleet_indices)
+  forecast_catches[fleet_indices[valid_fleets]] <- target_catches[valid_fleets]
 }
 
 # Check if the length of forecast_catches matches the number of fleets

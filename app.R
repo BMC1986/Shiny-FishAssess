@@ -362,16 +362,17 @@ ui <- function(request) {
                                                 checkboxInput("use_fis_length", "Use length data from FIS", value = TRUE),
                                                 checkboxInput("use_released_fis_data", "Use discarded length data from FIS", value = TRUE),
                                                 checkboxInput("use_bio_length", "Use length data from Biological databases", value = FALSE),
+                                                checkboxInput("detailed_sectors", "Use detailed sectors (Sector.Method)", value = FALSE),
                                                 radioButtons("length_metric", "Length Metric:",
                                                              choices = c("Fork Length (FL)" = "FL", "Total Length (TL)" = "TL"),
                                                              selected = "FL",
                                                              inline = TRUE),
                                                 numericInput("length_class_input", "Length Class Interval (mm):",
-                                                             value = 10, min = 1, max = 100, step = 1, width = '15%'),
+                                                             value = 20, min = 1, max = 100, step = 1, width = '15%'),
                                                 numericInput("min_length_input", "Minimum Length (mm, applies to length and age)",
                                                              value = 0, min = 0, step = 1, width = '15%'),
                                                 numericInput("min_sample_size_length", "Minimum Sample Size (n):",
-                                                             value = 1, min = 0, step = 1, width = '15%'),
+                                                             value = 50, min = 0, step = 1, width = '15%'),
                                                 radioButtons("length_color_by", "Colour Plots By:",
                                                              choices = c("BioRegion", "Zone", "Location", "Sector", "Sex"),
                                                              selected = "Sex",
@@ -1342,6 +1343,7 @@ server <- function(input, output, session) {
       shinyjs::show(selector = "li a[data-value]") 
       shinyjs::show("species_select")
       shinyjs::show("data_include_before")
+      shinyjs::show("conditional_age_ui") 
       shinyjs::show("data_include_after")
       shinyjs::show("download_btn")
       shinyjs::show(selector = "#sidebar h4:contains('Assessment Inputs')")
@@ -2122,27 +2124,77 @@ server <- function(input, output, session) {
       })
       
       # Modify merged_kim_pilb_reactive
+      # merged_kim_pilb_reactive <- reactive({
+      #   req(input$species_select) # <--- ADD THIS LINE
+      #   current_interval <- input$length_class_input
+      #   length_col <- ifelse(input$length_metric == "FL", "FL_mm", "TL_mm")
+      #   data <- Merged_Kim_Pilb
+      #   if (input$species_select != "All") {
+      #     data <- data %>% filter(SpeciesName == input$species_select)
+      #   }
+      #   data <- data %>%
+      #     mutate(LengthClass = round_any(.data[[length_col]], accuracy = Global.Lengthclass(), f = floor)) %>%
+      #     mutate(fleet = Sector)
+      #   
+      #   # data <- data %>%
+      #   #   mutate(LengthClass = floor(.data[[length_col]] / current_interval) * current_interval) %>%
+      #   #   mutate(fleet = Sector)
+      #   # Add default columns
+      #   if (!"Location" %in% colnames(data)) data$Location <- "Unknown"
+      #   if (!"Zone" %in% colnames(data)) data$Zone <- "Unknown"
+      #   if (!"BioRegion" %in% colnames(data)) data$BioRegion <- "Unknown"
+      #   if (!"Sex" %in% colnames(data)) data$Sex <- "U"
+      #   # message("merged_kim_pilb_reactive: nrow = ", nrow(data), ", columns = ", paste(colnames(data), collapse = ", "))
+      #   data
+      # })
+      
+      # Modify merged_kim_pilb_reactive
+      # Modify merged_kim_pilb_reactive
       merged_kim_pilb_reactive <- reactive({
-        req(input$species_select) # <--- ADD THIS LINE
+        req(input$species_select) 
         current_interval <- input$length_class_input
         length_col <- ifelse(input$length_metric == "FL", "FL_mm", "TL_mm")
         data <- Merged_Kim_Pilb
+        
         if (input$species_select != "All") {
           data <- data %>% filter(SpeciesName == input$species_select)
         }
+        
+        # --- Clean up Sector and Method text ---
+        # stringr::str_to_title ignores periods, so we use a robust regex (gsub)
+        # This explicitly capitalises the first letter, and any letter after a dot.
+        data <- data %>%
+          mutate(
+            Sector = stringr::str_squish(Sector),
+            Sector = gsub("(^|\\.)([a-z])", "\\1\\U\\2", tolower(Sector), perl = TRUE)
+          )
+        
+        if ("Method" %in% colnames(data)) {
+          data <- data %>%
+            mutate(
+              Method = stringr::str_squish(Method),
+              Method = gsub("(^|\\.)([a-z])", "\\1\\U\\2", tolower(Method), perl = TRUE)
+            )
+        }
+        
+        # --- Apply detailed sector formatting if selected ---
+        if (isTRUE(input$detailed_sectors) && "Method" %in% colnames(data)) {
+          data <- data %>%
+            mutate(Sector = ifelse(!is.na(Method) & Method != "", 
+                                   paste(Sector, Method, sep = "."), 
+                                   Sector))
+        }
+        
         data <- data %>%
           mutate(LengthClass = round_any(.data[[length_col]], accuracy = Global.Lengthclass(), f = floor)) %>%
           mutate(fleet = Sector)
         
-        # data <- data %>%
-        #   mutate(LengthClass = floor(.data[[length_col]] / current_interval) * current_interval) %>%
-        #   mutate(fleet = Sector)
         # Add default columns
         if (!"Location" %in% colnames(data)) data$Location <- "Unknown"
         if (!"Zone" %in% colnames(data)) data$Zone <- "Unknown"
         if (!"BioRegion" %in% colnames(data)) data$BioRegion <- "Unknown"
         if (!"Sex" %in% colnames(data)) data$Sex <- "U"
-        # message("merged_kim_pilb_reactive: nrow = ", nrow(data), ", columns = ", paste(colnames(data), collapse = ", "))
+        
         data
       })
       
