@@ -485,6 +485,7 @@ ui <- function(request) {
                                  hr(),
                                  h5("Modify biological and fishery parameters"),
                                  checkboxInput("use_1_sex_model", "Use 1-sex model", value = FALSE),
+                                 checkboxInput("disable_hermaphroditism", "Disable Hermaphroditism", value = FALSE),
                                  # --- NEW: Custom Max Size/Age Inputs ---
                                  checkboxInput("use_custom_max_size", "Specify Custom Max Population Size", value = FALSE),
                                  conditionalPanel(
@@ -573,6 +574,7 @@ ui <- function(request) {
                                  ),
                                  hr(),
                                  h5("Data Weighting"),
+                                 numericInput("nsamp_multiplier", "Composition Nsamp Multiplier (e.g., 0.1 to divide by 10):", value = 1.0, min = 0.001, max = 1, step = 0.01),
                                  checkboxInput("use_custom_bias_adj", "Use Custom Bias Adjustments", value = FALSE),
                                  conditionalPanel(
                                    condition = "input.use_custom_bias_adj == true",
@@ -3842,7 +3844,9 @@ server <- function(input, output, session) {
           "Commercial.GillNet" = "#E6D7AD",
           "Commercial.OpenAccess" = "#6A8C7F",
           "Commercial.Estuarine" = "#A0C4B8",
-          "Commercial.Trawl" = "#7D9D9C"
+          "Commercial.Trawl" = "#7D9D9C",
+          "Commercial.Line_a" = "#568B8E",
+          "Commercial.Line_b" = "#568B8E"
         )
         
         desired_levels <- c(
@@ -3850,7 +3854,7 @@ server <- function(input, output, session) {
           "Foreign", "Foreign.Trawl", "Foreign.Line", "Foreign.Trawl.Japan", "Foreign.Trawl.Russia", 
           "Foreign.Trawl.Taiwan", "Foreign.Trawl.China", "Commonwealth", "CSIRO.Research.Trawl",
           "Commercial.Monthly", "Commercial.daily","Commercial.GillNet","Commercial.OpenAccess",
-          "Commercial.Estuarine","Commercial.Trawl"
+          "Commercial.Estuarine","Commercial.Trawl","Commercial.Line_a","Commercial.Line_b"
         )
         catch_long$Sector <- factor(catch_long$Sector, levels = desired_levels)
         ggplot(catch_long, aes(x = year, y = Catch, fill = Sector)) +
@@ -4300,6 +4304,8 @@ server <- function(input, output, session) {
         params <- data.frame(
           use_initial_catch = input$use_initial_catch,
           use_1_sex_model = input$use_1_sex_model,
+          nsamp_multiplier = input$nsamp_multiplier,
+          disable_hermaphroditism = input$disable_hermaphroditism,
           # --- NEW: Add flags to dataframe ---
           use_custom_max_size = input$use_custom_max_size,
           use_custom_max_age = input$use_custom_max_age,

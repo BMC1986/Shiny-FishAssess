@@ -470,6 +470,10 @@ if(species == "Chrysophrys auratus") {
 
 ## Custom user parameters --------------------------------------------------
 
+# Set Nsamp multiplier, defaulting to 1 if missing
+SS_nsamp_multiplier <- fishery_parameters$nsamp_multiplier
+if (is.null(SS_nsamp_multiplier)) SS_nsamp_multiplier <- 1.0
+
 use_custom_M <- fishery_parameters$use_custom_M
 use_custom_h <- fishery_parameters$use_custom_h
 use_custom_R <- fishery_parameters$use_custom_R
@@ -1034,6 +1038,84 @@ if(species == "Lutjanus malabaricus") {
 }
 
 
+# ## Hermaphroditism ---------------------------------------------------------
+# 
+# # Initialize hermaphroditism options with a default
+# hermaphroditism_option <- 0
+# Hermaphro_season <- "#"
+# Hermaphro_maleSPB <- "#"
+# hermaphroditism_lines <- "# Placeholder for Hermaphroditism lines "
+# 
+# 
+# # Check if bio_params exists and handle sex-change parameters
+# if (exists("bio_params") && !is.null(bio_params)) {
+#   if (!is.na(bio_params$SexChangeParamsFemale_1) && !is.na(bio_params$SexChangeParamsMale_1)) {
+#     stop("Error: Both female and male sex-change parameters detected. Specify only one for protogynous (female-to-male) or protandrous (male-to-female).\n")
+#   } else if (!is.na(bio_params$SexChangeParamsFemale_1)) {
+#     cat("Female sex-change parameter detected, assuming protogynous, option 1\n")
+#     hermaphroditism_option <- 1
+#     Hermaphro_season <- -1
+#     Hermaphro_maleSPB <- 0.5
+#     
+#     hermaphroditism_inflection_age <- bio_params$SexChangeParamsFemale_3
+#     # if (species == "Epinephelus rankini") {
+#     #   cat("manually testing age params for sex-change")
+#     #   bio_params$SexChangeParamsFemale_3 <- 11.28
+#     #   bio_params$SexChangeParamsFemale_4 <- 17.77
+#     # }
+#     
+#     
+#     # Age at 50% transition (inflection point / mean)
+#     mu <- bio_params$SexChangeParamsFemale_3
+#     
+#     # Age at 95% transition
+#     X <- bio_params$SexChangeParamsFemale_4
+#     
+#     # The cumulative probability at age X
+#     P <- 0.95
+#     
+#     # --- Calculation ---
+#     
+#     # 1. Find the Z-score (number of standard deviations from the mean)
+#     #    that corresponds to the 95th percentile.
+#     z <- qnorm(P)
+#     
+#     # 2. Rearrange the Z-score formula (z = (X - mu) / sigma)
+#     #    to solve for sigma.
+#     hermaphroditism_SD <- (X - mu) / z
+#     
+#     # Hermaphroditism_asymptotic_rate <- log(19) / (bio_params$SexChangeParamsFemale_4 - bio_params$SexChangeParamsFemale_3) # I dont think that right, thats the width
+#     Hermaphroditism_asymptotic_rate <- 1 # 1 assumes all will change sex.
+#     
+#     hermaphroditism_lines <- c(paste0("	  1	  20	       ",hermaphroditism_inflection_age,"	       1          99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_Inflection_Age"),  
+#                                paste0("	  0	   1        ",hermaphroditism_SD,"	       0	   0	0        	-99		0	0	0	0	0	0	0	#_Hermaphroditism_SD"),
+#                                paste0("	  -5	   5	     ",Hermaphroditism_asymptotic_rate,"	     0.5	  99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_asymptotic_rate "))
+#     
+#   } else if (!is.na(bio_params$SexChangeParamsMale_1)) {
+#     cat("Male sex-change parameter detected, assuming protandrous, option -1\n")
+#     # hermaphroditism_option <- -1
+#     hermaphroditism_option <- 1
+#     Hermaphro_season <- -1
+#     Hermaphro_maleSPB <- 0.5
+#     
+#     hermaphroditism_inflection_age <- bio_params$SexChangeParamsMale_3
+#     Hermaphroditism_asymptotic_rate <- log(19) / (bio_params$SexChangeParamsMale_4 - bio_params$SexChangeParamsMale_3)
+#     
+#     hermaphroditism_lines <- c(paste0("	  1	  20	       ",hermaphroditism_inflection_age,"	       1          99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_Inflection_Age"),  
+#                                "	  0	   1        0.02	       0	   0	0        	-99		0	0	0	0	0	0	0	#_Hermaphroditism_SD",
+#                                paste0("	  -5	   5	     ",Hermaphroditism_asymptotic_rate,"	     0.5	  99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_asymptotic_rate "))
+#     
+#   } else {
+#     cat("No sex-change parameters detected, hermaphroditism options disabled\n")
+#     hermaphroditism_option <- 0
+#   }
+# } else {
+#   cat("bio_params not found, defaulting to no hermaphroditism (option 0)\n")
+#   hermaphroditism_option <- 0
+#   
+#   hermaphroditism_lines <- NULL
+# }
+
 ## Hermaphroditism ---------------------------------------------------------
 
 # Initialize hermaphroditism options with a default
@@ -1042,74 +1124,74 @@ Hermaphro_season <- "#"
 Hermaphro_maleSPB <- "#"
 hermaphroditism_lines <- "# Placeholder for Hermaphroditism lines "
 
+# Check user override
+disable_herm <- isTRUE(fishery_parameters$disable_hermaphroditism)
 
-# Check if bio_params exists and handle sex-change parameters
-if (exists("bio_params") && !is.null(bio_params)) {
-  if (!is.na(bio_params$SexChangeParamsFemale_1) && !is.na(bio_params$SexChangeParamsMale_1)) {
-    stop("Error: Both female and male sex-change parameters detected. Specify only one for protogynous (female-to-male) or protandrous (male-to-female).\n")
-  } else if (!is.na(bio_params$SexChangeParamsFemale_1)) {
-    cat("Female sex-change parameter detected, assuming protogynous, option 1\n")
-    hermaphroditism_option <- 1
-    Hermaphro_season <- -1
-    Hermaphro_maleSPB <- 0.5
-    
-    hermaphroditism_inflection_age <- bio_params$SexChangeParamsFemale_3
-    # if (species == "Epinephelus rankini") {
-    #   cat("manually testing age params for sex-change")
-    #   bio_params$SexChangeParamsFemale_3 <- 11.28
-    #   bio_params$SexChangeParamsFemale_4 <- 17.77
-    # }
-    
-    
-    # Age at 50% transition (inflection point / mean)
-    mu <- bio_params$SexChangeParamsFemale_3
-    
-    # Age at 95% transition
-    X <- bio_params$SexChangeParamsFemale_4
-    
-    # The cumulative probability at age X
-    P <- 0.95
-    
-    # --- Calculation ---
-    
-    # 1. Find the Z-score (number of standard deviations from the mean)
-    #    that corresponds to the 95th percentile.
-    z <- qnorm(P)
-    
-    # 2. Rearrange the Z-score formula (z = (X - mu) / sigma)
-    #    to solve for sigma.
-    hermaphroditism_SD <- (X - mu) / z
-    
-    # Hermaphroditism_asymptotic_rate <- log(19) / (bio_params$SexChangeParamsFemale_4 - bio_params$SexChangeParamsFemale_3) # I dont think that right, thats the width
-    Hermaphroditism_asymptotic_rate <- 1 # 1 assumes all will change sex.
-    
-    hermaphroditism_lines <- c(paste0("	  1	  20	       ",hermaphroditism_inflection_age,"	       1          99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_Inflection_Age"),  
-                               paste0("	  0	   1        ",hermaphroditism_SD,"	       0	   0	0        	-99		0	0	0	0	0	0	0	#_Hermaphroditism_SD"),
-                               paste0("	  -5	   5	     ",Hermaphroditism_asymptotic_rate,"	     0.5	  99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_asymptotic_rate "))
-    
-  } else if (!is.na(bio_params$SexChangeParamsMale_1)) {
-    cat("Male sex-change parameter detected, assuming protandrous, option -1\n")
-    # hermaphroditism_option <- -1
-    hermaphroditism_option <- 1
-    Hermaphro_season <- -1
-    Hermaphro_maleSPB <- 0.5
-    
-    hermaphroditism_inflection_age <- bio_params$SexChangeParamsMale_3
-    Hermaphroditism_asymptotic_rate <- log(19) / (bio_params$SexChangeParamsMale_4 - bio_params$SexChangeParamsMale_3)
-    
-    hermaphroditism_lines <- c(paste0("	  1	  20	       ",hermaphroditism_inflection_age,"	       1          99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_Inflection_Age"),  
-                               "	  0	   1        0.02	       0	   0	0        	-99		0	0	0	0	0	0	0	#_Hermaphroditism_SD",
-                               paste0("	  -5	   5	     ",Hermaphroditism_asymptotic_rate,"	     0.5	  99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_asymptotic_rate "))
-    
-  } else {
-    cat("No sex-change parameters detected, hermaphroditism options disabled\n")
-    hermaphroditism_option <- 0
-  }
+if (disable_herm) {
+  cat("Hermaphroditism manually disabled by user override.\n")
 } else {
-  cat("bio_params not found, defaulting to no hermaphroditism (option 0)\n")
-  hermaphroditism_option <- 0
-  
-  hermaphroditism_lines <- NULL
+  # Check if bio_params exists and handle sex-change parameters
+  if (exists("bio_params") && !is.null(bio_params)) {
+    if (!is.na(bio_params$SexChangeParamsFemale_1) && !is.na(bio_params$SexChangeParamsMale_1)) {
+      stop("Error: Both female and male sex-change parameters detected. Specify only one for protogynous (female-to-male) or protandrous (male-to-female).\n")
+    } else if (!is.na(bio_params$SexChangeParamsFemale_1)) {
+      cat("Female sex-change parameter detected, assuming protogynous, option 1\n")
+      hermaphroditism_option <- 1
+      Hermaphro_season <- -1
+      Hermaphro_maleSPB <- 0.5
+      
+      hermaphroditism_inflection_age <- bio_params$SexChangeParamsFemale_3
+      
+      # Age at 50% transition (inflection point / mean)
+      mu <- bio_params$SexChangeParamsFemale_3
+      
+      # Age at 95% transition
+      X <- bio_params$SexChangeParamsFemale_4
+      
+      # The cumulative probability at age X
+      P <- 0.95
+      
+      # --- Calculation ---
+      
+      # 1. Find the Z-score (number of standard deviations from the mean)
+      #    that corresponds to the 95th percentile.
+      z <- qnorm(P)
+      
+      # 2. Rearrange the Z-score formula (z = (X - mu) / sigma)
+      #    to solve for sigma.
+      hermaphroditism_SD <- (X - mu) / z
+      
+      # Hermaphroditism_asymptotic_rate <- log(19) / (bio_params$SexChangeParamsFemale_4 - bio_params$SexChangeParamsFemale_3) # I dont think that right, thats the width
+      Hermaphroditism_asymptotic_rate <- 1 # 1 assumes all will change sex.
+      
+      hermaphroditism_lines <- c(paste0("	  1	  20	       ",hermaphroditism_inflection_age,"	       1          99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_Inflection_Age"),  
+                                 paste0("	  0	   1        ",hermaphroditism_SD,"	       0	   0	0        	-99		0	0	0	0	0	0	0	#_Hermaphroditism_SD"),
+                                 paste0("	  -5	   5	     ",Hermaphroditism_asymptotic_rate,"	     0.5	  99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_asymptotic_rate "))
+      
+    } else if (!is.na(bio_params$SexChangeParamsMale_1)) {
+      cat("Male sex-change parameter detected, assuming protandrous, option -1\n")
+      # hermaphroditism_option <- -1
+      hermaphroditism_option <- 1
+      Hermaphro_season <- -1
+      Hermaphro_maleSPB <- 0.5
+      
+      hermaphroditism_inflection_age <- bio_params$SexChangeParamsMale_3
+      Hermaphroditism_asymptotic_rate <- log(19) / (bio_params$SexChangeParamsMale_4 - bio_params$SexChangeParamsMale_3)
+      
+      hermaphroditism_lines <- c(paste0("	  1	  20	       ",hermaphroditism_inflection_age,"	       1          99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_Inflection_Age"),  
+                                 "	  0	   1        0.02	       0	   0	0        	-99		0	0	0	0	0	0	0	#_Hermaphroditism_SD",
+                                 paste0("	  -5	   5	     ",Hermaphroditism_asymptotic_rate,"	     0.5	  99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_asymptotic_rate "))
+      
+    } else {
+      cat("No sex-change parameters detected, hermaphroditism options disabled\n")
+      hermaphroditism_option <- 0
+    }
+  } else {
+    cat("bio_params not found, defaulting to no hermaphroditism (option 0)\n")
+    hermaphroditism_option <- 0
+    
+    hermaphroditism_lines <- NULL
+  }
 }
 
 
@@ -2390,7 +2472,8 @@ SS_format_length_data <- function(length_data, max_length = SS_max_size,
         }
         
         # Finalise the row for the datafile
-        new_nsamp <- sum(combined_vector)
+        # new_nsamp <- sum(combined_vector)
+        new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
         if (new_nsamp > 0) {
           new_row <- data.frame(
             yr = y, month = month, fleet = f, sex = sex_code, part = part_value,
@@ -2533,7 +2616,8 @@ SS_format_age_data <- function(age_data, max_age = SS_n_age_bins,
           arrange(IntAge)
         
         combined_vector <- pad_vector(c(female_data$count, male_data$count))
-        new_nsamp <- sum(combined_vector)
+        # new_nsamp <- sum(combined_vector)
+        new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
         
         if (new_nsamp > 0) {
           new_row <- data.frame(
@@ -2554,7 +2638,8 @@ SS_format_age_data <- function(age_data, max_age = SS_n_age_bins,
           arrange(IntAge)
         
         combined_vector <- pad_vector(c(all_data$count, rep(0, max_age + 1)))
-        new_nsamp <- sum(combined_vector)
+        # new_nsamp <- sum(combined_vector)
+        new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
         
         if (new_nsamp > 0) {
           new_row <- data.frame(
@@ -2689,7 +2774,8 @@ SS_format_cond_age_length <- function(age_data, SS_length_bins, max_age = SS_n_a
           
           # --- MODIFICATION START ---
           # Recalculate Nsamp from the generated vector to ensure they match.
-          new_nsamp <- sum(data_vector)
+          # new_nsamp <- sum(data_vector)
+          new_nsamp <- round(sum(data_vector) * SS_nsamp_multiplier, 2)
           
           # If the new Nsamp is 0, there's no data to add, so skip to the next bin.
           if (new_nsamp == 0) {
@@ -2895,7 +2981,8 @@ SS_format_cond_age_length_optimised <- function(age_data,
     # Return a list containing the datavector and calculated Nsamp
     list(
       datavector_list_col = list(data_vec_padded), 
-      Nsamp_calculated = sum(data_vec_padded)
+      # Nsamp_calculated = sum(data_vec_padded)
+      Nsamp_calculated = round(sum(data_vec_padded) * SS_nsamp_multiplier, 2)
     )
   }, by = .(year, fleet_idx_numeric, calculated_sex_code, Length_bin)] # Grouping variables
   
@@ -3028,10 +3115,17 @@ SS_n_genders = 2
 if(fishery_parameters$use_1_sex_model) {
   SS_n_genders = -1
 
-  ## Modify part Code if 1 Sex model
+  ## Modify part and sex Code if 1 Sex model
   SS_length_data_formatted$part <- 0
+  SS_length_data_formatted$sex <- 0
+  
   SS_age_data_formatted$part <- 0
-  SS_cond_age_length$part <- 0
+  SS_age_data_formatted$sex <- 0
+  
+  if (exists("SS_cond_age_length")) {
+    SS_cond_age_length$part <- 0
+    SS_cond_age_length$sex <- 0
+  }
   
   SS_cond_age_length$datavector
   
