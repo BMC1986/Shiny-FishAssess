@@ -439,6 +439,13 @@ ui <- function(request) {
                                             verbatimTextOutput("age_debug")
                                      )
                                    )
+                                 ),
+                                 fluidRow(
+                                   column(12, 
+                                          plotOutput("plot_age_len_facet", height = "600px"),
+                                          br(),
+                                          plotOutput("plot_age_len_combined", height = "500px")
+                                   )
                                  )
                         ),
                         tabPanel("Biological Parameters",value = "bioparams_tab",
@@ -4428,6 +4435,106 @@ server <- function(input, output, session) {
         }
         render_age_histogram(data, age_col = "IntAge")
       })
+
+      # --- COMBINED AGE/LENGTH DATA REACTIVE ---
+      # This pulls from FIS, Biological, or both depending on what is checked
+      combined_age_length_data <- reactive({
+        df_list <- list()
+        
+        # 1. Grab FIS Data (if checked and available)
+        if (isTRUE(input$use_fis_age)) {
+          fis_data <- age_plot_data()
+          if (nrow(fis_data) > 0 && "Age" %in% colnames(fis_data)) {
+            # Check length metric for FIS (FL or TL)
+            len_col <- if(!is.null(input$length_metric) && input$length_metric == "TL" && "TL" %in% colnames(fis_data)) "TL" else "FL"
+            
+            if (len_col %in% colnames(fis_data)) {
+              temp_fis <- data.frame(
+                Year = fis_data$year,
+                Age = fis_data$Age,
+                Length = fis_data[[len_col]],
+                DataSource = "FIS"
+              )
+              # Handle colouring
+              color_var <- input$age_color_by
+              temp_fis$ColourGroup <- if(color_var %in% colnames(fis_data)) fis_data[[color_var]] else "Unknown"
+              
+              df_list[[1]] <- temp_fis
+            }
+          }
+        }
+        
+        # 2. Grab Biological Data (if checked and available)
+        if (isTRUE(input$use_bio_age)) {
+          bio_data <- bio_age_plot_data()
+          if (nrow(bio_data) > 0 && "Age" %in% colnames(bio_data)) {
+            # Check length metric for Bio data (FL_mm or TL_mm)
+            len_col <- if(!is.null(input$length_metric) && input$length_metric == "TL" && "TL_mm" %in% colnames(bio_data)) "TL_mm" else "FL_mm"
+            
+            if (len_col %in% colnames(bio_data)) {
+              temp_bio <- data.frame(
+                Year = bio_data$year,
+                Age = bio_data$Age,
+                Length = bio_data[[len_col]],
+                DataSource = "Biological"
+              )
+              # Handle colouring
+              color_var <- input$age_color_by
+              temp_bio$ColourGroup <- if(color_var %in% colnames(bio_data)) bio_data[[color_var]] else "Unknown"
+              
+              df_list[[2]] <- temp_bio
+            }
+          }
+        }
+        
+        # Combine them safely
+        if (length(df_list) > 0) {
+          dplyr::bind_rows(df_list) %>% filter(!is.na(Age), !is.na(Length))
+        } else {
+          data.frame() # Return empty if nothing is found
+        }
+      })
+      
+      # Age Tab - Faceted scatter plot (coloured by user selection)
+      output$plot_age_len_facet <- renderPlot({
+        data <- combined_age_length_data()
+        
+        # Ensure we actually have data before trying to plot
+        req(nrow(data) > 0)
+        
+        ggplot(data, aes(x = Age, y = Length, colour = as.factor(ColourGroup), shape = DataSource)) +
+          geom_point(alpha = 0.6, size = 2) +
+          facet_wrap(~ Year) +
+          theme_bw(base_size = 14) +
+          labs(
+            title = "Age vs Length by Year",
+            x = "Age (Years)",
+            y = paste("Length (", input$length_metric %||% "FL", ")", sep=""),
+            colour = input$age_color_by,
+            shape = "Data Source"
+          ) +
+          theme(legend.position = "bottom")
+      })
+      
+      # Age Tab - Combined scatter plot (coloured by Year)
+      output$plot_age_len_combined <- renderPlot({
+        data <- combined_age_length_data()
+        
+        req(nrow(data) > 0)
+        
+        ggplot(data, aes(x = Age, y = Length, colour = as.factor(Year), shape = DataSource)) +
+          geom_point(alpha = 0.6, size = 2) +
+          theme_bw(base_size = 14) +
+          labs(
+            title = "Age vs Length (All Years Combined)",
+            x = "Age (Years)",
+            y = paste("Length (", input$length_metric %||% "FL", ")", sep=""),
+            colour = "Year",
+            shape = "Data Source"
+          ) +
+          scale_colour_viridis_d(option = "plasma")
+      })
+      
       
       fishery_params <- reactive({
         params <- data.frame(

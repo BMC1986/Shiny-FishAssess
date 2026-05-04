@@ -2591,9 +2591,13 @@ SS_format_age_data <- function(age_data, max_age = SS_n_age_bins,
       year_data <- fleet_data %>% filter(year == y)
       
       # --- NEW LOGIC START ---
-      # Split data into sexed (M/F) and unsexed (NA)
+      # # Split data into sexed (M/F) and unsexed (NA)
+      # sexed_subset <- year_data %>% filter(Sex %in% c("M", "F"))
+      # unsexed_subset <- year_data %>% filter(is.na(Sex))
+      
+      # Split data into sexed (M/F) and unsexed (NA or blanks)
       sexed_subset <- year_data %>% filter(Sex %in% c("M", "F"))
-      unsexed_subset <- year_data %>% filter(is.na(Sex))
+      unsexed_subset <- year_data %>% filter(is.na(Sex) | !(Sex %in% c("M", "F")))
       
       # cat("hello unsexed_subset:")
       # print(unsexed_subset)
@@ -2908,7 +2912,15 @@ SS_format_cond_age_length_optimised <- function(age_data,
     has_females_in_year = any(Sex == "F", na.rm = TRUE)
   ), by = .(fleet, year)] # Group by original character fleet name and year
   
+  # dt[, calculated_sex_code := fcase(
+  #   has_males_in_year & has_females_in_year, 3L,
+  #   has_females_in_year, 1L,
+  #   has_males_in_year, 2L,
+  #   default = 0L
+  # )]
+  
   dt[, calculated_sex_code := fcase(
+    is.na(Sex) | !(Sex %in% c("M", "F")), 0L,  # Force unsexed fish to 0
     has_males_in_year & has_females_in_year, 3L,
     has_females_in_year, 1L,
     has_males_in_year, 2L,
