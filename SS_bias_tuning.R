@@ -1,4 +1,4 @@
-# SS_bias_tuning.R (updated version)
+# --- Background Bias & Tuning Script Initiated ---
 
 cat("--- Background Bias & Tuning Script Initiated ---\n")
 
@@ -183,14 +183,6 @@ tuning_dir <- bias_tuning_options$tuning_dir
 run_step <- bias_tuning_options$run_step
 weighting_method <- bias_tuning_options$weighting_method # Will be NULL if not set
 
-# model_dir <-  "C:/Users/bxc/OneDrive - Department of Primary Industries And Regional Development/SADA/Shiny-FishAssess/output/ReK1_250807_NoFIS_WtDir"
-# exe_path <- "C:/Users/bxc/OneDrive - Department of Primary Industries And Regional Development/SADA/Shiny-FishAssess/Stock_Synthesis_latest/ss.exe "
-# tuning_dir <- "C:/Users/bxc/OneDrive - Department of Primary Industries And Regional Development/SADA/Shiny-FishAssess/output/ReK1_250807_NoFIS_WtDir/tuning"
-# exe_name <- "ss3.exe"
-# run_step <- "full_sequence" #"bias_ramp_only"
-# weighting_method <- "francis" # "dirichlet" # "francis"
-
-## MODIFIED: Create a base name from the model directory path for naming output folders.
 base_folder_name <- basename(model_dir)
 
 cat(paste("Task:", run_step, "\n"))
@@ -215,7 +207,6 @@ run_ss_in_dir <- function(target_dir, exe_file_name) {
   
   cat(paste("  -> Attempting to run", exe_file_name, "in", getwd(), "\n"))
   
-  # Use tryCatch to handle potential errors from processx::run
   result <- tryCatch(
     processx::run(
       command = exe_in_target_dir,
@@ -226,7 +217,6 @@ run_ss_in_dir <- function(target_dir, exe_file_name) {
     error = function(e) e # Return the error object if it occurs
   )
   
-  # Check if the run itself produced an error object
   if (inherits(result, "error")) {
     cat("  -> !!! Stock Synthesis execution FAILED. !!!\n")
     cat("  -> R ERROR MESSAGE:", result$message, "\n")
@@ -240,14 +230,12 @@ run_ss_in_dir <- function(target_dir, exe_file_name) {
 
 # --- Main Logic ---
 tryCatch({
-  # Step 1: Always ensure the source model has been run and read its files
   cat("Step 1: Reading source model files...\n")
   if (!file.copy(exe_path, file.path(model_dir, exe_name), overwrite = TRUE)) {
     stop("Failed to copy executable to model directory.")
   }
   
   starter_file_orig <- r4ss::SS_readstarter(file.path(model_dir, "starter.ss"), verbose = FALSE)
-  # Read dat file first to pass to SS_readctl
   dat_orig_path <- file.path(model_dir, starter_file_orig$datfile)
   dat_orig <- r4ss::SS_readdat(file = dat_orig_path, verbose = FALSE)
   
@@ -259,7 +247,6 @@ tryCatch({
   )
   cat("-> Successfully read initial starter, data, and control files.\n")
   
-  # Helper function for Bias Ramp Adjustment Logic (used by both run types)
   perform_bias_ramp <- function(input_replist, output_dir_name) {
     cat(paste("Performing bias ramp adjustment, output to:", output_dir_name, "...\n"))
     
@@ -268,12 +255,9 @@ tryCatch({
     print(bias_adj$df)
     cat("\n")
     
-    # --- FIX APPLIED HERE ---
-    # First, read the data file using SS_readdat to get the correctly formatted datlist
     dat_path <- file.path(input_replist$inputs$dir, starter_file_orig$datfile)
     datlist_for_ctl <- r4ss::SS_readdat(file = dat_path, verbose = FALSE)
     
-    # Now, read the control file using the newly created datlist
     ctl_modified <- r4ss::SS_readctl(
       file = file.path(input_replist$inputs$dir, starter_file_orig$ctlfile),
       verbose = FALSE, 
@@ -300,35 +284,25 @@ tryCatch({
     return(r4ss::SS_output(dir = output_dir_path, verbose = FALSE, printstats = FALSE, covar = TRUE))
   }
   
-  # --- Execution based on run_step ---
-  
   if (run_step == "bias_ramp_only") {
     cat("--- EXECUTING: Single Bias Ramp Adjustment ---\n")
     
-    # cat("Running source model to get up-to-date outputs...\n")
-    # run_success <- run_ss_in_dir(model_dir, exe_name)
-    # if (!run_success) stop("Initial Stock Synthesis run failed.")
-    
     replist_initial <- r4ss::SS_output(dir = model_dir, verbose = FALSE, printstats = FALSE, covar = TRUE)
     
-    ## MODIFIED: Use the base_folder_name for the output directory.
     base_output_dir_name <- paste0(base_folder_name, "_bias_adj")
     output_dir_name <- base_output_dir_name
     counter <- 1
-    # Loop to find a folder name that doesn't exist yet
     while (dir.exists(file.path(tuning_dir, output_dir_name))) {
       counter <- counter + 1
       output_dir_name <- paste0(base_output_dir_name, "_", counter)
     }
     cat(paste("Output for this run will be saved to unique folder:", output_dir_name, "\n"))
     
-    # Run the bias ramp and save to the uniquely named folder
     replist_after_bias_adj <- perform_bias_ramp(replist_initial, output_dir_name)
     
     cat("\nSingle Bias Ramp Adjustment Complete! ✅\n")
     cat(paste("Adjusted model is ready in:", file.path(tuning_dir, output_dir_name), "\n"))
     
-    ## MODIFIED: Corrected the plot directory to use the unique output_dir_name.
     r4ss::SS_plots(replist_after_bias_adj, dir = file.path(tuning_dir, output_dir_name), printfolder = "r4ss_plots", pdf = FALSE, png = TRUE, html = TRUE)
     
     try({
@@ -343,8 +317,6 @@ tryCatch({
     
     cat("-> r4ss plots generated in the 'r4ss_plots' subfolder.\n")
     
-    
-  ##DPIRD PLOTS
     tryCatch({
       cat("Generating custom DPIRD plots for Bias Ramp run...\n")
       generate_DPIRD_plots(replist_after_bias_adj, file.path(tuning_dir, output_dir_name))
@@ -355,10 +327,8 @@ tryCatch({
   } else if (run_step == "full_sequence") {
     cat("--- EXECUTING: Full Tuning Sequence ---\n")
     
-    # Initialize a list to track folders we want to delete later
     dirs_to_remove <- c()
     
-    ## MODIFIED: Define the weighting suffix and combine it with the base name
     weighting_suffix <- if (!is.null(weighting_method)) {
       switch(weighting_method,
              "francis" = "_WtFr",
@@ -374,24 +344,19 @@ tryCatch({
       
       replist1 <- r4ss::SS_output(dir = model_dir, verbose = FALSE, printstats = FALSE, covar = TRUE)
       
-      ## Step 2.2: First Bias Adjustment
       first_bias_dir_name <- paste0(full_prefix, "_first_bias_adj")
-      
-      # Mark this folder for deletion later
       dirs_to_remove <- c(dirs_to_remove, file.path(tuning_dir, first_bias_dir_name))
-      
       replist2 <- perform_bias_ramp(replist1, first_bias_dir_name)
       
       cat(paste("Step 2.3: Performing Composition Weighting using", weighting_method, "method...\n"))
       
       replist_before_final_bias_adj <- NULL
-      
       cat("    -> Francis Tuning (3 iterations)...\n")
       
       # Iteration 1
       modelrun3_dir_name <- paste0(full_prefix, "_francis1")
       modelrun3_dir <- file.path(tuning_dir, modelrun3_dir_name)
-      dirs_to_remove <- c(dirs_to_remove, modelrun3_dir) # Mark for deletion
+      dirs_to_remove <- c(dirs_to_remove, modelrun3_dir)
       
       r4ss::copy_SS_inputs(dir.old = replist2$inputs$dir, dir.new = modelrun3_dir, overwrite = TRUE, copy_exe = TRUE)
       tuning_table_1 <- r4ss::tune_comps(replist2, option = "Francis", write = TRUE, dir = modelrun3_dir, verbose = FALSE, plot = FALSE)
@@ -400,11 +365,21 @@ tryCatch({
       ctl_2$DoVar_adjust <- 1
       ctl_2$dirichlet_parms <- NULL
       r4ss::SS_writectl(ctl_2, file.path(modelrun3_dir, starter_file_orig$ctlfile), overwrite = TRUE, verbose = FALSE)
+      
       dat_2 <- r4ss::SS_readdat(file.path(replist2$inputs$dir, starter_file_orig$datfile), verbose = FALSE)
       dat_2$len_info$CompError <- 0
       dat_2$len_info$ParmSelect <- 0
       dat_2$age_info$CompError <- 0
       dat_2$age_info$ParmSelect <- 0
+      
+      # --- NEW: Cleanup for Generalised Size Composition in Francis method ---
+      if (!is.null(dat_2$N_sizefreq_methods) && dat_2$N_sizefreq_methods > 0) {
+        # Reset CompError and ParmSelect back to multinomial defaults
+        dat_2$Comp_Error_per_method <- rep(0, dat_2$N_sizefreq_methods)
+        dat_2$ParmSelect_per_method <- rep(0, dat_2$N_sizefreq_methods)
+      }
+      # ---------------------------------------------------------------------
+      
       r4ss::SS_writedat(dat_2, file.path(modelrun3_dir, starter_file_orig$datfile), overwrite = TRUE, verbose = FALSE)
       run_ss_in_dir(modelrun3_dir, exe_name)
       replist3 <- r4ss::SS_output(dir = modelrun3_dir, verbose = FALSE, printstats = FALSE, covar = TRUE)
@@ -412,7 +387,7 @@ tryCatch({
       # Iteration 2
       modelrun4_dir_name <- paste0(full_prefix, "_francis2")
       modelrun4_dir <- file.path(tuning_dir, modelrun4_dir_name)
-      dirs_to_remove <- c(dirs_to_remove, modelrun4_dir) # Mark for deletion
+      dirs_to_remove <- c(dirs_to_remove, modelrun4_dir)
       
       r4ss::copy_SS_inputs(dir.old = modelrun3_dir, dir.new = modelrun4_dir, overwrite = TRUE, copy_exe = TRUE)
       tuning_table_2 <- r4ss::tune_comps(replist3, option = "Francis", write = TRUE, dir = modelrun4_dir, verbose = FALSE, plot = FALSE)
@@ -426,7 +401,7 @@ tryCatch({
       # Iteration 3
       modelrun5_dir_name <- paste0(full_prefix, "_francis3")
       modelrun5_dir <- file.path(tuning_dir, modelrun5_dir_name)
-      dirs_to_remove <- c(dirs_to_remove, modelrun5_dir) # Mark for deletion
+      dirs_to_remove <- c(dirs_to_remove, modelrun5_dir)
       
       r4ss::copy_SS_inputs(dir.old = modelrun4_dir, dir.new = modelrun5_dir, overwrite = TRUE, copy_exe = TRUE)
       tuning_table_3 <- r4ss::tune_comps(replist4, option = "Francis", write = TRUE, dir = modelrun5_dir, verbose = FALSE, plot = FALSE)
@@ -442,29 +417,10 @@ tryCatch({
       
     } else if (weighting_method == "dirichlet") {
       
-      # replist1 <- r4ss::SS_output(dir = model_dir, verbose = FALSE, printstats = FALSE, covar = TRUE)
-      # 
-      # cat("    -> Dirichlet Tuning ...\n")
-      # 
-      # modelrun3_dir_name <- paste0(full_prefix, "_dirichlet1")
-      # modelrun3_dir <- file.path(tuning_dir, modelrun3_dir_name)
-      # 
-      # dirs_to_remove <- c(dirs_to_remove, modelrun3_dir) # Mark for deletion
-      # 
-      # # 1. Copy inputs but NOT the exe
-      # r4ss::copy_SS_inputs(dir.old = replist1$inputs$dir, dir.new = modelrun3_dir, overwrite = TRUE, copy_exe = FALSE)
-      # 
-      # # 2. Manually copy the clean executable
-      # file.copy(exe_path, file.path(modelrun3_dir, exe_name), overwrite = TRUE)
-      # 
-      # ctl_dirichlet <- r4ss::SS_readctl(file.path(modelrun3_dir, starter_file_orig$ctlfile), verbose = FALSE, use_datlist = TRUE, datlist = file.path(modelrun3_dir, starter_file_orig$datfile))
-      # dat_dirichlet <- r4ss::SS_readdat(file.path(modelrun3_dir, starter_file_orig$datfile), verbose = FALSE)
-      # 
       replist1 <- r4ss::SS_output(dir = model_dir, verbose = FALSE, printstats = FALSE, covar = TRUE)
       
       cat("    -> Dirichlet Tuning ...\n")
       
-      # ADDED: First Bias Adjustment (Mirrors the Francis approach to ensure a bias-adjusted base)
       first_bias_dir_name <- paste0(full_prefix, "_first_bias_adj")
       dirs_to_remove <- c(dirs_to_remove, file.path(tuning_dir, first_bias_dir_name))
       replist2 <- perform_bias_ramp(replist1, first_bias_dir_name)
@@ -472,12 +428,9 @@ tryCatch({
       modelrun3_dir_name <- paste0(full_prefix, "_dirichlet1")
       modelrun3_dir <- file.path(tuning_dir, modelrun3_dir_name)
       
-      dirs_to_remove <- c(dirs_to_remove, modelrun3_dir) # Mark for deletion
+      dirs_to_remove <- c(dirs_to_remove, modelrun3_dir)
       
-      # 1. Copy inputs but NOT the exe (MODIFIED: Use replist2 instead of replist1)
       r4ss::copy_SS_inputs(dir.old = replist2$inputs$dir, dir.new = modelrun3_dir, overwrite = TRUE, copy_exe = FALSE)
-      
-      # 2. Manually copy the clean executable
       file.copy(exe_path, file.path(modelrun3_dir, exe_name), overwrite = TRUE)
       
       ctl_dirichlet <- r4ss::SS_readctl(file.path(modelrun3_dir, starter_file_orig$ctlfile), verbose = FALSE, use_datlist = TRUE, datlist = file.path(modelrun3_dir, starter_file_orig$datfile))
@@ -496,7 +449,20 @@ tryCatch({
       dat_dirichlet$age_info$CompError[age_fleets_with_comps] <- 1
       dat_dirichlet$age_info$ParmSelect[age_fleets_with_comps] <- max_len_parm + seq_along(age_fleets_with_comps)
       
-      max_parm <- max(c(dat_dirichlet$len_info$ParmSelect, dat_dirichlet$age_info$ParmSelect))
+      max_parm <- max(c(dat_dirichlet$len_info$ParmSelect, dat_dirichlet$age_info$ParmSelect), na.rm = TRUE)
+      
+      # --- NEW: Dirichlet support for Generalised Size Composition (Sizefreq) ---
+      if (!is.null(dat_dirichlet$N_sizefreq_methods) && dat_dirichlet$N_sizefreq_methods > 0) {
+        num_methods <- dat_dirichlet$N_sizefreq_methods
+        
+        # Set Dirichlet (1) for CompError and increment parameters
+        dat_dirichlet$Comp_Error_per_method <- rep(1, num_methods)
+        dat_dirichlet$ParmSelect_per_method <- max_parm + seq_len(num_methods)
+        
+        # Update max parameter tally
+        max_parm <- max(c(max_parm, dat_dirichlet$ParmSelect_per_method), na.rm = TRUE)
+      }
+      # --------------------------------------------------------------------------
       
       ctl_dirichlet$dirichlet_parms <- data.frame(
         LO = rep(-5, max_parm),
@@ -526,11 +492,8 @@ tryCatch({
       stop(paste("Unknown weighting method provided:", weighting_method))
     }
     
-    # Step 2.4: Final Bias Ramp Adjustment (The one we keep!)
-    # final_model_dir_name <- paste0(full_prefix, "_final_model")
+    # Step 2.4: Final Bias Ramp Adjustment
     final_model_dir_name <- full_prefix
-    
-    # NOTE: We do NOT add final_model_dir_name to dirs_to_remove because we want to keep it.
     
     replist_final <- perform_bias_ramp(replist_before_final_bias_adj, final_model_dir_name)
     
@@ -558,28 +521,10 @@ tryCatch({
       cat(paste("Error generating DPIRD plots:", e$message, "\n"))
     })
     
-    # # --- CLEANUP STEP ---
-    # cat("\n--- CLEANUP: Removing intermediate model runs ---\n")
-    # if (length(dirs_to_remove) > 0) {
-    #   for (dir_path in dirs_to_remove) {
-    #     if (dir.exists(dir_path)) {
-    #       cat(paste("Removing:", dir_path, "\n"))
-    #       unlink(dir_path, recursive = TRUE)
-    #     } else {
-    #       cat(paste("Skipping (not found):", dir_path, "\n"))
-    #     }
-    #   }
-    # } else {
-    #   cat("No intermediate folders marked for removal.\n")
-    # }
-    
     # --- CLEANUP STEP ---
     cat("\n--- CLEANUP: Removing intermediate model runs ---\n")
     
-    # 1. Force R to release any file locks
     gc() 
-    
-    # 2. Wait a moment for the OS to release handles (Windows fix)
     Sys.sleep(2) 
     
     if (length(dirs_to_remove) > 0) {
@@ -587,17 +532,14 @@ tryCatch({
         if (dir.exists(dir_path)) {
           cat(paste("Removing:", dir_path, "\n"))
           
-          # Attempt deletion
           result <- unlink(dir_path, recursive = TRUE, force = TRUE)
           
-          # Retry mechanism if deletion fails (common on Windows)
           if (dir.exists(dir_path)) {
             cat("  -> First delete attempt failed (folder locked?). Retrying in 2 seconds...\n")
             Sys.sleep(2)
             unlink(dir_path, recursive = TRUE, force = TRUE)
           }
           
-          # Final check
           if (dir.exists(dir_path)) {
             cat("  -> WARNING: Could not delete folder. You may need to delete it manually.\n")
           } else {

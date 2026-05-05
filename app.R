@@ -3982,7 +3982,8 @@ server <- function(input, output, session) {
           "Commercial.Estuarine" = "#A0C4B8",
           "Commercial.Trawl" = "#7D9D9C",
           "Commercial.Line_a" = "#568B8E",
-          "Commercial.Line_b" = "#568B8E"
+          "Commercial.Line_b" = "#568B8E",
+          "Commercial.Other" = "#E6D7AD"
         )
         
         desired_levels <- c(
@@ -3990,7 +3991,7 @@ server <- function(input, output, session) {
           "Foreign", "Foreign.Trawl", "Foreign.Line", "Foreign.Trawl.Japan", "Foreign.Trawl.Russia", 
           "Foreign.Trawl.Taiwan", "Foreign.Trawl.China", "Commonwealth", "CSIRO.Research.Trawl",
           "Commercial.Monthly", "Commercial.daily","Commercial.GillNet","Commercial.OpenAccess",
-          "Commercial.Estuarine","Commercial.Trawl","Commercial.Line_a","Commercial.Line_b"
+          "Commercial.Estuarine","Commercial.Trawl","Commercial.Line_a","Commercial.Line_b","Commercial.Other"
         )
         catch_long$Sector <- factor(catch_long$Sector, levels = desired_levels)
         ggplot(catch_long, aes(x = year, y = Catch, fill = Sector)) +
