@@ -34,116 +34,17 @@ The repository includes the following key R scripts:
 ## Setup and Usage
 
 1.  **Prerequisites:**
-    Ensure you have R (>= 4.2.0) and RStudio installed. You will need the following packages:
-    ```r
-    install.packages(c("shiny", "shinyWidgets", "shinyjs", "shinyFiles", "bslib", 
-                       "dplyr", "ggplot2", "tidyr", "data.table", "stringr", 
-                       "doParallel", "foreach", "processx", "fs", "zip", 
-                       "DT", "kableExtra", "remotes"))
-    
-    # Install r4ss from GitHub
-    remotes::install_github("r4ss/r4ss")
-    ```
+    Ensure you have R (>= 4.2.0) and RStudio installed:
 
 2.  **Installation:**
     * Clone or download this repository.
     * Place the `Stock_Synthesis_latest/ss.exe` executable in the project root if you intend to run models locally.
 
 3.  **Running the App:**
-    * Open `app.R` in RStudio.
+    * Open `app.R` in RStudio. Ensure all packages installed.
     * Run using `shiny::runApp()` or the "Run App" button.
     * **Note:** For best performance, use the "Run External" option in RStudio.
 
 4.  **Workflow:**
     * **Restricted Mode (Public Users):** Upon launch, the app will detect that the data import script is missing. The app will focus on the **SS3 Sensitivity Analysis** and **Bias and Tuning** tabs. You can upload existing SS3 model folders (zipped) to perform diagnostics, comparisons, and tuning.
     * **Full Mode (DPIRD Staff):** With the internal data script present, users can load raw data, filter species/fleets, and generate new SS3 input files from scratch via the "Data Preparation" tabs.
-
-## Process Flowchart
-
-```mermaid
-%%{init: {
-  'flowchart': {
-    'curve': 'basis',
-    'diagramPadding': 20,
-    'nodeSpacing': 50,
-    'rankSpacing': 80
-  },
-  'themeVariables': {
-    'fontSize': '16px',
-    'fontFamily': 'arial'
-  }
-}}%%
-graph LR
-  %% --- Data Inputs ---
-  subgraph Data_Inputs [Data Inputs]
-    A1_script["Import Script<br>(DPIRD Internal)"]:::rawdata
-    A1_zip["Upload ZIP<br>(Existing Models)"]:::rawdata
-  end
-
-  %% --- User Interface ---
-  subgraph User_Interface [User Interface]
-    UI("Shiny UI<br>(app.R)"):::usercontrol
-    UI_inputs("User Inputs<br>(Species, Filters, Params)"):::usercontrol
-    
-    %% Action Buttons moved inside UI for cleaner flow
-    ActionGenerate([Generate Inputs]):::actionbutton
-    ActionRun([Run/Tune Model]):::actionbutton
-  end
-
-  %% --- Processing ---
-  subgraph Processing_Analysis [Processing & Analysis]
-    P1("SS3 Input Gen<br>(SS_input.R)"):::processing
-    P2("Sensitivities<br>(SS_sensitivities.R)"):::processing
-    P3("Bias & Tuning<br>(SS_bias_tuning.R)"):::processing
-  end
-
-  %% --- Outputs ---
-  subgraph Outputs
-    O1("SS3 Input Files<br>(.dat, .ctl, .ss)"):::ss3output
-    O4("ZIP Archive"):::ss3output
-    O2("Model Runs<br>(Parallel)"):::ss3output
-    O3("Comparisons & Plots"):::ss3output
-  end
-
-  %% --- Relationships ---
-  
-  %% Inputs to UI
-  A1_script & A1_zip -.-> UI
-  UI --> UI_inputs
-  
-  %% UI Inputs to Buttons (The Trigger)
-  UI_inputs --> ActionGenerate
-  UI_inputs --> ActionRun
-
-  %% Button Flow 1: Generation
-  ActionGenerate --> P1
-  P1 --> O1 --> O4
-
-  %% Button Flow 2: Running/Tuning
-  ActionRun --> P2 & P3
-  P2 & P3 --> O2 --> O3
-
-  %% --- Invisible Edges for Vertical Alignment (Tricks the engine) ---
-  A1_script ~~~ A1_zip
-  P1 ~~~ P2 ~~~ P3
-  O1 ~~~ O2
-  O2 ~~~ O3
-
-  %% --- Styling ---
-  classDef rawdata fill:#8E5F7E,stroke:#42797F,color:#FFFFFF,stroke-width:0px,rx:5
-  classDef usercontrol fill:#BFD7DF,stroke:#003F51,color:#000000,stroke-width:1.5px,rx:5
-  classDef processing fill:#CC9950,stroke:#003F51,color:#FFFFFF,stroke-width:0px,rx:5
-  classDef ss3output fill:#003F51,stroke:#BFD7DF,color:#FFFFFF,stroke-width:0px,rx:5
-  classDef actionbutton fill:#42797F,stroke:#42797F,color:#FFFFFF,stroke-width:0px,rx:20
-
-  class A1_script,A1_zip rawdata
-  class UI,UI_inputs usercontrol
-  class P1,P2,P3 processing
-  class O1,O2,O3,O4 ss3output
-  class ActionGenerate,ActionRun actionbutton
-
-  style Data_Inputs fill:#F9F9F9,stroke:#ddd,stroke-dasharray: 5 5
-  style User_Interface fill:#F0F7F9,stroke:#003F51
-  style Processing_Analysis fill:#FFF8E1,stroke:#CC9950
-  style Outputs fill:#EEF4F6,stroke:#003F51
-```

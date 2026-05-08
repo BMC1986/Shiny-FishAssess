@@ -219,7 +219,7 @@ if(sensitivity_options$jitter) {
   # Use future_lapply for clean and safe parallel execution
   start_time <- Sys.time()
   message(paste("Parallel execution started:", start_time))
-  future_lapply(1:Njitter, FUN = run_ss_in_dir, main_jitter_dir = jitter_main_dir)
+  future_lapply(1:Njitter, FUN = run_ss_in_dir, main_jitter_dir = jitter_main_dir, future.seed = TRUE)
   end_time <- Sys.time()
   duration_paralell.jitter <- end_time - start_time
   message(paste("Jitter Parallel execution took:", round(duration_paralell.jitter, 2), units(duration_paralell.jitter)))

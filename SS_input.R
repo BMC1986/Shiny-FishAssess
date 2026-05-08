@@ -190,6 +190,22 @@ if (exists("file_list")) {
   SS_use_bio_length <- file_list$SS_use_bio_length %||% FALSE
   cat("Use length comp from biol databases:", SS_use_bio_length, "\n")
   
+  # --- NEW: Force ALL composition data to combined sex if selected ---
+  # Note: The UI variable is 'use_combined_sex_length_comps', but it now applies to ALL comps.
+  if(isTRUE(fishery_parameters$use_combined_sex_length_comps)) {
+    cat("User override: Forcing ALL composition data (Length and Age) to combined sex (Sex='U').\n")
+    
+    if(exists("fixedsiteonly") && is.data.frame(fixedsiteonly) && nrow(fixedsiteonly) > 0) {
+      fixedsiteonly$Sex <- "U"
+    }
+    if(exists("merged_kim_pilb") && is.data.frame(merged_kim_pilb) && nrow(merged_kim_pilb) > 0) {
+      merged_kim_pilb$Sex <- "U"
+    }
+    if(exists("combined_age_data") && is.data.frame(combined_age_data) && nrow(combined_age_data) > 0) {
+      combined_age_data$Sex <- "U"
+    }
+  }
+  
   SS_use_cond_age_length = input$conditional_age_select
   SS_use_age = "Age" %in% input$data_include_before
   

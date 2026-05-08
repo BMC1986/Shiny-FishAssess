@@ -492,8 +492,8 @@ ui <- function(request) {
                                  hr(),
                                  h5("Modify biological and fishery parameters"),
                                  checkboxInput("use_1_sex_model", "Use 1-sex model", value = FALSE),
+                                 checkboxInput("use_combined_sex_length_comps", "Set all length comps to combined sex", value = FALSE),
                                  checkboxInput("disable_hermaphroditism", "Disable Hermaphroditism", value = FALSE),
-                                 # --- NEW: Custom Max Size/Age Inputs ---
                                  checkboxInput("use_custom_max_size", "Specify Custom Max Population Size", value = FALSE),
                                  conditionalPanel(
                                    condition = "input.use_custom_max_size == true",
@@ -4541,12 +4541,11 @@ server <- function(input, output, session) {
         params <- data.frame(
           use_initial_catch = input$use_initial_catch,
           use_1_sex_model = input$use_1_sex_model,
+          use_combined_sex_length_comps = input$use_combined_sex_length_comps,
           nsamp_multiplier = input$nsamp_multiplier,
           disable_hermaphroditism = input$disable_hermaphroditism,
-          # --- NEW: Add flags to dataframe ---
           use_custom_max_size = input$use_custom_max_size,
           use_custom_max_age = input$use_custom_max_age,
-          # -----------------------------------
           use_custom_M = input$use_custom_M,
           use_custom_sigma_r = input$use_custom_sigma_r,
           use_age_post_settlement = input$use_age_post_settlement,
@@ -4987,6 +4986,117 @@ server <- function(input, output, session) {
             temp_summary_file <- file.path(temp_dir, "selections_summary.txt")
             
             
+            # summary_text <- c(
+            #   "Shiny-FishAssess Selections Summary",
+            #   paste("Generated on:", Sys.Date()),
+            #   "",
+            #   "--- Main Selections ---",
+            #   format_selection("Selected Species (Main)", input$species_select),
+            #   format_selection("Data Included (top checkboxes)", input$data_include_before),
+            #   format_selection("Conditional age-at-length", input$conditional_age_select),
+            #   format_selection("Data Included (bottom checkboxes)", input$data_include_after),
+            #   format_selection("Run with -nohess", input$nohess_option),
+            #   "",
+            #   
+            #   "--- Catch Tab ---",
+            #   format_selection("Catch Species", input$catch_species_select),
+            #   format_selection("Catch Sectors", input$catch_sector_select),
+            #   "",
+            #   
+            #   "--- Indices Tab ---",
+            #   format_selection("Indices Species", input$effort_species_select),
+            #   format_selection("Indices Fleets", input$effort_fleet_select),
+            #   "",
+            #   
+            #   "--- Length Tab ---",
+            #   format_selection("Use FIS length data", input$use_fis_length),
+            #   format_selection("Use discarded length data from FIS", input$use_released_fis_data),
+            #   format_selection("Use length data from Biological databases", input$use_bio_length),
+            #   format_selection("Length Metric", input$length_metric),
+            #   format_selection("Length Class Interval (mm)", input$length_class_input),
+            #   format_selection("Minimum Length (mm)", input$min_length_input),
+            #   format_selection("Colour Plots By", input$length_color_by),
+            #   format_selection("FIS Retained Years", input$year_select_retained),
+            #   format_selection("FIS Retained Locations", input$location_select_retained),
+            #   format_selection("FIS Released Years", input$year_select_released),
+            #   format_selection("FIS Released Locations", input$location_select_released),
+            #   format_selection("Biological Sample Sectors", input$sector_select_bio),
+            #   format_selection("Biological Sample Years", input$year_select2),
+            #   format_selection("Biological Sample BioRegions", input$bioregion_select_bio),
+            #   format_selection("Biological Sample Zones", input$zone_select_bio),
+            #   format_selection("Biological Sample Locations", input$location_select_bio),
+            #   "",
+            #   
+            #   "--- Age Tab ---",
+            #   format_selection("Use age data from FIS", input$use_fis_age),
+            #   format_selection("Use age data from Biological databases", input$use_bio_age),
+            #   format_selection("Colour Plots By", input$age_color_by),
+            #   format_selection("FIS Age Years", input$year_select_age),
+            #   format_selection("FIS Age Locations", input$location_select_age),
+            #   format_selection("Biological Age Years", input$year_select_bio_age),
+            #   format_selection("Biological Age BioRegions", input$bioregion_select_bio_age),
+            #   format_selection("Biological Age Zones", input$zone_select_bio_age),
+            #   format_selection("Biological Age Locations", input$location_select_bio_age),
+            #   "",
+            #   
+            #   "--- Biological Parameters Tab ---",
+            #   format_selection("Selected Biological Unit", input$bio_species_select),
+            #   "",
+            #   
+            #   "--- SS3 Model Options Tab ---",
+            #   paste("  Use Initial Catch:", input$use_initial_catch),
+            #   if (isTRUE(input$use_initial_catch)) c(
+            #     paste("    Year 0 Catch:", input$year0catch),
+            #     paste("    Year 0 Catch SE:", input$year0catchse),
+            #     paste("    Initial F:", input$initf),
+            #     paste("    Year 0 Fleet:", input$year0fleet)
+            #   ),
+            #   paste("  Use 1-sex model:", input$use_1_sex_model),
+            #   paste("  Specify Custom Natural Mortality (M):", input$use_custom_M),
+            #   if (isTRUE(input$use_custom_M)) paste("    Natural Mortality (M):", input$custom_M),
+            #   paste("  Specify Custom SigmaR:", input$use_custom_sigma_r),
+            #   if (isTRUE(input$use_custom_sigma_r)) paste("    SigmaR:", input$custom_sigma_r),
+            #   paste("  Specify Age Post-Settlement:", input$use_age_post_settlement),
+            #   if (isTRUE(input$use_age_post_settlement)) paste("    Age Post-Settlement:", input$age_post_settlement),
+            #   paste("  Specify CV Growth Pattern:", input$use_cv_growth_pattern),
+            #   if (isTRUE(input$use_cv_growth_pattern)) paste("    CV Growth Pattern:", input$cv_growth_pattern),
+            #   paste("  Specify Custom Steepness (h):", input$use_custom_h),
+            #   if (isTRUE(input$use_custom_h)) paste("    Steepness (h):", input$custom_h),
+            #   paste("  Specify Custom Initial Recruitment log(R0):", input$use_custom_R0),
+            #   if (isTRUE(input$use_custom_R0)) paste("    Initial Recruitment log(R0):", input$custom_R0),
+            #   paste("  Specify recruitment deviation years:", input$use_recdevs_range),
+            #   if (isTRUE(input$use_recdevs_range)) c(
+            #     paste("    First year of main recr_devs:", input$first_year_recr_devs),
+            #     paste("    Last year of main recr_devs:", input$last_year_recr_devs)
+            #   ),
+            #   paste("  Estimate Growth Parameters:", input$estimate_growth_params),
+            #   paste("  Use Time-varying parameters:", input$use_time_varying_params),
+            #   if (isTRUE(input$use_time_varying_params)) c(
+            #     paste("    Block years:", gsub("\n", "; ", input$time_varying_params_text)),
+            #     paste("    Growth-all params:", input$use_time_varying_growth_all),
+            #     paste("    Growth-L_at_Amin:", input$use_time_varying_growth_L_at_Amin),
+            #     paste("    Growth-L_at_Amax:", input$use_time_varying_growth_L_at_Amax),
+            #     paste("    Growth-vbK:", input$use_time_varying_growth_vbK),
+            #     paste("    Selectivity:", input$use_time_varying_selectivity),
+            #     paste("    Retention:", input$use_time_varying_retention)
+            #   ),
+            #   paste("  Use Custom Bias Adjustments:", input$use_custom_bias_adj),
+            #   if (isTRUE(input$use_custom_bias_adj)) c(
+            #     paste("    Last early year no bias adjustment:", input$last_early_yr_nobias_adj),
+            #     paste("    First year full bias adjustment:", input$first_yr_fullbias_adj),
+            #     paste("    Last year full bias adjustment:", input$last_yr_fullbias_adj),
+            #     paste("    First recent year no bias adjustment:", input$first_recent_yr_nobias_adj),
+            #     paste("    Use max bias adjustment in MPD:", input$Use_max_bias_adj_in_MPD)
+            #   ),
+            #   paste("  Estimate Dirichlet (ln(DM_theta)):", input$estimate_Dirichlet),
+            #   if (isTRUE(input$estimate_Dirichlet)) paste("    Dirichlet Parameter Lines:", gsub("\n", "; ", input$dirichlet_textbox_value)),
+            #   paste("  Use Q_extraSD:", input$use_Q_extraSD),
+            #   if (isTRUE(input$use_Q_extraSD)) paste("    Q_extraSD:", input$Q_extraSD),
+            #   paste("  Francis Weighting:", input$use_francis_weighting),
+            #   if (isTRUE(input$use_francis_weighting)) paste("    Francis Weighting Lines:", gsub("\n", "; ", input$francis_weighting_value))
+            # )
+            
+            
             summary_text <- c(
               "Shiny-FishAssess Selections Summary",
               paste("Generated on:", Sys.Date()),
@@ -5042,6 +5152,7 @@ server <- function(input, output, session) {
               
               "--- Biological Parameters Tab ---",
               format_selection("Selected Biological Unit", input$bio_species_select),
+              paste("  Force show all species:", input$show_all_bio_species),
               "",
               
               "--- SS3 Model Options Tab ---",
@@ -5053,6 +5164,12 @@ server <- function(input, output, session) {
                 paste("    Year 0 Fleet:", input$year0fleet)
               ),
               paste("  Use 1-sex model:", input$use_1_sex_model),
+              paste("  Set all length comps to combined sex:", input$use_combined_sex_length_comps),
+              paste("  Disable Hermaphroditism:", input$disable_hermaphroditism),
+              paste("  Specify Custom Max Population Size:", input$use_custom_max_size),
+              if (isTRUE(input$use_custom_max_size)) paste("    Max Population Size (cm):", input$custom_max_size),
+              paste("  Specify Custom Max Population Age:", input$use_custom_max_age),
+              if (isTRUE(input$use_custom_max_age)) paste("    Max Population Age (years):", input$custom_max_age),
               paste("  Specify Custom Natural Mortality (M):", input$use_custom_M),
               if (isTRUE(input$use_custom_M)) paste("    Natural Mortality (M):", input$custom_M),
               paste("  Specify Custom SigmaR:", input$use_custom_sigma_r),
@@ -5094,12 +5211,40 @@ server <- function(input, output, session) {
               paste("  Use Q_extraSD:", input$use_Q_extraSD),
               if (isTRUE(input$use_Q_extraSD)) paste("    Q_extraSD:", input$Q_extraSD),
               paste("  Francis Weighting:", input$use_francis_weighting),
-              if (isTRUE(input$use_francis_weighting)) paste("    Francis Weighting Lines:", gsub("\n", "; ", input$francis_weighting_value))
+              if (isTRUE(input$use_francis_weighting)) paste("    Francis Weighting Lines:", gsub("\n", "; ", input$francis_weighting_value)),
+              "",
+              
+              "--- SS3 Sensitivity Analysis Tab ---",
+              paste("  Clean up leftover model files:", input$cleanup_sens_files),
+              paste("  Run Jitters:", input$jitter_checkbox),
+              if (isTRUE(input$jitter_checkbox)) c(
+                paste("    njitters:", input$njitters),
+                paste("    jitter fraction:", input$jitter_fraction)
+              ),
+              paste("  Run Retrospective analysis:", input$retro_checkbox),
+              if (isTRUE(input$retro_checkbox)) paste("    nyears:", input$nyears),
+              paste("  Likelihood Profiles:"),
+              paste("    use par file:", input$use_par_file_in_profile),
+              paste("    R0 (including Piner plots):", input$r0_profile),
+              paste("    M:", input$M_profile),
+              paste("    h:", input$h_profile),
+              paste("    L at Amax (Fem):", input$l_amax_fem_profile),
+              paste("    L at Amax (Mal):", input$l_amax_mal_profile),
+              paste("    VonBert K (Fem):", input$k_fem_profile),
+              paste("    VonBert K (Mal):", input$k_mal_profile),
+              paste("    Final Depletion:", input$final_depletion_profile),
+              paste("    Current spawning biomass:", input$current_spawning_biomass_profile),
+              paste("  Fixed Parameter Scenarios:"),
+              paste("    M, h, sigma_R:", input$fixed_param_scenarios),
+              paste("    Composition data weighting:", input$comp_weight_scenarios),
+              paste("    Index data weighting:", input$index_weight_scenarios),
+              "",
+              
+              "--- Bias and Tuning Tab ---",
+              format_selection("Composition Weighting Method(s)", input$tuning_weighting_method)
             )
             
-            
-            
-            
+            # --- MISSING CODE TO WRITE AND APPEND THE SUMMARY FILE ---
             tryCatch({
               writeLines(summary_text, temp_summary_file)
               if (file.exists(temp_summary_file)) {
@@ -5111,7 +5256,7 @@ server <- function(input, output, session) {
             }, error = function(e) {
               append_to_log(paste("Error writing selections_summary.txt:", e$message))
             })
-            
+            # ---------------------------------------------------------
             
             
             # Prepare SS_input.R execution
