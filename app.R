@@ -1403,6 +1403,8 @@ server <- function(input, output, session) {
     bio_age_bioregions = NULL,
     bio_age_sectors = NULL,
     kim_pilb_sectors = NULL, # ADD THIS LINE
+    kim_pilb_dbases = NULL,
+    bio_age_dbases = NULL,
     sensitivity_process = NULL , 
     bias_tuning_process = NULL,
     tuning_folders = character(0),
@@ -2176,14 +2178,16 @@ server <- function(input, output, session) {
         data <- data %>%
           mutate(
             Sector = stringr::str_squish(Sector),
-            Sector = gsub("(^|\\.)([a-z])", "\\1\\U\\2", tolower(Sector), perl = TRUE)
+            Sector = gsub("(^|\\.)([a-z])", "\\1\\U\\2", tolower(Sector), perl = TRUE),
+            Sector = gsub("Csiro", "CSIRO", Sector)
           )
         
         if ("Method" %in% colnames(data)) {
           data <- data %>%
             mutate(
               Method = stringr::str_squish(Method),
-              Method = gsub("(^|\\.)([a-z])", "\\1\\U\\2", tolower(Method), perl = TRUE)
+              Method = gsub("(^|\\.)([a-z])", "\\1\\U\\2", tolower(Method), perl = TRUE),
+              Method = gsub("Csiro", "CSIRO", Method)
             )
         }
         
@@ -2716,6 +2720,9 @@ server <- function(input, output, session) {
       # This defines the UI placeholders. It's simple and doesn't create a reactive loop.
       output$year_select_bio_age_ui <- renderUI({
         tagList(
+          pickerInput("dbase_select_bio_age", "Select Database Source",
+                      choices = NULL, selected = NULL, multiple = TRUE,
+                      options = list(`actions-box` = TRUE, `live-search` = TRUE)),
           pickerInput("sector_select_bio_age", "Select Sectors for Biological Age Data",
                       choices = NULL, selected = NULL, multiple = TRUE,
                       options = list(`actions-box` = TRUE, `live-search` = TRUE)),
@@ -2803,6 +2810,7 @@ server <- function(input, output, session) {
         }
         
         if (nrow(base_data) == 0) {
+          updatePickerInput(session, "dbase_select_bio_age", choices = character(0), selected = character(0))
           updatePickerInput(session, "sector_select_bio_age", choices = character(0), selected = character(0))
           updatePickerInput(session, "year_select_bio_age", choices = character(0), selected = character(0))
           updatePickerInput(session, "bioregion_select_bio_age", choices = character(0), selected = character(0))
@@ -2812,30 +2820,45 @@ server <- function(input, output, session) {
         }
         
         # Get selections from reactive values (rv) to support state restoration
+        sel_dbases_age <- rv$bio_age_dbases
         sel_sectors    <- rv$bio_age_sectors
         sel_bioregions <- rv$bio_age_bioregions
         sel_zones      <- rv$bio_age_zones
         sel_locations  <- rv$bio_age_locations
         sel_years      <- rv$bio_age_years
         
-        # --- Determine new CHOICES based on current selections ---
-        sector_choices <- sort(unique(base_data$Sector[!is.na(base_data$Sector)])) %||% "Unknown"
+        # --- CASCADING FILTER LOGIC ---
+        data_for_choices <- base_data
+        
+        # 1. Dbase
+        dbase_choices_age <- sort(unique(data_for_choices$dbase[!is.na(data_for_choices$dbase)])) %||% "Unknown"
+        if (is.null(sel_dbases_age) || length(sel_dbases_age) == 0) sel_dbases_age <- dbase_choices_age
+        sel_dbases_age <- intersect(sel_dbases_age, dbase_choices_age)
+        data_for_choices <- data_for_choices %>% filter(if (length(sel_dbases_age) > 0) dbase %in% sel_dbases_age else TRUE)
+        
+        # 2. Sector
+        sector_choices <- sort(unique(data_for_choices$Sector[!is.na(data_for_choices$Sector)])) %||% "Unknown"
+        if (is.null(sel_sectors) || length(sel_sectors) == 0) sel_sectors <- sector_choices
         sel_sectors <- intersect(sel_sectors, sector_choices)
+        data_for_choices <- data_for_choices %>% filter(if (length(sel_sectors) > 0) Sector %in% sel_sectors else TRUE)
         
-        data_for_choices <- base_data %>% filter(if (length(sel_sectors) > 0) Sector %in% sel_sectors else TRUE)
-        
+        # 3. Bioregion
         bioregion_choices <- sort(unique(data_for_choices$BioRegion[!is.na(data_for_choices$BioRegion)])) %||% "Unknown"
         sel_bioregions <- intersect(sel_bioregions, bioregion_choices)
-        
         data_for_choices <- data_for_choices %>% filter(if (length(sel_bioregions) > 0) BioRegion %in% sel_bioregions else TRUE)
+        
+        # 4. Zone
         zone_choices <- sort(unique(data_for_choices$Zone[!is.na(data_for_choices$Zone)])) %||% "Unknown"
         sel_zones <- intersect(sel_zones, zone_choices)
-        
         data_for_choices <- data_for_choices %>% filter(if (length(sel_zones) > 0) Zone %in% sel_zones else TRUE)
+        
+        # 5. Location
         location_choices <- sort(unique(data_for_choices$Location[!is.na(data_for_choices$Location)])) %||% "Unknown"
         sel_locations <- intersect(sel_locations, location_choices)
+        data_for_choices <- data_for_choices %>% filter(if (length(sel_locations) > 0) Location %in% sel_locations else TRUE)
         
         # --- Update pickers with new choices and validated selections ---
+        updatePickerInput(session, "dbase_select_bio_age", choices = dbase_choices_age, selected = sel_dbases_age)
         updatePickerInput(session, "sector_select_bio_age", choices = sector_choices, selected = sel_sectors)
         updatePickerInput(session, "bioregion_select_bio_age", choices = bioregion_choices, selected = sel_bioregions)
         updatePickerInput(session, "zone_select_bio_age", choices = zone_choices, selected = sel_zones)
@@ -2843,9 +2866,8 @@ server <- function(input, output, session) {
         
         # --- Update Year counts ---
         year_choices_all <- sort(unique(as.character(base_data$year)))
-        data_for_year_counts <- data_for_choices %>% filter(if (length(sel_locations) > 0) Location %in% sel_locations else TRUE)
         
-        sample_sizes <- data_for_year_counts %>% group_by(year) %>% summarise(n = n(), .groups = "drop") %>% mutate(year = as.character(year))
+        sample_sizes <- data_for_choices %>% group_by(year) %>% summarise(n = n(), .groups = "drop") %>% mutate(year = as.character(year))
         
         year_labels <- sapply(year_choices_all, function(y) {
           n_val <- sample_sizes$n[sample_sizes$year == y]
@@ -2853,6 +2875,7 @@ server <- function(input, output, session) {
           paste0(y, " (n = ", n_val, ")")
         })
         
+        if (is.null(sel_years) || length(sel_years) == 0) sel_years <- year_choices_all
         sel_years <- intersect(sel_years, year_choices_all)
         updatePickerInput(session, "year_select_bio_age", choices = setNames(year_choices_all, year_labels), selected = sel_years)
         
@@ -2868,45 +2891,56 @@ server <- function(input, output, session) {
           base_data <- base_data %>% filter(SpeciesName == input$species_select)
         }
         
+        if (nrow(base_data) == 0) {
+          updatePickerInput(session, "dbase_select_bio", choices = character(0), selected = character(0))
+          updatePickerInput(session, "sector_select_bio", choices = character(0), selected = character(0))
+          updatePickerInput(session, "year_select2", choices = character(0), selected = character(0))
+          updatePickerInput(session, "bioregion_select_bio", choices = character(0), selected = character(0))
+          updatePickerInput(session, "zone_select_bio", choices = character(0), selected = character(0))
+          updatePickerInput(session, "location_select_bio", choices = character(0), selected = character(0))
+          return()
+        }
+        
         # Get selections from reactive values (rv) to support state restoration
+        sel_dbases     <- rv$kim_pilb_dbases
         sel_sectors    <- rv$kim_pilb_sectors
         sel_years      <- rv$kim_pilb_years
         sel_bioregions <- rv$kim_pilb_bioregions
         sel_zones      <- rv$kim_pilb_zones
         sel_locations  <- rv$kim_pilb_locations
         
-        # --- Add this fallback for FIRST LOAD ---
-        # If the stored selections are NULL, default to selecting everything
-        if (is.null(sel_sectors)) sel_sectors <- sort(unique(base_data$Sector[!is.na(base_data$Sector)])) %||% "Unknown"
-        if (is.null(sel_years)) sel_years <- sort(unique(as.character(base_data$year)))
-        if (is.null(sel_bioregions)) sel_bioregions <- sort(unique(base_data$BioRegion[!is.na(base_data$BioRegion)])) %||% "Unknown"
-        if (is.null(sel_zones)) sel_zones <- sort(unique(base_data$Zone[!is.na(base_data$Zone)])) %||% "Unknown"
-        if (is.null(sel_locations)) sel_locations <- sort(unique(base_data$Location[!is.na(base_data$Location)])) %||% "Unknown"
+        # --- CASCADING FILTER LOGIC ---
+        data_for_choices <- base_data
         
-        # --- Determine the NEW choices based on the CURRENT selections ---
-        # Sector choices are based only on the species
-        sector_choices <- sort(unique(base_data$Sector[!is.na(base_data$Sector)])) %||% "Unknown"
+        # 1. Dbase
+        dbase_choices <- sort(unique(data_for_choices$dbase[!is.na(data_for_choices$dbase)])) %||% "Unknown"
+        if (is.null(sel_dbases) || length(sel_dbases) == 0) sel_dbases <- dbase_choices
+        sel_dbases <- intersect(sel_dbases, dbase_choices)
+        data_for_choices <- data_for_choices %>% filter(if (length(sel_dbases) > 0) dbase %in% sel_dbases else TRUE)
+        
+        # 2. Sector
+        sector_choices <- sort(unique(data_for_choices$Sector[!is.na(data_for_choices$Sector)])) %||% "Unknown"
+        if (is.null(sel_sectors) || length(sel_sectors) == 0) sel_sectors <- sector_choices
         sel_sectors <- intersect(sel_sectors, sector_choices) 
+        data_for_choices <- data_for_choices %>% filter(if (length(sel_sectors) > 0) Sector %in% sel_sectors else TRUE)
         
-        data_for_choices <- base_data %>%
-          filter(if (length(sel_sectors) > 0) Sector %in% sel_sectors else TRUE)
-        
+        # 3. Bioregion
         bioregion_choices <- sort(unique(data_for_choices$BioRegion[!is.na(data_for_choices$BioRegion)])) %||% "Unknown"
         sel_bioregions <- intersect(sel_bioregions, bioregion_choices)
+        data_for_choices <- data_for_choices %>% filter(if (length(sel_bioregions) > 0) BioRegion %in% sel_bioregions else TRUE)
         
-        data_for_choices <- data_for_choices %>%
-          filter(if (length(sel_bioregions) > 0) BioRegion %in% sel_bioregions else TRUE)
-        
+        # 4. Zone
         zone_choices <- sort(unique(data_for_choices$Zone[!is.na(data_for_choices$Zone)])) %||% "Unknown"
         sel_zones <- intersect(sel_zones, zone_choices)
+        data_for_choices <- data_for_choices %>% filter(if (length(sel_zones) > 0) Zone %in% sel_zones else TRUE)
         
-        data_for_choices <- data_for_choices %>%
-          filter(if (length(sel_zones) > 0) Zone %in% sel_zones else TRUE)
-        
+        # 5. Location
         location_choices <- sort(unique(data_for_choices$Location[!is.na(data_for_choices$Location)])) %||% "Unknown"
         sel_locations <- intersect(sel_locations, location_choices)
+        data_for_choices <- data_for_choices %>% filter(if (length(sel_locations) > 0) Location %in% sel_locations else TRUE)
         
         # --- Update all pickers with the new choices and validated selections ---
+        updatePickerInput(session, "dbase_select_bio", choices = dbase_choices, selected = sel_dbases)
         updatePickerInput(session, "sector_select_bio", choices = sector_choices, selected = sel_sectors)
         updatePickerInput(session, "bioregion_select_bio", choices = bioregion_choices, selected = sel_bioregions)
         updatePickerInput(session, "zone_select_bio", choices = zone_choices, selected = sel_zones)
@@ -2914,14 +2948,13 @@ server <- function(input, output, session) {
         
         # --- Update Year (with dynamic counts based on all other filters) ---
         year_choices_all <- sort(unique(as.character(base_data$year)))
-        data_for_year_counts <- data_for_choices %>%
-          filter(if (length(sel_locations) > 0) Location %in% sel_locations else TRUE)
         
-        sample_sizes <- data_for_year_counts %>% group_by(year) %>% summarise(n = n(), .groups = "drop") %>% mutate(year = as.character(year))
+        sample_sizes <- data_for_choices %>% group_by(year) %>% summarise(n = n(), .groups = "drop") %>% mutate(year = as.character(year))
         
         year_labels <- sapply(year_choices_all, function(y) {
           n_val <- sample_sizes$n[sample_sizes$year == y]; if (length(n_val) == 0 || is.na(n_val)) n_val <- 0; paste0(y, " (n=", n_val, ")")
         })
+        if (is.null(sel_years) || length(sel_years) == 0) sel_years <- year_choices_all
         sel_years <- intersect(sel_years, year_choices_all)
         updatePickerInput(session, "year_select2", choices = setNames(year_choices_all, year_labels), selected = sel_years)
         
@@ -3371,6 +3404,14 @@ server <- function(input, output, session) {
         rv$kim_pilb_sectors <- input$sector_select_bio
       })
       
+      observeEvent(input$dbase_select_bio, {
+        rv$kim_pilb_dbases <- input$dbase_select_bio
+      })
+      
+      observeEvent(input$dbase_select_bio_age, {
+        rv$bio_age_dbases <- input$dbase_select_bio_age
+      })
+      
       
       
       # Update selections after refresh
@@ -3532,13 +3573,15 @@ server <- function(input, output, session) {
             return(data.frame()) # Return empty data frame
           }
           
+          sel_dbases <- isolate(input$dbase_select_bio) # <-- ADDED THIS
           sel_sectors <- isolate(input$sector_select_bio)
           sel_years <- isolate(input$year_select2)
           sel_bioregions <- isolate(input$bioregion_select_bio)
           sel_zones <- isolate(input$zone_select_bio)
           sel_locations <- isolate(input$location_select_bio)
           
-          if (is.null(sel_sectors) || length(sel_sectors) == 0 ||
+          if (is.null(sel_dbases) || length(sel_dbases) == 0 || # <-- ADDED THIS
+              is.null(sel_sectors) || length(sel_sectors) == 0 ||
               is.null(sel_years) || length(sel_years) == 0 ||
               is.null(sel_bioregions) || length(sel_bioregions) == 0 ||
               is.null(sel_zones) || length(sel_zones) == 0 ||
@@ -3548,7 +3591,8 @@ server <- function(input, output, session) {
           
           # Filter by the current selections from the pickers
           filtered_data <- data_from_base %>%
-            filter(Sector %in% sel_sectors,
+            filter(dbase %in% sel_dbases,
+                   Sector %in% sel_sectors,
                    as.character(year) %in% as.character(sel_years),
                    BioRegion %in% sel_bioregions,
                    Zone %in% sel_zones,
@@ -3630,18 +3674,20 @@ server <- function(input, output, session) {
         #          Location %in% sel_locations)
         
         # Use isolate() to read the current values of the pickers when the button is pressed.
+        sel_dbases <- isolate(input$dbase_select_bio_age) # <-- ADDED THIS
         sel_sectors <- isolate(input$sector_select_bio_age)
         sel_years <- isolate(input$year_select_bio_age)
         sel_bioregions <- isolate(input$bioregion_select_bio_age)
         sel_zones <- isolate(input$zone_select_bio_age)
         sel_locations <- isolate(input$location_select_bio_age)
         
-        if (is.null(sel_sectors) || is.null(sel_years) || is.null(sel_bioregions) || is.null(sel_zones) || is.null(sel_locations)) {
+        if (is.null(sel_dbases) || is.null(sel_sectors) || is.null(sel_years) || is.null(sel_bioregions) || is.null(sel_zones) || is.null(sel_locations)) {
           return(data.frame()) # Return empty if any filter is not yet available
         }
         
         data <- data %>%
-          filter(Sector %in% sel_sectors,
+          filter(dbase %in% sel_dbases,
+                 Sector %in% sel_sectors,
                  year %in% sel_years,
                  BioRegion %in% sel_bioregions,
                  Zone %in% sel_zones,
@@ -4324,6 +4370,9 @@ server <- function(input, output, session) {
         
         wellPanel(
           h5("Length Histogram Biological databases"),
+          pickerInput("dbase_select_bio", "Select Database Source",
+                      choices = NULL, selected = NULL, multiple = TRUE,
+                      options = list(`actions-box` = TRUE, `live-search` = TRUE)),
           pickerInput("sector_select_bio", "Select Sectors for Biological Samples",
                       choices = initial_sector_choices,
                       selected = selected_sectors_init,
