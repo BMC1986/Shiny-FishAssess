@@ -129,50 +129,68 @@ if (exists("file_list")) {
   bio_age_data <- NULL
   combined_age_data <- NULL
   
-  # Load FIS age data if requested and file exists
-  if (isTRUE(file_list$SS_use_fis_age) && !is.null(file_list$fis_age_data) && file.exists(file_list$fis_age_data)) {
-    fis_age_data <- read.csv(file_list$fis_age_data)
-    # Ensure fleet column exists (should be added in app.R)
-    if (!"fleet" %in% names(fis_age_data)) {
-      fis_age_data$fleet <- "FIS" # Fallback if missing
-      cat("Warning: 'fleet' column missing in fis_age_data, added default 'FIS'\n")
-    }
-    cat("Loaded FIS age data with", nrow(fis_age_data), "rows\n")
-  } else {
-    cat("No FIS age data detected or age composition not selected\n")
-  }
+  # --- Load Unified Age Data ---
+  combined_age_data <- NULL
   
-  # Load Biological age data if requested and file exists
-  if (isTRUE(file_list$SS_use_bio_age) && !is.null(file_list$bio_age_data) && file.exists(file_list$bio_age_data)) {
-    bio_age_data <- read.csv(file_list$bio_age_data)
-    cat("'fleet' column missing in bio_age_data contains:", unique(bio_age_data$fleet),"\n")
-    # Ensure fleet column exists (should be added in app.R)
-    if (!"fleet" %in% names(bio_age_data)) {
-      bio_age_data$fleet <- "Commercial" # Fallback if missing
-      cat("Warning: 'fleet' column missing in bio_age_data, added default 'Commercial'\n")
+  if (isTRUE(file_list$SS_use_any_age) && !is.null(file_list$bio_age_data) && file.exists(file_list$bio_age_data)) {
+    combined_age_data <- read.csv(file_list$bio_age_data)
+    
+    # Ensure fleet column exists
+    if (!"fleet" %in% names(combined_age_data)) {
+      combined_age_data$fleet <- "Unknown"
+      cat("Warning: 'fleet' column missing in combined age data, added default 'Unknown'\n")
     }
-    cat("Loaded Biological age data with", nrow(bio_age_data), "rows\n")
+    cat("Loaded Unified Age data with", nrow(combined_age_data), "rows\n")
+    SS_use_age <- TRUE
   } else {
-    cat("No Biological age data detected or age composition not selected\n")
-  }
-  
-  # Combine the data if applicable
-  if (!is.null(fis_age_data) && !is.null(bio_age_data)) {
-    # Ensure columns match before binding (handle potential missing columns if necessary)
-    common_cols <- intersect(names(fis_age_data), names(bio_age_data))
-    combined_age_data <- rbind(fis_age_data[, common_cols], bio_age_data[, common_cols])
-    cat("Combined FIS and Biological age data. Total rows:", nrow(combined_age_data), "\n")
-  } else if (!is.null(fis_age_data)) {
-    combined_age_data <- fis_age_data
-    cat("Using only FIS age data.\n")
-  } else if (!is.null(bio_age_data)) {
-    combined_age_data <- bio_age_data
-    cat("Using only Biological age data.\n")
-  } else {
-    # cat("No age data available to format.\n")
-    # Assign SS_use_age to FALSE if no combined data, might simplify downstream logic
+    cat("No Age data detected or age composition not selected\n")
     SS_use_age <- FALSE
   }
+  
+  # # Load FIS age data if requested and file exists
+  # if (isTRUE(file_list$SS_use_fis_age) && !is.null(file_list$fis_age_data) && file.exists(file_list$fis_age_data)) {
+  #   fis_age_data <- read.csv(file_list$fis_age_data)
+  #   # Ensure fleet column exists (should be added in app.R)
+  #   if (!"fleet" %in% names(fis_age_data)) {
+  #     fis_age_data$fleet <- "FIS" # Fallback if missing
+  #     cat("Warning: 'fleet' column missing in fis_age_data, added default 'FIS'\n")
+  #   }
+  #   cat("Loaded FIS age data with", nrow(fis_age_data), "rows\n")
+  # } else {
+  #   cat("No FIS age data detected or age composition not selected\n")
+  # }
+  # 
+  # # Load Biological age data if requested and file exists
+  # if (isTRUE(file_list$SS_use_bio_age) && !is.null(file_list$bio_age_data) && file.exists(file_list$bio_age_data)) {
+  #   bio_age_data <- read.csv(file_list$bio_age_data)
+  #   cat("'fleet' column missing in bio_age_data contains:", unique(bio_age_data$fleet),"\n")
+  #   # Ensure fleet column exists (should be added in app.R)
+  #   if (!"fleet" %in% names(bio_age_data)) {
+  #     bio_age_data$fleet <- "Commercial" # Fallback if missing
+  #     cat("Warning: 'fleet' column missing in bio_age_data, added default 'Commercial'\n")
+  #   }
+  #   cat("Loaded Biological age data with", nrow(bio_age_data), "rows\n")
+  # } else {
+  #   cat("No Biological age data detected or age composition not selected\n")
+  # }
+  # 
+  # # Combine the data if applicable
+  # if (!is.null(fis_age_data) && !is.null(bio_age_data)) {
+  #   # Ensure columns match before binding (handle potential missing columns if necessary)
+  #   common_cols <- intersect(names(fis_age_data), names(bio_age_data))
+  #   combined_age_data <- rbind(fis_age_data[, common_cols], bio_age_data[, common_cols])
+  #   cat("Combined FIS and Biological age data. Total rows:", nrow(combined_age_data), "\n")
+  # } else if (!is.null(fis_age_data)) {
+  #   combined_age_data <- fis_age_data
+  #   cat("Using only FIS age data.\n")
+  # } else if (!is.null(bio_age_data)) {
+  #   combined_age_data <- bio_age_data
+  #   cat("Using only Biological age data.\n")
+  # } else {
+  #   # cat("No age data available to format.\n")
+  #   # Assign SS_use_age to FALSE if no combined data, might simplify downstream logic
+  #   SS_use_age <- FALSE
+  # }
   
   # Access additional parameters
   species <- file_list$species_name %||% "Unknown"
@@ -206,8 +224,12 @@ if (exists("file_list")) {
     }
   }
   
-  SS_use_cond_age_length = input$conditional_age_select
-  SS_use_age = "Age" %in% input$data_include_before
+  # SS_use_cond_age_length = input$conditional_age_select
+  # SS_use_cond_age_length <- isTRUE(file_list$SS_use_cond_age_length)
+  # SS_use_age = "Age" %in% input$data_include_before
+  
+  SS_use_cond_age_length <- isTRUE(file_list$SS_use_cond_age_length)
+  SS_use_age <- isTRUE(file_list$SS_use_any_age)
   
   # Generate SS3 files (simplified for debugging)
   outputdir <- paste0("SS3_input_files/", species, "/")
@@ -255,6 +277,9 @@ count_non_zero_data_columns <- function(df) {
 }
 
 get_non_zero_data_columns <- function(df) {
+  # Safe exit if the dataframe is empty or lacks data columns
+  if (ncol(df) <= 2) return(character(0))
+  
   # Exclude the first two columns
   data_cols <- df[, -c(1, 2), drop = FALSE]
   
@@ -270,202 +295,289 @@ get_non_zero_data_columns <- function(df) {
 # SS_n_fleets <- count_non_zero_data_columns(catch_data)
 # SS_fleetnames <- get_non_zero_data_columns(catch_data)
 
-# 1. Extract fleets from Catch
+# # 1. Extract fleets from Catch
+# catch_fleetnames <- get_non_zero_data_columns(catch_data)
+# 
+# # 2. Extract fleets from Biological Length data
+# length_fleetnames <- character(0)
+# if (exists("merged_kim_pilb") && !is.null(merged_kim_pilb) && "fleet" %in% colnames(merged_kim_pilb)) {
+#   length_fleetnames <- unique(merged_kim_pilb$fleet)
+# }
+# 
+# # 3. Extract fleets from Age data
+# age_fleetnames <- character(0)
+# if (exists("combined_age_data") && !is.null(combined_age_data) && "fleet" %in% colnames(combined_age_data)) {
+#   age_fleetnames <- unique(combined_age_data$fleet)
+# }
+# 
+# # Combine all unique fleets (excluding FIS/Survey which is appended later)
+# SS_fleetnames <- unique(c(catch_fleetnames, length_fleetnames, age_fleetnames))
+# SS_fleetnames <- SS_fleetnames[!is.na(SS_fleetnames) & SS_fleetnames != "" & SS_fleetnames != "FIS"]
+# 
+# # Ensure all identified fleets exist as columns in catch_data
+# # This prevents pivot_longer errors later on and ensures SS3 registers them
+# for (flt in SS_fleetnames) {
+#   if (!(flt %in% colnames(catch_data))) {
+#     catch_data[[flt]] <- 0
+#   }
+# }
+# 
+# SS_n_fleets <- length(SS_fleetnames)
+# 
+# ### HAVE TO ADD SOMETHING HERE TO HANDLE FLEETS TALKED ABOUT IN INDICES
+# 
+# cat("Fleetnames from all sources: \n")
+# print(SS_fleetnames)
+# cat("\n")
+# 
+# 
+# SS_fleetnames_INDICES <- unique(effort_data$fleet)
+# 
+# # cat("\n")
+# # print(SS_fleetnames_INDICES)
+# # cat("\n")
+# # 
+# # cat("\n")
+# # print(c(SS_fleetnames_INDICES, SS_fleetnames) )
+# # cat("\n")
+# 
+# ## Make sure always a FIS fleet
+# 
+# SS_fleetnames_INDICES <- c(SS_fleetnames_INDICES,"FIS")
+# 
+# 
+# 
+# ## Sort fleetnames by largest catch.
+# # Filter to only include names that exist in catch_data
+# valid_fleetnames <- SS_fleetnames[SS_fleetnames %in% colnames(catch_data)]
+# 
+# # Calculate total catch for each valid fleet
+# fleet_totals <- colSums(catch_data[, valid_fleetnames, drop = FALSE], na.rm = TRUE)
+# 
+# # Sort fleet names by total catch in descending order
+# SS_fleetnames <- names(sort(fleet_totals, decreasing = TRUE))
+# 
+# # cat("SS_fleetnames:",SS_fleetnames,"\n")
+# # Commercial.Monthly Commercial.daily Foreign.Trawl Commercial.Line Recreational Charter Foreign.Line
+# 
+# # ## Default value for 2 sex model 
+# # SS_Age_Post_Settlement <- 2
+# # SS_CV_Growth_Pattern <- 1
+# 
+# SS_Est_Retention <- TRUE
+# SS_Est_Selex_From_Fleets_with_Comps <- FALSE
+# SS_Mirror_Discards_from_FIS <- TRUE
+# 
+# # if(species == "Lutjanus sebae") {
+# #   cat("DEBUG: Manually ordering fleetnames to match Lutjanus sebae Rubie model\n")
+# # 
+# #   SS_fleetnames <- c("Foreign.Trawl","Foreign.Line","Commercial.Monthly","Commercial.daily","Commercial.Line","Recreational","Charter")
+# # 
+# #   cat("SS_fleetnames:",SS_fleetnames,"\n")
+# # }
+# 
+# if(species == "Pristipomoides multidens") {
+#   cat("DEBUG: Manually ordering fleetnames to match Pristipomoides multidens Rubie model\n")
+#   
+#   SS_fleetnames <- c("Foreign.Trawl","Foreign.Line","Commercial.Monthly","Commercial.daily","Commercial.Line","Recreational","Charter")
+#   
+#   cat("SS_fleetnames:",SS_fleetnames,"\n")
+#   
+#   
+#   
+#   # cat("DEBUG: Manually removing Sex info to match Rubie Pristipomoides multidens model\n")
+#   # combined_age_data$Sex <- NA
+#   
+#   
+#   # SS_Age_Post_Settlement <- 3
+#   # SS_CV_Growth_Pattern <- 0
+#   
+#   SS_Est_Retention <- FALSE
+#   SS_Mirror_Discards_from_FIS = FALSE
+#   SS_Est_Selex_From_Fleets_with_Comps <- TRUE
+# }
+# 
+# cat("hello: \n")
+# 
+# if(fishery_parameters$use_1_sex_model){
+#   combined_age_data$Sex <- NA
+#   cat("Sex in fis_age_data:",unique(combined_age_data$Sex),"\n")
+# }
+# 
+# if(species == "Epinephelus rankini") {
+#   cat("DEBUG: Manually renaming fleets in combined_age_data for Epinephelus rankini to match catch data\n")
+#   
+#   # SS_fleetnames <- c("Commercial")
+#   
+#   # combined_age_data$fleet <- "Commercial"
+#   # fixedsiteonly$fleet <- "Commercial"
+#   
+#   # cat("SS_fleetnames:",SS_fleetnames,"\n")
+# }
+# 
+# 
+# ## Conditionally add FIS fleets.
+# ### $$$ !!!! This needs to be moved to the Shiny App
+# # SurveyFleet = T
+# # if(SurveyFleet) {
+# #   SS_n_fleets <- SS_n_fleets+1
+# #   # SS_fleetnames <- c(SS_fleetnames,"FIS")
+# #   SS_TEMP_FIS_FLEETS <- "FIS"
+# #   SS_fleetnames <- c(SS_TEMP_FIS_FLEETS, SS_fleetnames) # Here is where order is fixed
+# #   
+# #   SS_fleet_details = data.frame(fleet_type = c(3,rep(1,SS_n_fleets-1)), # Make the FIS a fleet type =3 "SURVEY"
+# #                                 fishery_timing = c(1,rep(-1,SS_n_fleets-1)), #_sample_timing: -1 for fishing fleet to use season-long catch-at-age for observations, or 1 to use observation month;  (always 1 for surveys)
+# #                                 area = rep(1,SS_n_fleets), 
+# #                                 catch_units = rep(1,SS_n_fleets), 
+# #                                 need_catch_mult = rep(0,SS_n_fleets), 
+# #                                 fleetname = SS_fleetnames)
+# #   
+# #   # # Make CPUE data the survey fleet
+# #   # SS_cpue_data$fleet <- SS_n_fleets
+# #   
+# #   # Add a dummy field of zero catch to survey fleet
+# #   catch_data$FIS <- 0 
+# #   
+# # } else {
+# #   SS_fleet_details = data.frame(fleet_type = rep(1,SS_n_fleets), 
+# #                                 fishery_timing = rep(-1,SS_n_fleets), 
+# #                                 area = rep(1,SS_n_fleets), 
+# #                                 catch_units = rep(1,SS_n_fleets), 
+# #                                 need_catch_mult = rep(0,SS_n_fleets), 
+# #                                 fleetname = SS_fleetnames)
+# #   
+# # }
+# 
+# cat("before survey fleet logic: \n")
+# 
+# # Fleet objects v2, handle FIS fleets dynamically
+# SurveyFleet = T
+# if(SurveyFleet) {
+#   
+#   ## NEW LINES
+#   # Check for duplicates between SS_fleetnames_INDICES and SS_fleetnames
+#   common_names <- intersect(SS_fleetnames_INDICES, SS_fleetnames)
+#   if(length(common_names) > 0) {
+#     warning("Duplicate fleet names found between SS_fleetnames_INDICES and SS_fleetnames: ", 
+#             paste(common_names, collapse = ", "), ". Removing duplicates from SS_fleetnames_INDICES.")
+#     SS_fleetnames_INDICES <- setdiff(SS_fleetnames_INDICES, common_names)
+#   }
+#   
+#   # Number of survey fleets after removing duplicates
+#   n_survey_fleets <- length(SS_fleetnames_INDICES)
+#   SS_n_fleets <- SS_n_fleets + n_survey_fleets
+#   SS_fleetnames <- c(SS_fleetnames_INDICES, SS_fleetnames) # Add all FIS fleets to fleetnames
+#   
+#   # Create fleet details dynamically
+#   SS_fleet_details = data.frame(
+#     fleet_type = c(rep(3, n_survey_fleets), rep(1, SS_n_fleets - n_survey_fleets)), # SURVEY type for FIS fleets, 1 for others
+#     fishery_timing = c(rep(1, n_survey_fleets), rep(-1, SS_n_fleets - n_survey_fleets)), # 1 for surveys, -1 for fishing fleets
+#     area = rep(1, SS_n_fleets), 
+#     catch_units = rep(1, SS_n_fleets), 
+#     need_catch_mult = rep(0, SS_n_fleets), 
+#     fleetname = SS_fleetnames
+#   )
+#   
+#   # Add dummy catch fields (zeros) for each survey fleet
+#   for(fis in SS_fleetnames_INDICES) {
+#     catch_data[[fis]] <- 0
+#   }
+#   
+# } else {
+#   SS_fleet_details = data.frame(
+#     fleet_type = rep(1, SS_n_fleets), 
+#     fishery_timing = rep(-1, SS_n_fleets), 
+#     area = rep(1, SS_n_fleets), 
+#     catch_units = rep(1, SS_n_fleets), 
+#     need_catch_mult = rep(0, SS_n_fleets), 
+#     fleetname = SS_fleetnames
+#   )
+# }
+
+# Combine all unique fleets from basic data
 catch_fleetnames <- get_non_zero_data_columns(catch_data)
 
-# 2. Extract fleets from Biological Length data
 length_fleetnames <- character(0)
 if (exists("merged_kim_pilb") && !is.null(merged_kim_pilb) && "fleet" %in% colnames(merged_kim_pilb)) {
   length_fleetnames <- unique(merged_kim_pilb$fleet)
 }
 
-# 3. Extract fleets from Age data
 age_fleetnames <- character(0)
 if (exists("combined_age_data") && !is.null(combined_age_data) && "fleet" %in% colnames(combined_age_data)) {
   age_fleetnames <- unique(combined_age_data$fleet)
 }
 
-# Combine all unique fleets (excluding FIS/Survey which is appended later)
-SS_fleetnames <- unique(c(catch_fleetnames, length_fleetnames, age_fleetnames))
-SS_fleetnames <- SS_fleetnames[!is.na(SS_fleetnames) & SS_fleetnames != "" & SS_fleetnames != "FIS"]
+# 1. Gather all unique raw fleets across all data sources
+raw_catch_fleets <- unique(c(catch_fleetnames, length_fleetnames, age_fleetnames))
+raw_catch_fleets <- raw_catch_fleets[!is.na(raw_catch_fleets) & raw_catch_fleets != ""]
 
-# Ensure all identified fleets exist as columns in catch_data
-# This prevents pivot_longer errors later on and ensures SS3 registers them
+SS_fleetnames_INDICES <- unique(effort_data$fleet)
+SS_fleetnames_INDICES <- SS_fleetnames_INDICES[!is.na(SS_fleetnames_INDICES) & SS_fleetnames_INDICES != ""]
+
+all_raw_fleets <- unique(c(raw_catch_fleets, SS_fleetnames_INDICES))
+
+# 2. Identify Survey Fleets (type 3) vs Catch Fleets (type 1)
+# A fleet is a survey ONLY if its name contains "FIS" (case-insensitive)
+is_survey <- grepl("FIS", all_raw_fleets, ignore.case = TRUE)
+
+survey_fleets <- all_raw_fleets[is_survey]
+catch_fleets <- all_raw_fleets[!is_survey]
+
+# 3. Sort Catch fleets by descending catch volume
+valid_catch_fleets <- catch_fleets[catch_fleets %in% colnames(catch_data)]
+if (length(valid_catch_fleets) > 0) {
+  fleet_totals <- colSums(catch_data[, valid_catch_fleets, drop = FALSE], na.rm = TRUE)
+  catch_fleets_sorted <- names(sort(fleet_totals, decreasing = TRUE))
+  # Ensure fleets with 0 catch (e.g., from comps) aren't dropped
+  catch_fleets <- c(catch_fleets_sorted, setdiff(catch_fleets, catch_fleets_sorted))
+}
+
+# General model behavior setups
+SS_Est_Retention <- TRUE
+SS_Est_Selex_From_Fleets_with_Comps <- FALSE
+SS_Mirror_Discards_from_FIS <- TRUE
+
+# Apply manual species overrides to catching fleets if necessary
+if(species == "Pristipomoides multidens") {
+  cat("DEBUG: Manually ordering catch fleetnames to match Pristipomoides multidens Rubie model\n")
+  catch_fleets <- c("Foreign.Trawl","Foreign.Line","Commercial.Monthly","Commercial.daily","Commercial.Line","Recreational","Charter")
+  SS_Est_Retention <- FALSE
+  SS_Mirror_Discards_from_FIS <- FALSE
+  SS_Est_Selex_From_Fleets_with_Comps <- TRUE
+}
+
+cat("Surveys fleets:\n")
+print(survey_fleets)
+cat("\n")
+
+# 4. Push Survey Fleets to the top, followed by Catch Fleets
+SS_fleetnames <- c(survey_fleets, catch_fleets)
+SS_n_fleets <- length(SS_fleetnames)
+n_survey_fleets <- length(survey_fleets)
+
+cat("Fleetnames ordered (Surveys first, then Catch):\n")
+print(SS_fleetnames)
+cat("\n")
+
+# 5. Create SS_fleet_details dynamically
+SS_fleet_details = data.frame(
+  fleet_type = c(rep(3, n_survey_fleets), rep(1, SS_n_fleets - n_survey_fleets)), 
+  fishery_timing = c(rep(1, n_survey_fleets), rep(-1, SS_n_fleets - n_survey_fleets)), 
+  area = rep(1, SS_n_fleets), 
+  catch_units = rep(1, SS_n_fleets), 
+  need_catch_mult = rep(0, SS_n_fleets), 
+  fleetname = SS_fleetnames,
+  stringsAsFactors = FALSE
+)
+
+# 6. Ensure ALL fleets exist as columns in catch_data (add dummy 0s for missing ones/surveys)
 for (flt in SS_fleetnames) {
   if (!(flt %in% colnames(catch_data))) {
     catch_data[[flt]] <- 0
   }
 }
 
-SS_n_fleets <- length(SS_fleetnames)
-
-### HAVE TO ADD SOMETHING HERE TO HANDLE FLEETS TALKED ABOUT IN INDICES
-
-cat("Fleetnames from all sources: \n")
-print(SS_fleetnames)
-cat("\n")
-
-
-SS_fleetnames_INDICES <- unique(effort_data$fleet)
-
-# cat("\n")
-# print(SS_fleetnames_INDICES)
-# cat("\n")
-# 
-# cat("\n")
-# print(c(SS_fleetnames_INDICES, SS_fleetnames) )
-# cat("\n")
-
-## Make sure always a FIS fleet
-
-SS_fleetnames_INDICES <- c(SS_fleetnames_INDICES,"FIS")
-
-
-## Sort fleetnames by largest catch.
-# Filter to only include names that exist in catch_data
-valid_fleetnames <- SS_fleetnames[SS_fleetnames %in% colnames(catch_data)]
-
-# Calculate total catch for each valid fleet
-fleet_totals <- colSums(catch_data[, valid_fleetnames, drop = FALSE], na.rm = TRUE)
-
-# Sort fleet names by total catch in descending order
-SS_fleetnames <- names(sort(fleet_totals, decreasing = TRUE))
-
-# cat("SS_fleetnames:",SS_fleetnames,"\n")
-# Commercial.Monthly Commercial.daily Foreign.Trawl Commercial.Line Recreational Charter Foreign.Line
-
-# ## Default value for 2 sex model 
-# SS_Age_Post_Settlement <- 2
-# SS_CV_Growth_Pattern <- 1
-
-SS_Est_Retention <- TRUE
-SS_Est_Selex_From_Fleets_with_Comps <- FALSE
-SS_Mirror_Discards_from_FIS <- TRUE
-
-if(species == "Lutjanus sebae") {
-  cat("DEBUG: Manually ordering fleetnames to match Lutjanus sebae Rubie model\n")
-
-  SS_fleetnames <- c("Foreign.Trawl","Foreign.Line","Commercial.Monthly","Commercial.daily","Commercial.Line","Recreational","Charter")
-
-  cat("SS_fleetnames:",SS_fleetnames,"\n")
-}
-
-if(species == "Pristipomoides multidens") {
-  cat("DEBUG: Manually ordering fleetnames to match Pristipomoides multidens Rubie model\n")
-  
-  SS_fleetnames <- c("Foreign.Trawl","Foreign.Line","Commercial.Monthly","Commercial.daily","Commercial.Line","Recreational","Charter")
-  
-  cat("SS_fleetnames:",SS_fleetnames,"\n")
-  
-  
-  
-  # cat("DEBUG: Manually removing Sex info to match Rubie Pristipomoides multidens model\n")
-  # combined_age_data$Sex <- NA
-  
-  
-  # SS_Age_Post_Settlement <- 3
-  # SS_CV_Growth_Pattern <- 0
-  
-  SS_Est_Retention <- FALSE
-  SS_Mirror_Discards_from_FIS = FALSE
-  SS_Est_Selex_From_Fleets_with_Comps <- TRUE
-}
-
-
-
-if(fishery_parameters$use_1_sex_model){
-  combined_age_data$Sex <- NA
-  cat("Sex in fis_age_data:",unique(combined_age_data$Sex),"\n")
-}
-
-if(species == "Epinephelus rankini") {
-  cat("DEBUG: Manually renaming fleets in combined_age_data for Epinephelus rankini to match catch data\n")
-  
-  # SS_fleetnames <- c("Commercial")
-  
-  # combined_age_data$fleet <- "Commercial"
-  # fixedsiteonly$fleet <- "Commercial"
-  
-  # cat("SS_fleetnames:",SS_fleetnames,"\n")
-}
-
-
-## Conditionally add FIS fleets.
-### $$$ !!!! This needs to be moved to the Shiny App
-# SurveyFleet = T
-# if(SurveyFleet) {
-#   SS_n_fleets <- SS_n_fleets+1
-#   # SS_fleetnames <- c(SS_fleetnames,"FIS")
-#   SS_TEMP_FIS_FLEETS <- "FIS"
-#   SS_fleetnames <- c(SS_TEMP_FIS_FLEETS, SS_fleetnames) # Here is where order is fixed
-#   
-#   SS_fleet_details = data.frame(fleet_type = c(3,rep(1,SS_n_fleets-1)), # Make the FIS a fleet type =3 "SURVEY"
-#                                 fishery_timing = c(1,rep(-1,SS_n_fleets-1)), #_sample_timing: -1 for fishing fleet to use season-long catch-at-age for observations, or 1 to use observation month;  (always 1 for surveys)
-#                                 area = rep(1,SS_n_fleets), 
-#                                 catch_units = rep(1,SS_n_fleets), 
-#                                 need_catch_mult = rep(0,SS_n_fleets), 
-#                                 fleetname = SS_fleetnames)
-#   
-#   # # Make CPUE data the survey fleet
-#   # SS_cpue_data$fleet <- SS_n_fleets
-#   
-#   # Add a dummy field of zero catch to survey fleet
-#   catch_data$FIS <- 0 
-#   
-# } else {
-#   SS_fleet_details = data.frame(fleet_type = rep(1,SS_n_fleets), 
-#                                 fishery_timing = rep(-1,SS_n_fleets), 
-#                                 area = rep(1,SS_n_fleets), 
-#                                 catch_units = rep(1,SS_n_fleets), 
-#                                 need_catch_mult = rep(0,SS_n_fleets), 
-#                                 fleetname = SS_fleetnames)
-#   
-# }
-
-
-# Fleet objects v2, handle FIS fleets dynamically
-SurveyFleet = T
-if(SurveyFleet) {
-  
-  ## NEW LINES
-  # Check for duplicates between SS_fleetnames_INDICES and SS_fleetnames
-  common_names <- intersect(SS_fleetnames_INDICES, SS_fleetnames)
-  if(length(common_names) > 0) {
-    warning("Duplicate fleet names found between SS_fleetnames_INDICES and SS_fleetnames: ", 
-            paste(common_names, collapse = ", "), ". Removing duplicates from SS_fleetnames_INDICES.")
-    SS_fleetnames_INDICES <- setdiff(SS_fleetnames_INDICES, common_names)
-  }
-  
-  # Number of survey fleets after removing duplicates
-  n_survey_fleets <- length(SS_fleetnames_INDICES)
-  SS_n_fleets <- SS_n_fleets + n_survey_fleets
-  SS_fleetnames <- c(SS_fleetnames_INDICES, SS_fleetnames) # Add all FIS fleets to fleetnames
-  
-  # Create fleet details dynamically
-  SS_fleet_details = data.frame(
-    fleet_type = c(rep(3, n_survey_fleets), rep(1, SS_n_fleets - n_survey_fleets)), # SURVEY type for FIS fleets, 1 for others
-    fishery_timing = c(rep(1, n_survey_fleets), rep(-1, SS_n_fleets - n_survey_fleets)), # 1 for surveys, -1 for fishing fleets
-    area = rep(1, SS_n_fleets), 
-    catch_units = rep(1, SS_n_fleets), 
-    need_catch_mult = rep(0, SS_n_fleets), 
-    fleetname = SS_fleetnames
-  )
-  
-  # Add dummy catch fields (zeros) for each survey fleet
-  for(fis in SS_fleetnames_INDICES) {
-    catch_data[[fis]] <- 0
-  }
-  
-} else {
-  SS_fleet_details = data.frame(
-    fleet_type = rep(1, SS_n_fleets), 
-    fishery_timing = rep(-1, SS_n_fleets), 
-    area = rep(1, SS_n_fleets), 
-    catch_units = rep(1, SS_n_fleets), 
-    need_catch_mult = rep(0, SS_n_fleets), 
-    fleetname = SS_fleetnames
-  )
-}
+cat("after survey fleet logic: \n")
 
 
 # Chrysophrys auratus 
@@ -575,26 +687,29 @@ if(UseInitialCatch){
 
 
 
-# Function to process catch data, excluding "FIS" but keeping original fleet numbering
-process_catch_data <- function(catch_data, SS_fleetnames) {
-  # Exclude "FIS" from the fleet names used for selecting and pivoting
-  SS_fleetnames_no_FIS <- SS_fleetnames[SS_fleetnames != "FIS"]
+# Function to process catch data, excluding Survey fleets but keeping original fleet numbering
+process_catch_data <- function(catch_data, SS_fleetnames, SS_fleet_details) {
+  # Exclude all survey fleets (type 3)
+  SS_fleetnames_catch_only <- SS_fleet_details$fleetname[SS_fleet_details$fleet_type != 3]
   
-  # Process catch data without "FIS"
+  # FIX: Return a dummy row if no catch fleets exist so the model compiles without crashing
+  if (length(SS_fleetnames_catch_only) == 0 || nrow(catch_data) == 0) {
+    return(data.frame(yr = -9999, seas = 0, fleet = 0, catch = 0, catch_se = 0))
+  }
+  
+  # Process catch data
   catch_data_long <- catch_data %>%
-    select(year, all_of(SS_fleetnames_no_FIS)) %>%
-    pivot_longer(cols = all_of(SS_fleetnames_no_FIS), names_to = "fleet_name", values_to = "catch")
+    select(year, all_of(SS_fleetnames_catch_only)) %>%
+    pivot_longer(cols = all_of(SS_fleetnames_catch_only), names_to = "fleet_name", values_to = "catch")
   
-  
-  # Filter out rows where catch is 0, but only for actual data (not the initial catch row)
-  # The initial catch row will be handled separately if UseInitialCatch is TRUE
+  # Filter out rows where catch is 0
   catch_data_long <- catch_data_long %>%
-    filter(catch != 0) # Keep only non-zero catches
+    filter(catch != 0)
   
-  # Create fleet mapping with original SS_fleetnames (including "FIS") to preserve numbering
+  # Create fleet mapping
   fleet_mapping <- data.frame(fleet_name = SS_fleetnames, fleet = 1:length(SS_fleetnames))
   
-  # Join with the full fleet mapping to keep original fleet numbers
+  # Join with the full fleet mapping
   catch_data_long <- catch_data_long %>%
     left_join(fleet_mapping, by = "fleet_name") %>%
     select(yr = year, seas = 1, fleet, catch)
@@ -603,20 +718,19 @@ process_catch_data <- function(catch_data, SS_fleetnames) {
   catch_data_long <- catch_data_long %>%
     mutate(catch_se = 0.01)
   
-  
   # Create last row
-  last_year <- max(catch_data_long$yr)
+  last_year <- max(catch_data_long$yr, na.rm=TRUE)
+  if(is.infinite(last_year)) last_year <- 2023
+  
   last_row <- catch_data_long %>%
     filter(yr == last_year) %>%
     mutate(yr = -9999, catch = 0, catch_se = 0, seas = 0, fleet = 0) %>%
     slice(1)
   
   # Conditional for initial year catch
-  
   if(UseInitialCatch) {
-    
-    # Create first row for initial catch
-    first_year <- min(catch_data_long$yr)
+    first_year <- min(catch_data_long$yr, na.rm=TRUE)
+    if(is.infinite(first_year)) first_year <- 1950
     
     first_row <- catch_data_long %>%
       filter(yr == first_year) %>%
@@ -624,45 +738,24 @@ process_catch_data <- function(catch_data, SS_fleetnames) {
              fleet = match(Year0Fleet, SS_fleetnames)) %>%
       slice(1)
     
-    # cat("Year0Fleet",Year0Fleet,"\n")
-    # cat("SS_fleetnames",SS_fleetnames)
-    
-    # cat("DEBUG: first_row of catch data:","\n")
-    # print(first_row)
-    # cat("DEBUG: Check fleet is correct for initial catch\n")
-    
-    
-    # # Combine rows and sort
-    # result <- bind_rows(first_row, catch_data_long, last_row) %>%
-    #   arrange(fleet, yr)
-    
-    # Combine rows
     temp_result <- bind_rows(catch_data_long, last_row)
-    
-    # Sort the temporary result, excluding the first_row which is already handled
-    sorted_temp_result <- temp_result %>%
-      arrange(fleet, yr)
-    
-    # Now, prepend the first_row to the already sorted data
+    sorted_temp_result <- temp_result %>% arrange(fleet, yr)
     result <- bind_rows(first_row, sorted_temp_result)
-    
   } else {
-    # Combine rows and sort
-    result <- bind_rows(catch_data_long, last_row) %>%
-      arrange(fleet, yr)
+    result <- bind_rows(catch_data_long, last_row) %>% arrange(fleet, yr)
   }
   
   # Move the last row (-9999) to the end
   result <- bind_rows(result %>% filter(yr != -9999), result %>% filter(yr == -9999))
-  
-  # Set seas to 1 for all except the last row (already set to 0)
   result$seas <- ifelse(result$yr == -9999, 0, 1)
   
   return(result)
 }
 
 # Process the catch data
-SS_catch_data <- process_catch_data(catch_data, SS_fleetnames)
+SS_catch_data <- process_catch_data(catch_data, SS_fleetnames, SS_fleet_details)
+
+
 
 
 ## Effort - INDICES SECTION ------------------------------------------------
@@ -767,19 +860,6 @@ create_q_objects <- function(SS_cpue_data, SS_fleetnames, SS_Use_Q_extraSD = FAL
   unique_fleets <- unique(SS_cpue_data$fleet[SS_cpue_data$yr != -9999])
   fleet_names <- SS_fleetnames[unique_fleets]
   
-  # Create Q_setup dataframe
-  # Q_setup <- data.frame(
-  #   fleet = unique_fleets,
-  #   value1 = 1,
-  #   value2 = 1,
-  #   # value3 = 0,
-  #   value3 = if(SS_Use_Q_extraSD){1}else{0},
-  #   value4 = 0,
-  #   value5 = 0,
-  #   value6 = 0,
-  #   fleet_name = fleet_names,
-  #   stringsAsFactors = FALSE
-  # )
   
   Q_setup <- data.frame(
     fleet = unique_fleets,
@@ -1002,7 +1082,16 @@ if (SS_GrowthModel == 2) {
 
 ## PROBABLY NEED MROE CHECKS FOR MISSING PARAMS
 
-if(is.na(bio_params$LengthWeightParamsMale_1)) {
+# if(is.na(bio_params$LengthWeightParamsMale_1)) {
+#   
+#   bio_params$LengthWeightParamsMale_1 <- bio_params$LengthWeightParamsFemale_1
+#   bio_params$LengthWeightParamsMale_2 <- bio_params$LengthWeightParamsFemale_2
+#   
+#   cat("Missing length-weight parameters for males, using female for both.\n")
+#   
+# }
+
+if(!"LengthWeightParamsMale_1" %in% names(bio_params) || is.na(bio_params$LengthWeightParamsMale_1)) {
   
   bio_params$LengthWeightParamsMale_1 <- bio_params$LengthWeightParamsFemale_1
   bio_params$LengthWeightParamsMale_2 <- bio_params$LengthWeightParamsFemale_2
@@ -1014,8 +1103,7 @@ if(is.na(bio_params$LengthWeightParamsMale_1)) {
 
 # Maturity ----------------------------------------------------------------
 
-
-if(is.na(bio_params$MaturityParamsFemale_3)) {
+if(!"MaturityParamsFemale_3" %in% names(bio_params) || is.na(bio_params$MaturityParamsFemale_3)) {
   
   cat("Not age-based maturity params, using length-converted\n")
   
@@ -1054,83 +1142,6 @@ if(species == "Lutjanus malabaricus") {
 }
 
 
-# ## Hermaphroditism ---------------------------------------------------------
-# 
-# # Initialize hermaphroditism options with a default
-# hermaphroditism_option <- 0
-# Hermaphro_season <- "#"
-# Hermaphro_maleSPB <- "#"
-# hermaphroditism_lines <- "# Placeholder for Hermaphroditism lines "
-# 
-# 
-# # Check if bio_params exists and handle sex-change parameters
-# if (exists("bio_params") && !is.null(bio_params)) {
-#   if (!is.na(bio_params$SexChangeParamsFemale_1) && !is.na(bio_params$SexChangeParamsMale_1)) {
-#     stop("Error: Both female and male sex-change parameters detected. Specify only one for protogynous (female-to-male) or protandrous (male-to-female).\n")
-#   } else if (!is.na(bio_params$SexChangeParamsFemale_1)) {
-#     cat("Female sex-change parameter detected, assuming protogynous, option 1\n")
-#     hermaphroditism_option <- 1
-#     Hermaphro_season <- -1
-#     Hermaphro_maleSPB <- 0.5
-#     
-#     hermaphroditism_inflection_age <- bio_params$SexChangeParamsFemale_3
-#     # if (species == "Epinephelus rankini") {
-#     #   cat("manually testing age params for sex-change")
-#     #   bio_params$SexChangeParamsFemale_3 <- 11.28
-#     #   bio_params$SexChangeParamsFemale_4 <- 17.77
-#     # }
-#     
-#     
-#     # Age at 50% transition (inflection point / mean)
-#     mu <- bio_params$SexChangeParamsFemale_3
-#     
-#     # Age at 95% transition
-#     X <- bio_params$SexChangeParamsFemale_4
-#     
-#     # The cumulative probability at age X
-#     P <- 0.95
-#     
-#     # --- Calculation ---
-#     
-#     # 1. Find the Z-score (number of standard deviations from the mean)
-#     #    that corresponds to the 95th percentile.
-#     z <- qnorm(P)
-#     
-#     # 2. Rearrange the Z-score formula (z = (X - mu) / sigma)
-#     #    to solve for sigma.
-#     hermaphroditism_SD <- (X - mu) / z
-#     
-#     # Hermaphroditism_asymptotic_rate <- log(19) / (bio_params$SexChangeParamsFemale_4 - bio_params$SexChangeParamsFemale_3) # I dont think that right, thats the width
-#     Hermaphroditism_asymptotic_rate <- 1 # 1 assumes all will change sex.
-#     
-#     hermaphroditism_lines <- c(paste0("	  1	  20	       ",hermaphroditism_inflection_age,"	       1          99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_Inflection_Age"),  
-#                                paste0("	  0	   1        ",hermaphroditism_SD,"	       0	   0	0        	-99		0	0	0	0	0	0	0	#_Hermaphroditism_SD"),
-#                                paste0("	  -5	   5	     ",Hermaphroditism_asymptotic_rate,"	     0.5	  99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_asymptotic_rate "))
-#     
-#   } else if (!is.na(bio_params$SexChangeParamsMale_1)) {
-#     cat("Male sex-change parameter detected, assuming protandrous, option -1\n")
-#     # hermaphroditism_option <- -1
-#     hermaphroditism_option <- 1
-#     Hermaphro_season <- -1
-#     Hermaphro_maleSPB <- 0.5
-#     
-#     hermaphroditism_inflection_age <- bio_params$SexChangeParamsMale_3
-#     Hermaphroditism_asymptotic_rate <- log(19) / (bio_params$SexChangeParamsMale_4 - bio_params$SexChangeParamsMale_3)
-#     
-#     hermaphroditism_lines <- c(paste0("	  1	  20	       ",hermaphroditism_inflection_age,"	       1          99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_Inflection_Age"),  
-#                                "	  0	   1        0.02	       0	   0	0        	-99		0	0	0	0	0	0	0	#_Hermaphroditism_SD",
-#                                paste0("	  -5	   5	     ",Hermaphroditism_asymptotic_rate,"	     0.5	  99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_asymptotic_rate "))
-#     
-#   } else {
-#     cat("No sex-change parameters detected, hermaphroditism options disabled\n")
-#     hermaphroditism_option <- 0
-#   }
-# } else {
-#   cat("bio_params not found, defaulting to no hermaphroditism (option 0)\n")
-#   hermaphroditism_option <- 0
-#   
-#   hermaphroditism_lines <- NULL
-# }
 
 ## Hermaphroditism ---------------------------------------------------------
 
@@ -1148,9 +1159,12 @@ if (disable_herm) {
 } else {
   # Check if bio_params exists and handle sex-change parameters
   if (exists("bio_params") && !is.null(bio_params)) {
-    if (!is.na(bio_params$SexChangeParamsFemale_1) && !is.na(bio_params$SexChangeParamsMale_1)) {
+    has_fem_sexchange <- "SexChangeParamsFemale_1" %in% names(bio_params) && !is.na(bio_params$SexChangeParamsFemale_1)
+    has_mal_sexchange <- "SexChangeParamsMale_1" %in% names(bio_params) && !is.na(bio_params$SexChangeParamsMale_1)
+    
+    if (has_fem_sexchange && has_mal_sexchange) {
       stop("Error: Both female and male sex-change parameters detected. Specify only one for protogynous (female-to-male) or protandrous (male-to-female).\n")
-    } else if (!is.na(bio_params$SexChangeParamsFemale_1)) {
+    } else if (has_fem_sexchange) {
       cat("Female sex-change parameter detected, assuming protogynous, option 1\n")
       hermaphroditism_option <- 1
       Hermaphro_season <- -1
@@ -1168,25 +1182,16 @@ if (disable_herm) {
       P <- 0.95
       
       # --- Calculation ---
-      
-      # 1. Find the Z-score (number of standard deviations from the mean)
-      #    that corresponds to the 95th percentile.
       z <- qnorm(P)
-      
-      # 2. Rearrange the Z-score formula (z = (X - mu) / sigma)
-      #    to solve for sigma.
       hermaphroditism_SD <- (X - mu) / z
-      
-      # Hermaphroditism_asymptotic_rate <- log(19) / (bio_params$SexChangeParamsFemale_4 - bio_params$SexChangeParamsFemale_3) # I dont think that right, thats the width
       Hermaphroditism_asymptotic_rate <- 1 # 1 assumes all will change sex.
       
       hermaphroditism_lines <- c(paste0("	  1	  20	       ",hermaphroditism_inflection_age,"	       1          99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_Inflection_Age"),  
                                  paste0("	  0	   1        ",hermaphroditism_SD,"	       0	   0	0        	-99		0	0	0	0	0	0	0	#_Hermaphroditism_SD"),
                                  paste0("	  -5	   5	     ",Hermaphroditism_asymptotic_rate,"	     0.5	  99	0		-99		0	0	0	0	0	0	0	#_Hermaphroditism_asymptotic_rate "))
       
-    } else if (!is.na(bio_params$SexChangeParamsMale_1)) {
+    } else if (has_mal_sexchange) {
       cat("Male sex-change parameter detected, assuming protandrous, option -1\n")
-      # hermaphroditism_option <- -1
       hermaphroditism_option <- 1
       Hermaphro_season <- -1
       Hermaphro_maleSPB <- 0.5
@@ -1888,30 +1893,6 @@ generate_control_ss <- function(datafile = "data.ss", comment = "control comment
   # Schnute Growth
   if (growth_model == 2){
     cat("creating schnute growth model lines\n")
-    # Backup of lines before tv growth
-    # lines <- c(lines,
-    #            paste0("   0.05 0.15   ",bio_params$NaturalMortality,"     1   10     0     -99    0    0    0    0    0    0    0 # NatM_uniform_Fem_GP_1"),
-    #            paste0("      ",SS_L_at_Amin_Fem_LO,"   ",SS_L_at_Amin_Fem_HI,"   ",L1_Fem_GP_1,"      1    10     0     " ,Growth_phase, "    0    0    0    0    0    0    0 # L1_Fem_GP_1"),
-    #            paste0("     30  100   ",Linf_Fem_GP_1,"      1    10     0     " ,Growth_phase, "    0    0    0    0    0    0    0 # Linf_Fem_GP_1"),
-    #            paste0("   0.05 0.3    ",K_Fem_GP_1,"      1    10     0     " ,Growth_phase, "    0    0    0    0    0    0    0 # K_Fem_GP_1"),
-    #            paste0("   0.05 3    ",b_Fem_GP_1,"      1    10     0     " ,Growth_phase, "    0    0    0    0    0    0    0 # b_Fem_GP_1"),
-    #            paste0(" 0.0001 0.25    0.1      1    10     0     " ,Growth_phase, "    0    0    0    0    0    0    0 # CV_young_Fem_GP_1 ##"),
-    #            paste0(" 0.0001 0.25    0.1      1    10     0     " ,Growth_phase, "    0    0    0    0    0    0    0 # CV_old_Fem_GP_1 ##"),
-    #            paste0("     -3    3 ",bio_params$LengthWeightParamsFemale_1,"  1    10     0     -99    0    0    0    0    0    0    0 # Wtlen_1_Fem_GP_1"),
-    #            paste0("     -3    4 ",bio_params$LengthWeightParamsFemale_2,"      1    10     0     -99    0    0    0    0    0    0    0 # Wtlen_2_Fem_GP_1"),
-    #            paste0("      1   20    ",Mat50_Fem_GP_1,"      1    10     0     -99    0    0    0    0    0    0    0 # Mat50%_Fem_GP_1 ## Age based maturity params"),
-    #            paste0("     -3    3   ",-Mat_slope_Fem_GP_1,"      1    10     0     -99    0    0    0    0    0    0    0 # Mat_slope_Fem_GP_1 ## Age based maturity params"),
-    #            "     -3    3       1      1    10     0     -99    0    0    0    0    0    0    0 # Eggs/kg_inter_Fem_GP_1",
-    #            "     -3    3       0      1    10     0     -99    0    0    0    0    0    0    0 # Eggs/kg_slope_wt_Fem_GP_1",
-    #            paste0("   0.05 0.15   ",bio_params$NaturalMortality,"     1   10     0     -99    0    0    0    0    0    0    0 # NatM_uniform_Mal_GP_1"),
-    #            paste0("      ",SS_L_at_Amin_Mal_LO,"   ",SS_L_at_Amin_Mal_HI,"   ",L1_Mal_GP_1,"      1    10     0     " ,Growth_phase, "    0    0    0    0    0    0    0 # L1_Mal_GP_1"),
-    #            paste0("     30  100   ",Linf_Mal_GP_1,"      1    10     0     " ,Growth_phase, "    0    0    0    0    0    0    0 # Linf_Mal_GP_1"),
-    #            paste0("   0.05 0.3    ",K_Mal_GP_1,"      1    10     0     " ,Growth_phase, "    0    0    0    0    0    0    0 # K_Mal_GP_1"),
-    #            paste0("   0.05 3    ",b_Mal_GP_1,"      1    10     0     " ,Growth_phase, "    0    0    0    0    0    0    0 # b_Mal_GP_1"),
-    #            paste0(" 0.0001 0.25    0.1      1    10     0     " ,Growth_phase, "    0    0    0    0    0    0    0 # CV_young_Mal_GP_1"),
-    #            paste0(" 0.0001 0.25    0.1      1    10     0     " ,Growth_phase, "    0    0    0    0    0    0    0 # CV_old_Mal_GP_1"),
-    #            paste0("     -3    3 ",bio_params$LengthWeightParamsMale_1,"  1    10     0     -99    0    0    0    0    0    0    0 # Wtlen_1_Mal_GP_1"),
-    #            paste0("     -3    4 ",bio_params$LengthWeightParamsMale_2,"      1    10     0     -99    0    0    0    0    0    0    0 # Wtlen_2_Mal_GP_1"))
     if(!fishery_parameters$use_1_sex_model) {
       cat("2 sex params\n")
       lines <- c(lines,
@@ -2319,11 +2300,31 @@ cat("SS_max_age (SS_n_age_bins):",SS_n_age_bins, "\n")
 
 
 
-if(nrow(fixedsiteonly)>0) {
+# if(nrow(fixedsiteonly)>0) {
+# 
+# fixedsiteonly$fleet <- which(SS_fleet_details$fleetname == "FIS")
+# cat("FIS fleet:", which(SS_fleet_details$fleetname == "FIS"),"\n")
+# } else{
+#   cat("no FIS data fleet\n")
+# }
 
-fixedsiteonly$fleet <- which(SS_fleet_details$fleetname == "FIS")
-cat("FIS fleet:", which(SS_fleet_details$fleetname == "FIS"),"\n")
-} else{
+if(nrow(fixedsiteonly) > 0) {
+  # If fixedsiteonly has a populated fleet column (e.g. "FIS_trap") and it matches a known survey fleet, use it
+  if ("fleet" %in% names(fixedsiteonly) && any(fixedsiteonly$fleet %in% SS_fleet_details$fleetname)) {
+    fixedsiteonly$fleet <- match(fixedsiteonly$fleet, SS_fleet_details$fleetname)
+    cat("Mapped fixedsiteonly to dynamic survey fleets.\n")
+  } else {
+    # Fallback to the first survey fleet if exact names aren't matched
+    survey_indices <- which(SS_fleet_details$fleet_type == 3)
+    if (length(survey_indices) > 0) {
+      fixedsiteonly$fleet <- survey_indices[1]
+      cat("FIS fleet fallback assigned to:", SS_fleet_details$fleetname[survey_indices[1]], "(Index:", survey_indices[1], ")\n")
+    } else {
+      fixedsiteonly$fleet <- 1
+      cat("Warning: No survey fleet found for fixedsiteonly fallback. Assigned to fleet 1.\n")
+    }
+  }
+} else {
   cat("no FIS data fleet\n")
 }
 
@@ -2346,8 +2347,11 @@ SS_bio_length_fleet <- SS_fleet_details$fleetname[2]
 if(SS_use_bio_length){
   cat("start of SS_use_bio_length\n")
   # Reformat merged_kim_pilb to match fixedsiteonly 
+  
+
   merged_kim_pilb$Discarded. <- "No"  # Add the 'Discarded.' column to merged_kim_pilb and fill with NA
   
+
   # Select and reorder the columns in merged_kim_pilb to match fixedsiteonly
   # merged_kim_pilb <- merged_kim_pilb[, c("SpeciesName", "year", "Location", "Discarded.", "FL_mm", "LengthClass")]
   merged_kim_pilb <- merged_kim_pilb[, c("SpeciesName", "year", "Location", "Discarded.", "FL_mm", "LengthClass","fleet","Sex")]
@@ -3678,59 +3682,90 @@ generate_forecast_ss <- function(benchmarks = 1, do_msy = 2, spr_target = 0.4, b
 # )
 
 ## Dynamic forecast object
-# Define the forecast years
-start_year <- 2025
-end_year <- 2034
+# Determine the most recent year of catch data to anchor the forecast
+max_catch_year <- max(catch_data$year, na.rm = TRUE)
+if(is.infinite(max_catch_year)) max_catch_year <- 2024 # Safe fallback
+
+# Define the forecast years dynamically (next 10 years)
+start_year <- max_catch_year + 1
+end_year <- start_year + 9
 forecast_years <- seq(start_year, end_year, by = 1)
 
-# Define the catch values for each fleet (must be the same length as the number of fleets)
-# This vector should correspond to the order of fleets in SS_fleet_details
-forecast_catches <- rep(170, nrow(SS_fleet_details))
+# Calculate 5-year average catch for each fleet
+forecast_catches <- rep(0, nrow(SS_fleet_details))
+last_5_years <- (max_catch_year - 4):max_catch_year
 
-## DEBUG testing forecast catches for Red Emp Kim
-if(species == "Lutjanus sebae") {
-  cat("DEBUG: TESTING MANUAL FORECAST CATCHES FOR RED EMP KIM\n")
+cat("Calculating forecast catches based on 5-year average (", min(last_5_years), "-", max_catch_year, ")\n")
 
-## Rubie 
-
-## SO hardcoding that should be
-  # options(digits = 10)
-# forecast_catches <- c(0,150.7,0,0,0,1.209,0.219,0)
-forecast_catches <- c(0,0,0,0,150.7,0,1.209,0.219)
+for (i in 1:nrow(SS_fleet_details)) {
+  flt_name <- SS_fleet_details$fleetname[i]
+  
+  # Check if this fleet exists in the catch_data dataframe
+  if (flt_name %in% names(catch_data)) {
+    # Extract the catches for the last 5 years
+    recent_catches <- catch_data[catch_data$year %in% last_5_years, flt_name]
+    
+    # Calculate the average. Dividing by exactly 5 ensures that missing years 
+    # (which imply 0 catch) don't falsely inflate the average!
+    avg_catch <- sum(recent_catches, na.rm = TRUE) / 5
+    forecast_catches[i] <- round(avg_catch, 3)
+  }
 }
 
-if(species == "Pristipomoides multidens") {
-  cat("DEBUG: TESTING MANUAL FORECAST CATCHES FOR GOLDBAND KIM\n")
-  
-  ## Rubie 
-  
-  ## SO hardcoding that should be
-  # options(digits = 10)
-  # forecast_catches <- c(0,150.7,0,0,0,1.209,0.219,0)
-  forecast_catches <- c(0,0,0,0,435.538,0,0.09,0.018)
-}
-
-
-if(species == "Epinephelus rankini") {
-  cat("DEBUG: TESTING MANUAL FORECAST CATCHES FOR Rankin Pilbara\n")
-  
-  # 1. Initialise the forecast catches to zero for all fleets
-  forecast_catches <- rep(0, nrow(SS_fleet_details))
-  
-  # 2. Define your desired forecast catches using the exact fleet names
-  target_catches <- c(
-    "Commercial.Trap" = 50, 
-    "Recreational" = 13.16, 
-    "Charter" = 5.46
-  )
-  
-  # 3. Find the matching indices in the SS_fleet_details dataframe
-  fleet_indices <- match(names(target_catches), SS_fleet_details$fleetname)
-  
-  # 4. Update the forecast_catches array only for the fleets that were found
-  valid_fleets <- !is.na(fleet_indices)
-  forecast_catches[fleet_indices[valid_fleets]] <- target_catches[valid_fleets]
-}
+# ## Dynamic forecast object
+# # Define the forecast years
+# start_year <- 2025
+# end_year <- 2034
+# forecast_years <- seq(start_year, end_year, by = 1)
+# 
+# # Define the catch values for each fleet (must be the same length as the number of fleets)
+# # This vector should correspond to the order of fleets in SS_fleet_details
+# forecast_catches <- rep(170, nrow(SS_fleet_details))
+# 
+# ## DEBUG testing forecast catches for Red Emp Kim
+# if(species == "Lutjanus sebae") {
+#   cat("DEBUG: TESTING MANUAL FORECAST CATCHES FOR RED EMP KIM\n")
+# 
+# ## Rubie 
+# 
+# ## SO hardcoding that should be
+#   # options(digits = 10)
+# # forecast_catches <- c(0,150.7,0,0,0,1.209,0.219,0)
+# forecast_catches <- c(0,0,0,0,150.7,0,1.209,0.219)
+# }
+# 
+# if(species == "Pristipomoides multidens") {
+#   cat("DEBUG: TESTING MANUAL FORECAST CATCHES FOR GOLDBAND KIM\n")
+#   
+#   ## Rubie 
+#   
+#   ## SO hardcoding that should be
+#   # options(digits = 10)
+#   # forecast_catches <- c(0,150.7,0,0,0,1.209,0.219,0)
+#   forecast_catches <- c(0,0,0,0,435.538,0,0.09,0.018)
+# }
+# 
+# 
+# if(species == "Epinephelus rankini") {
+#   cat("DEBUG: TESTING MANUAL FORECAST CATCHES FOR Rankin Pilbara\n")
+#   
+#   # 1. Initialise the forecast catches to zero for all fleets
+#   forecast_catches <- rep(0, nrow(SS_fleet_details))
+#   
+#   # 2. Define your desired forecast catches using the exact fleet names
+#   target_catches <- c(
+#     "Commercial.Trap" = 50, 
+#     "Recreational" = 13.16, 
+#     "Charter" = 5.46
+#   )
+#   
+#   # 3. Find the matching indices in the SS_fleet_details dataframe
+#   fleet_indices <- match(names(target_catches), SS_fleet_details$fleetname)
+#   
+#   # 4. Update the forecast_catches array only for the fleets that were found
+#   valid_fleets <- !is.na(fleet_indices)
+#   forecast_catches[fleet_indices[valid_fleets]] <- target_catches[valid_fleets]
+# }
 
 # Check if the length of forecast_catches matches the number of fleets
 if (length(forecast_catches) != nrow(SS_fleet_details)) {

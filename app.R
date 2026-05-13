@@ -51,20 +51,20 @@ SENSITIVE_DATA_LOADED <- FALSE
 # --- DEFINE FALLBACK DATA STRUCTURES (ALWAYS RUN INITIALLY) ---
 # Define all global objects needed by the rest of app.R with minimal, valid structure
 # This prevents subsequent code from crashing due to missing objects.
-Fixedsiteonly <- data.frame(SpeciesName = character(0), Fork.Length = numeric(0), Location = character(0), 
-                            CSIRO = integer(0), year = integer(0), Discarded. = character(0), 
-                            Sector = character(0), 
-                            stringsAsFactors = FALSE)
+# Fixedsiteonly <- data.frame(SpeciesName = character(0), Fork.Length = numeric(0), Location = character(0), 
+#                             CSIRO = integer(0), year = integer(0), Discarded. = character(0), 
+#                             Sector = character(0), 
+#                             stringsAsFactors = FALSE)
 
 Merged_Kim_Pilb <- data.frame(SpeciesName = character(0), FL_mm = numeric(0), TL_mm = numeric(0),
                               Fin_Yr_Age = numeric(0), BioRegion = character(0), Zone = character(0),
                               Location = character(0), year = integer(0), Sector = character(0),
                               stringsAsFactors = FALSE)
 
-FISages <- data.frame(SpeciesName = character(0), IntAge = numeric(0), year = integer(0), 
-                      Location = character(0), stringsAsFactors = FALSE)
+# FISages <- data.frame(SpeciesName = character(0), IntAge = numeric(0), year = integer(0), 
+#                       Location = character(0), stringsAsFactors = FALSE)
 
-WCD_data <- data.frame(SpeciesName = character(0), CSIRO = integer(0), stringsAsFactors = FALSE)
+# WCD_data <- data.frame(SpeciesName = character(0), CSIRO = integer(0), stringsAsFactors = FALSE)
 
 catch_ts <- data.frame(Specstock = character(0), year = integer(0), stringsAsFactors = FALSE)
 
@@ -86,7 +86,8 @@ round_any = function(x, accuracy, f=round){f(x/ accuracy) * accuracy}
 message("INFO: App initialized with empty/dummy data sets. Waiting for user to load data.")
 # --- END: New Configuration and Data Loading Block ---
 
-all_species <- unique(c(Fixedsiteonly$SpeciesName, Merged_Kim_Pilb$SpeciesName))
+# all_species <- unique(c(Fixedsiteonly$SpeciesName, Merged_Kim_Pilb$SpeciesName))
+all_species <- unique(Merged_Kim_Pilb$SpeciesName)
 
 
 ui <- function(request) {
@@ -354,19 +355,15 @@ ui <- function(request) {
                                  uiOutput("effort_fleet_select_ui"),
                                  plotOutput("effort_plot", width = "800px")
                         ),
-                        tabPanel("Length",value = "length_tab",
+                        tabPanel("Length", value = "length_tab",
                                  fluidPage(
                                    fluidRow(
                                      column(12,
                                             div(style = "padding: 15px 0;",
-                                                checkboxInput("use_fis_length", "Use length data from FIS", value = TRUE),
-                                                checkboxInput("use_released_fis_data", "Use discarded length data from FIS", value = TRUE),
-                                                checkboxInput("use_bio_length", "Use length data from Biological databases", value = FALSE),
                                                 checkboxInput("detailed_sectors", "Use detailed sectors (Sector.Method)", value = FALSE),
                                                 radioButtons("length_metric", "Length Metric:",
                                                              choices = c("Fork Length (FL)" = "FL", "Total Length (TL)" = "TL"),
-                                                             selected = "FL",
-                                                             inline = TRUE),
+                                                             selected = "FL", inline = TRUE),
                                                 numericInput("length_class_input", "Length Class Interval (mm):",
                                                              value = 20, min = 1, max = 100, step = 1, width = '15%'),
                                                 numericInput("min_length_input", "Minimum Length (mm, applies to length and age)",
@@ -375,19 +372,14 @@ ui <- function(request) {
                                                              value = 50, min = 0, step = 1, width = '15%'),
                                                 radioButtons("length_color_by", "Colour Plots By:",
                                                              choices = c("BioRegion", "Zone", "Location", "Sector", "Sex"),
-                                                             selected = "Sex",
-                                                             inline = TRUE),
+                                                             selected = "Sex", inline = TRUE),
                                                 actionButton("refresh_btn", "Refresh", icon = icon("sync"), class = "btn-default")
                                             )
                                      )
                                    ),
-                                   uiOutput("length_section1"),
-                                   uiOutput("length_section2"),
+                                   uiOutput("length_section_unified"),
                                    fluidRow(
-                                     column(12,
-                                            h5("Debug Information"),
-                                            verbatimTextOutput("length_debug")
-                                     )
+                                     column(12, h5("Debug Information"), verbatimTextOutput("length_debug"))
                                    )
                                  )
                         ),
@@ -396,12 +388,9 @@ ui <- function(request) {
                                    fluidRow(
                                      column(12,
                                             div(style = "padding: 15px 0;",
-                                                checkboxInput("use_fis_age", "Use age data from FIS", value = TRUE),
-                                                checkboxInput("use_bio_age", "Use age data from Biological databases", value = FALSE),
                                                 radioButtons("age_color_by", "Colour Plots By:",
                                                              choices = c("BioRegion", "Zone", "Location", "Sector", "Sex"),
-                                                             selected = "BioRegion",
-                                                             inline = TRUE),
+                                                             selected = "BioRegion", inline = TRUE),
                                                 actionButton("age_refresh_btn", "Refresh", icon = icon("sync"), class = "btn-default")
                                             )
                                      )
@@ -409,23 +398,8 @@ ui <- function(request) {
                                    fluidRow(
                                      column(12,
                                             wellPanel( 
-                                              h5("FIS Age Data"),
+                                              h5("Age Data"),
                                               uiOutput("age_availability_message"),
-                                              uiOutput("year_select_age_ui"),
-                                              pickerInput("location_select_age", "Select Locations for FIS Age Data",
-                                                          choices = NULL,
-                                                          selected = NULL,
-                                                          multiple = TRUE,
-                                                          options = list(`actions-box` = TRUE, `live-search` = TRUE)),
-                                              uiOutput("fis_age_plot_ui"),
-                                              style = "margin-bottom: 20px;" 
-                                            )
-                                     )
-                                   ),
-                                   fluidRow(
-                                     column(12,
-                                            wellPanel( 
-                                              h5("Biological and Historical Age Data"),
                                               uiOutput("year_select_bio_age_ui"),
                                               textOutput("bio_age_sectors"),
                                               uiOutput("bio_age_plot_ui"),
@@ -434,10 +408,7 @@ ui <- function(request) {
                                      )
                                    ),
                                    fluidRow(
-                                     column(12,
-                                            h5("Debug Information"),
-                                            verbatimTextOutput("age_debug")
-                                     )
+                                     column(12, h5("Debug Information"), verbatimTextOutput("age_debug"))
                                    )
                                  ),
                                  fluidRow(
@@ -1244,20 +1215,20 @@ server <- function(input, output, session) {
   # --- 1. REACTIVE DATA BINDINGS ---
   # Explicitly initialize local variables from the global environment first.
   # This prevents them from starting as NULL and crashing the app before data is loaded.
-  Fixedsiteonly <- if(exists("Fixedsiteonly", envir = .GlobalEnv)) .GlobalEnv$Fixedsiteonly else data.frame()
+  # Fixedsiteonly <- if(exists("Fixedsiteonly", envir = .GlobalEnv)) .GlobalEnv$Fixedsiteonly else data.frame()
   Merged_Kim_Pilb <- if(exists("Merged_Kim_Pilb", envir = .GlobalEnv)) .GlobalEnv$Merged_Kim_Pilb else data.frame()
-  FISages <- if(exists("FISages", envir = .GlobalEnv)) .GlobalEnv$FISages else data.frame()
-  WCD_data <- if(exists("WCD_data", envir = .GlobalEnv)) .GlobalEnv$WCD_data else data.frame()
+  # FISages <- if(exists("FISages", envir = .GlobalEnv)) .GlobalEnv$FISages else data.frame()
+  # WCD_data <- if(exists("WCD_data", envir = .GlobalEnv)) .GlobalEnv$WCD_data else data.frame()
   catch_ts <- if(exists("catch_ts", envir = .GlobalEnv)) .GlobalEnv$catch_ts else data.frame()
   effort_ts <- if(exists("effort_ts", envir = .GlobalEnv)) .GlobalEnv$effort_ts else data.frame()
   bupBiologicalUnitParam <- if(exists("bupBiologicalUnitParam", envir = .GlobalEnv)) .GlobalEnv$bupBiologicalUnitParam else data.frame()
   bib_data <- if(exists("bib_data", envir = .GlobalEnv)) .GlobalEnv$bib_data else NULL
   
   # Now make these local variables reactive
-  makeReactiveBinding("Fixedsiteonly")
+  # makeReactiveBinding("Fixedsiteonly")
   makeReactiveBinding("Merged_Kim_Pilb")
-  makeReactiveBinding("FISages")
-  makeReactiveBinding("WCD_data")
+  # makeReactiveBinding("FISages")
+  # makeReactiveBinding("WCD_data")
   makeReactiveBinding("catch_ts")
   makeReactiveBinding("effort_ts")
   makeReactiveBinding("bupBiologicalUnitParam")
@@ -1267,10 +1238,28 @@ server <- function(input, output, session) {
   data_loaded_trigger <- reactiveVal(FALSE)
   
   # --- 2. LOAD DATA BUTTON LOGIC ---
+  # output$load_data_ui <- renderUI({
+  #   # Only show button if the file exists and we haven't loaded it yet
+  #   if (file.exists("import_DPIRD_data.R") && !data_loaded_trigger()) {
+  #     actionButton("btn_load_import_data", "Load Full Data (import_DPIRD_data.R)", 
+  #                  icon = icon("database"), 
+  #                  class = "btn-success", 
+  #                  style = "width: 100%; margin-bottom: 10px;")
+  #   } else if (data_loaded_trigger()) {
+  #     div(style="text-align: center; color: green; font-weight: bold; margin-bottom: 10px;",
+  #         icon("check"), " Full Data Loaded")
+  #   } else {
+  #     # File doesn't exist
+  #     div(style="text-align: center; color: orange; font-style: italic; margin-bottom: 10px;",
+  #         "Running in restricted mode (No data script found)")
+  #   }
+  # })
+  
+  # --- 2. LOAD DATA BUTTON LOGIC ---
   output$load_data_ui <- renderUI({
     # Only show button if the file exists and we haven't loaded it yet
-    if (file.exists("import_DPIRD_data.R") && !data_loaded_trigger()) {
-      actionButton("btn_load_import_data", "Load Full Data (import_DPIRD_data.R)", 
+    if (file.exists("interim_data/Compiled_App_Data.RData") && !data_loaded_trigger()) {
+      actionButton("btn_load_import_data", "Load Full Data", 
                    icon = icon("database"), 
                    class = "btn-success", 
                    style = "width: 100%; margin-bottom: 10px;")
@@ -1280,25 +1269,60 @@ server <- function(input, output, session) {
     } else {
       # File doesn't exist
       div(style="text-align: center; color: orange; font-style: italic; margin-bottom: 10px;",
-          "Running in restricted mode (No data script found)")
+          "Running in restricted mode (No compiled data found)")
     }
   })
   
+  # observeEvent(input$btn_load_import_data, {
+  #   req(file.exists("import_DPIRD_data.R"))
+  #   
+  #   showModal(modalDialog("Loading large datasets, please wait...", footer=NULL))
+  #   
+  #   tryCatch({
+  #     # Source into a temporary environment first to avoid clutter
+  #     temp_env <- new.env()
+  #     source("import_DPIRD_data.R", local = temp_env)
+  #     
+  #     # Update the global/server-scope reactive variables
+  #     # if(exists("Fixedsiteonly", envir = temp_env)) Fixedsiteonly <<- temp_env$Fixedsiteonly
+  #     if(exists("Merged_Kim_Pilb", envir = temp_env)) Merged_Kim_Pilb <<- temp_env$Merged_Kim_Pilb
+  #     # if(exists("FISages", envir = temp_env)) FISages <<- temp_env$FISages
+  #     if(exists("WCD_data", envir = temp_env)) WCD_data <<- temp_env$WCD_data
+  #     if(exists("catch_ts", envir = temp_env)) catch_ts <<- temp_env$catch_ts
+  #     if(exists("effort_ts", envir = temp_env)) effort_ts <<- temp_env$effort_ts
+  #     if(exists("bupBiologicalUnitParam", envir = temp_env)) bupBiologicalUnitParam <<- temp_env$bupBiologicalUnitParam
+  #     if(exists("bib_data", envir = temp_env)) bib_data <<- temp_env$bib_data
+  #     
+  #     data_loaded_trigger(TRUE)
+  #     
+  #     # Trigger a species picker update now that we have data
+  #     # (Accessing the first species to set a default if needed)
+  #     # all_new_species <- unique(c(Fixedsiteonly$SpeciesName, Merged_Kim_Pilb$SpeciesName))
+  #     all_new_species <- unique(Merged_Kim_Pilb$SpeciesName)
+  #     updatePickerInput(session, "species_select", choices = sort(all_new_species))
+  #     
+  #     removeModal()
+  #     showNotification("Data loaded successfully!", type = "message")
+  #     
+  #   }, error = function(e) {
+  #     removeModal()
+  #     showNotification(paste("Error loading data:", e$message), type = "error", duration = 10)
+  #   })
+  # })
+  
   observeEvent(input$btn_load_import_data, {
-    req(file.exists("import_DPIRD_data.R"))
+    req(file.exists("interim_data/Compiled_App_Data.RData"))
     
-    showModal(modalDialog("Loading large datasets, please wait...", footer=NULL))
+    showModal(modalDialog("Loading datasets, please wait...", footer=NULL))
     
     tryCatch({
-      # Source into a temporary environment first to avoid clutter
+      # Load into a temporary environment first to avoid clutter
       temp_env <- new.env()
-      source("import_DPIRD_data.R", local = temp_env)
+      load("interim_data/Compiled_App_Data.RData", envir = temp_env)
       
       # Update the global/server-scope reactive variables
-      if(exists("Fixedsiteonly", envir = temp_env)) Fixedsiteonly <<- temp_env$Fixedsiteonly
       if(exists("Merged_Kim_Pilb", envir = temp_env)) Merged_Kim_Pilb <<- temp_env$Merged_Kim_Pilb
-      if(exists("FISages", envir = temp_env)) FISages <<- temp_env$FISages
-      if(exists("WCD_data", envir = temp_env)) WCD_data <<- temp_env$WCD_data
+      # if(exists("WCD_data", envir = temp_env)) WCD_data <<- temp_env$WCD_data
       if(exists("catch_ts", envir = temp_env)) catch_ts <<- temp_env$catch_ts
       if(exists("effort_ts", envir = temp_env)) effort_ts <<- temp_env$effort_ts
       if(exists("bupBiologicalUnitParam", envir = temp_env)) bupBiologicalUnitParam <<- temp_env$bupBiologicalUnitParam
@@ -1307,8 +1331,7 @@ server <- function(input, output, session) {
       data_loaded_trigger(TRUE)
       
       # Trigger a species picker update now that we have data
-      # (Accessing the first species to set a default if needed)
-      all_new_species <- unique(c(Fixedsiteonly$SpeciesName, Merged_Kim_Pilb$SpeciesName))
+      all_new_species <- unique(Merged_Kim_Pilb$SpeciesName)
       updatePickerInput(session, "species_select", choices = sort(all_new_species))
       
       removeModal()
@@ -2105,76 +2128,23 @@ server <- function(input, output, session) {
         input$length_class_input
       })
       
-      # Reactive Fixedsiteonly data
-      fixedsiteonly_reactive <- reactive({
-        req(input$species_select)
-        # Evaluate the input value outside the dplyr pipe
-        current_interval <- input$length_class_input
-        
-        
-
-        
-        data <- Fixedsiteonly %>%
-        mutate(LengthClass = round_any(Fork.Length, accuracy = Global.Lengthclass(), f = floor))
-
-        if (!"Location" %in% colnames(data)) {
-          data$Location <- "Unknown"
-        }
-        if (!"Zone" %in% colnames(data)) {
-          data$Zone <- "Unknown"
-        }
-        if (!"BioRegion" %in% colnames(data)) {
-          data$BioRegion <- "Unknown"
-        }
-        if (!"Sector" %in% colnames(data)) {
-          data$Sector <- "Unknown"
-        }
-        if (!"Sex" %in% colnames(data)) { 
-          data$Sex <- "U"                
-        }                                
-        data
-      })
       
-      # Modify merged_kim_pilb_reactive
-      # merged_kim_pilb_reactive <- reactive({
-      #   req(input$species_select) # <--- ADD THIS LINE
-      #   current_interval <- input$length_class_input
-      #   length_col <- ifelse(input$length_metric == "FL", "FL_mm", "TL_mm")
-      #   data <- Merged_Kim_Pilb
-      #   if (input$species_select != "All") {
-      #     data <- data %>% filter(SpeciesName == input$species_select)
-      #   }
-      #   data <- data %>%
-      #     mutate(LengthClass = round_any(.data[[length_col]], accuracy = Global.Lengthclass(), f = floor)) %>%
-      #     mutate(fleet = Sector)
-      #   
-      #   # data <- data %>%
-      #   #   mutate(LengthClass = floor(.data[[length_col]] / current_interval) * current_interval) %>%
-      #   #   mutate(fleet = Sector)
-      #   # Add default columns
-      #   if (!"Location" %in% colnames(data)) data$Location <- "Unknown"
-      #   if (!"Zone" %in% colnames(data)) data$Zone <- "Unknown"
-      #   if (!"BioRegion" %in% colnames(data)) data$BioRegion <- "Unknown"
-      #   if (!"Sex" %in% colnames(data)) data$Sex <- "U"
-      #   # message("merged_kim_pilb_reactive: nrow = ", nrow(data), ", columns = ", paste(colnames(data), collapse = ", "))
-      #   data
-      # })
-      
-      # Modify merged_kim_pilb_reactive
-      # Modify merged_kim_pilb_reactive
       merged_kim_pilb_reactive <- reactive({
         req(input$species_select) 
+        
         current_interval <- input$length_class_input
-        length_col <- ifelse(input$length_metric == "FL", "FL_mm", "TL_mm")
+        if (is.null(current_interval) || length(current_interval) == 0 || is.na(current_interval)) current_interval <- 20
+        
+        metric <- input$length_metric
+        if (is.null(metric) || length(metric) == 0) metric <- "FL"
+        length_col <- if (metric == "TL") "TL_mm" else "FL_mm"
+        
         data <- Merged_Kim_Pilb
         
         if (input$species_select != "All") {
           data <- data %>% filter(SpeciesName == input$species_select)
         }
         
-        # --- Clean up Sector and Method text ---
-        # stringr::str_to_title ignores periods, so we use a robust regex (gsub)
-        # This explicitly capitalises the first letter, and any letter after a dot.
         data <- data %>%
           mutate(
             Sector = stringr::str_squish(Sector),
@@ -2191,7 +2161,6 @@ server <- function(input, output, session) {
             )
         }
         
-        # --- Apply detailed sector formatting if selected ---
         if (isTRUE(input$detailed_sectors) && "Method" %in% colnames(data)) {
           data <- data %>%
             mutate(Sector = ifelse(!is.na(Method) & Method != "", 
@@ -2199,149 +2168,65 @@ server <- function(input, output, session) {
                                    Sector))
         }
         
-        data <- data %>%
-          mutate(LengthClass = round_any(.data[[length_col]], accuracy = Global.Lengthclass(), f = floor)) %>%
-          mutate(fleet = Sector)
-        
-        # Add default columns
         if (!"Location" %in% colnames(data)) data$Location <- "Unknown"
         if (!"Zone" %in% colnames(data)) data$Zone <- "Unknown"
         if (!"BioRegion" %in% colnames(data)) data$BioRegion <- "Unknown"
         if (!"Sex" %in% colnames(data)) data$Sex <- "U"
         
+        data <- data %>%
+          mutate(LengthClass = round_any(.data[[length_col]], accuracy = current_interval, f = floor)) %>%
+          mutate(fleet = Sector)
+        
         data
       })
+
       
 
-      # Reactive to get CSIRO code(s) for the selected species
       selected_csiro <- reactive({
         req(input$species_select)
         if (input$species_select == "All") {
-          unique(c(Fixedsiteonly$CSIRO, Merged_Kim_Pilb$CSIRO, WCD_data$CSIRO))
+          unique(Merged_Kim_Pilb$CSIRO)
         } else {
-          unique(c(
-            Fixedsiteonly$CSIRO[Fixedsiteonly$SpeciesName == input$species_select],
-            Merged_Kim_Pilb$CSIRO[Merged_Kim_Pilb$SpeciesName == input$species_select],
-            WCD_data$CSIRO[WCD_data$SpeciesName == input$species_select]
-          ))
+          unique(Merged_Kim_Pilb$CSIRO[Merged_Kim_Pilb$SpeciesName == input$species_select])
         }
       })
-      
-      # Reactive FISages data
-      fisages_reactive <- reactive({
-        # Safety check: if FISages is NULL or not a dataframe, return an empty structure immediately
-        if (is.null(FISages) || !is.data.frame(FISages)) {
-          return(data.frame(SpeciesName = character(), IntAge = numeric(), year = integer(), Location = character()))
-        }
-        
-        # CRITICAL FIX: Check if IntAge column exists BEFORE trying to filter by it.
-        # This prevents the "object 'IntAge' not found" crash if the data is empty/malformed.
-        if (!"IntAge" %in% colnames(FISages)) {
-          return(data.frame(SpeciesName = character(), IntAge = numeric(), year = integer(), Location = character()))
-        }
-        
-        # Now it is safe to filter
-        data <- FISages %>%
-          filter(!is.na(IntAge))
-        
-        if (!is.numeric(data$IntAge)) {
-          message("fisages_reactive: IntAge column exists but is non-numeric")
-          return(data.frame())
-        }
-        
-        # --- Updated column check using safe methods ---
-        if (!"Location" %in% colnames(data)) {
-          data <- tibble::add_column(data, Location = "Unknown")
-        }
-        if (!"Zone" %in% colnames(data)) {
-          data <- tibble::add_column(data, Zone = "Unknown")
-        }
-        if (!"BioRegion" %in% colnames(data)) {
-          data <- tibble::add_column(data, BioRegion = "Unknown")
-        }
-        if (!"Sector" %in% colnames(data)) {
-          data <- tibble::add_column(data, Sector = "Unknown")
-        }
-        if (!"Sex" %in% colnames(data)) {
-          data <- tibble::add_column(data, Sex = "U")                
-        }
-        # --- END: Updated column check using safe methods ---
-        
-        data
-      })
-      
-      
-      # Base reactive data for Age
-      base_data_age <- reactive({
-        if (!input$use_fis_age || !"Age" %in% data_include()) {
-          message("base_data_age: Skipped due to use_fis_age = ", input$use_fis_age, 
-                  ", Age in data_include = ", "Age" %in% data_include())
-          return(data.frame())
-        }
-        data <- fisages_reactive()
-        if ("IntAge" %in% colnames(data)) {
-          data <- data %>%
-            mutate(IntAge = as.character(IntAge)) %>% # Convert to character to handle factors
-            mutate(IntAge = suppressWarnings(as.numeric(IntAge))) %>% # Convert to numeric
-            filter(!is.na(IntAge), IntAge >= 0) # Keep valid, non-negative ages
-        } else {
-          message("base_data_age: IntAge column missing")
-          return(data.frame())
-        }
-        if (input$species_select != "All") {
-          data <- data %>% filter(SpeciesName == input$species_select)
-        }
-        selected_types <- data_include()
-        cols_to_keep <- c("SpeciesName", "year", "Location", "IntAge", "Sex", "FL", "TL")
-        cols_available <- intersect(cols_to_keep, colnames(data))
-        if (!"Location" %in% colnames(data)) {
-          message("base_data_age: Location column missing, adding default")
-          data$Location <- "Unknown"
-          cols_available <- c(cols_available, "Location")
-        }
-        data <- data %>% 
-          mutate(fleet = "FIS") %>%
-          select(any_of(cols_available), fleet)
-        data
-      })
-      
+       
       base_data_bio_age <- reactive({
         data <- merged_kim_pilb_reactive()
-        if (!input$use_bio_age || !"Age" %in% input$data_include_before) {
-          message("base_data_bio_age: Returning empty due to use_bio_age FALSE or Age not included")
-          return(data.frame())
-        }
-        length_col <- ifelse(input$length_metric == "FL", "FL_mm", "TL_mm")
+        
+        inc_before <- input$data_include_before
+        if (is.null(inc_before) || length(inc_before) == 0) inc_before <- c("Catch", "Effort", "Length", "Age")
+        if (!"Age" %in% inc_before) return(data.frame())
+        
+        # Protect against character(0) or NULL metric
+        metric <- input$length_metric
+        if (is.null(metric) || length(metric) == 0) metric <- "FL"
+        length_col <- if (metric == "TL") "TL_mm" else "FL_mm"
         
         current_interval <- input$length_class_input
-
+        if (is.null(current_interval) || length(current_interval) == 0 || is.na(current_interval)) current_interval <- 20
+        
+        min_len <- input$min_length_input
+        if (is.null(min_len) || length(min_len) == 0 || is.na(min_len)) min_len <- 0
+        
         data <- data %>%
           filter(Fin_Yr_Age != -9, !is.na(Fin_Yr_Age),
-                 !is.na(.data[[length_col]]), .data[[length_col]] >= input$min_length_input) %>%
+                 !is.na(.data[[length_col]]), .data[[length_col]] >= min_len) %>%
           mutate(IntAge = as.integer(Fin_Yr_Age),
-                 LengthClass = round_any(.data[[length_col]], accuracy = Global.Lengthclass(), f = floor))
+                 LengthClass = round_any(.data[[length_col]], accuracy = current_interval, f = floor))
         
-        # data <- data %>%
-        #   filter(Fin_Yr_Age != -9, !is.na(Fin_Yr_Age),
-        #          !is.na(.data[[length_col]]), .data[[length_col]] >= input$min_length_input) %>%
-        #   mutate(IntAge = as.integer(Fin_Yr_Age),
-        #          LengthClass = floor(.data[[length_col]] / current_interval) * current_interval)
-        
-        if (!"Location" %in% colnames(data)) {
-          data$Location <- "Unknown"
-        }
-        if (!"Zone" %in% colnames(data)) {
-          data$Zone <- "Unknown"
-        }
-        if (!"BioRegion" %in% colnames(data)) {
-          data$BioRegion <- "Unknown"
-        }
+        if (!"Location" %in% colnames(data)) data$Location <- "Unknown"
+        if (!"Zone" %in% colnames(data)) data$Zone <- "Unknown"
+        if (!"BioRegion" %in% colnames(data)) data$BioRegion <- "Unknown"
         data
       })
+      
+
       
       # Base reactive data for Catch
       base_catch_data <- reactive({
-        req(input$catch_sector_select)
+        if (is.null(input$catch_sector_select)) return(NULL) # Safe fallback instead of req()
+        
         data <- catch_ts
         csiro_codes <- selected_csiro()
         if ("CSIRO" %in% names(data)) {
@@ -2360,12 +2245,14 @@ server <- function(input, output, session) {
         }
       })
       
+
       # Base reactive data for Effort
       base_effort_data <- reactive({
         if (!"Effort" %in% input$data_include_before || is.null(input$effort_species_select) || length(input$effort_species_select) == 0) {
           return(NULL)
         }
-        req(input$effort_fleet_select)
+        if (is.null(input$effort_fleet_select)) return(NULL) # Safe fallback instead of req()
+        
         data <- effort_ts
         if (!"All" %in% input$effort_species_select) {
           data <- data %>% filter(Specstock %in% input$effort_species_select)
@@ -2381,41 +2268,49 @@ server <- function(input, output, session) {
         }
       })
       
+
       
       has_age_data <- reactive({
-        fis_data <- fisages_reactive()
         bio_data <- merged_kim_pilb_reactive()
         
-        # Check FIS data availability first
-        fis_age_available <- FALSE
-        if (input$use_fis_age && nrow(fis_data) > 0) {
-          fis_age_available <- nrow(fis_data %>% 
-                                      filter(SpeciesName == input$species_select | input$species_select == "All")) > 0
-        }
-        
-        # Check Biological data availability
-        bio_age_available <- FALSE
-        if (input$use_bio_age && nrow(bio_data) > 0) {
+        if (nrow(bio_data) > 0) {
           bio_age_available <- nrow(bio_data %>% 
                                       filter((SpeciesName == input$species_select | input$species_select == "All") & 
                                                Fin_Yr_Age != -9 & !is.na(Fin_Yr_Age))) > 0
+          return(bio_age_available)
         }
-        
-        fis_age_available || bio_age_available
+        return(FALSE)
       })
+      
+      # Enable/disable Age checkbox WAS STUCK ON
+      # observe({
+      #   if (has_age_data()) {
+      #     shinyjs::enable(selector = "#data_include_before input[value='Age']")
+      #     if (!"Age" %in% input$data_include_before) {
+      #       updateCheckboxGroupInput(session, "data_include_before", 
+      #                                selected = c(input$data_include_before, "Age"))
+      #     }
+      #   } else {
+      #     shinyjs::disable(selector = "#data_include_before input[value='Age']")
+      #     updateCheckboxGroupInput(session, "data_include_before", 
+      #                              selected = setdiff(input$data_include_before, "Age"))
+      #   }
+      # })
       
       # Enable/disable Age checkbox
       observe({
         if (has_age_data()) {
+          # Data exists: Enable the checkbox, but DON'T force it to be checked
           shinyjs::enable(selector = "#data_include_before input[value='Age']")
-          if (!"Age" %in% input$data_include_before) {
-            updateCheckboxGroupInput(session, "data_include_before", 
-                                     selected = c(input$data_include_before, "Age"))
-          }
         } else {
+          # No data: Disable the checkbox and safely force it to be unchecked
           shinyjs::disable(selector = "#data_include_before input[value='Age']")
-          updateCheckboxGroupInput(session, "data_include_before", 
-                                   selected = setdiff(input$data_include_before, "Age"))
+          
+          current_selection <- isolate(input$data_include_before)
+          if ("Age" %in% current_selection) {
+            updateCheckboxGroupInput(session, "data_include_before", 
+                                     selected = setdiff(current_selection, "Age"))
+          }
         }
       })
       
@@ -2572,150 +2467,7 @@ server <- function(input, output, session) {
                            selected = fleet_choices,
                            inline = TRUE)
       })
-      
-      # Dynamic UI for Length years (Retained Catch)
-      output$year_select_retained <- renderUI({
-        selected_locations <- input$location_select_retained
-        
-        # Base data for the species
-        data <- fixedsiteonly_reactive()
-        if (input$species_select != "All") {
-          data <- data %>% filter(SpeciesName == input$species_select)
-        }
-        data <- data %>% filter(Discarded. == "No")
-        
-        # Filter data for sample size calculation based on selected locations
-        filtered_data <- data
-        if (!is.null(selected_locations)) {
-          filtered_data <- filtered_data %>% filter(Location %in% selected_locations)
-        }
-        
-        # Compute sample sizes per year from the dynamically filtered data
-        sample_sizes <- filtered_data %>%
-          group_by(year) %>%
-          summarise(n = n(), .groups = "drop")
-        
-        # Get all possible year choices from the base data
-        year_choices <- sort(unique(data$year))
-        
-        # Create labels with the correct sample sizes
-        choices <- setNames(as.character(year_choices),
-                            sapply(year_choices, function(y) {
-                              n_val <- sample_sizes$n[sample_sizes$year == y]
-                              if (length(n_val) == 0) n_val <- 0
-                              paste0(y, " (n = ", n_val, ")")
-                            }))
-        pickerInput("year_select_retained", "Select Years for Retained Catch (Discarded = No)",
-                    choices = choices,
-                    selected = rv$retained_years,
-                    multiple = TRUE,
-                    options = list(`actions-box` = TRUE, `live-search` = TRUE))
-      })
-      
-      # Dynamic UI for Length years (Released Catch)
-      output$year_select_released <- renderUI({
-        selected_locations <- input$location_select_released
-        
-        # Base data for the species
-        data <- fixedsiteonly_reactive()
-        if (input$species_select != "All") {
-          data <- data %>% filter(SpeciesName == input$species_select)
-        }
-        data <- data %>% filter(Discarded. == "Yes")
-        
-        # Filter data for sample size calculation based on selected locations
-        filtered_data <- data
-        if (!is.null(selected_locations)) {
-          filtered_data <- filtered_data %>% filter(Location %in% selected_locations)
-        }
-        
-        # Compute sample sizes per year from the dynamically filtered data
-        sample_sizes <- filtered_data %>%
-          group_by(year) %>%
-          summarise(n = n(), .groups = "drop")
-        
-        # Get all possible year choices from the base data
-        year_choices <- sort(unique(data$year))
-        
-        # Create labels with the correct sample sizes
-        choices <- setNames(as.character(year_choices),
-                            sapply(year_choices, function(y) {
-                              n_val <- sample_sizes$n[sample_sizes$year == y]
-                              if (length(n_val) == 0) n_val <- 0
-                              paste0(y, " (n = ", n_val, ")")
-                            }))
-        pickerInput("year_select_released", "Select Years for Released Catch (Discarded = Yes)",
-                    choices = choices,
-                    selected = rv$released_years,
-                    multiple = TRUE,
-                    options = list(`actions-box` = TRUE, `live-search` = TRUE))
-      })
-      
-      # Dynamic UI for Age years (FIS)
-      output$year_select_age_ui <- renderUI({
-        selected_locations <- input$location_select_age
-        
-        # Base data for the species
-        data <- fisages_reactive()
-        if (input$species_select != "All") {
-          data <- data %>% filter(SpeciesName == input$species_select)
-        }
-        
-        # Filter data for sample size calculation based on selected locations
-        filtered_data <- data
-        if (!is.null(selected_locations)) {
-          filtered_data <- filtered_data %>% filter(Location %in% selected_locations)
-        }
-        
-        # Compute sample sizes per year from the dynamically filtered data
-        sample_sizes <- filtered_data %>%
-          group_by(year) %>%
-          summarise(n = n(), .groups = "drop")
-        
-        # Get all possible year choices from the base data
-        year_choices <- if (nrow(data) > 0) sort(unique(data$year)) else character(0)
-        
-        # Create labels with the correct sample sizes
-        choices <- setNames(as.character(year_choices), 
-                            sapply(year_choices, function(y) {
-                              n_val <- sample_sizes$n[sample_sizes$year == y]
-                              if (length(n_val) == 0) n_val <- 0
-                              paste0(y, " (n = ", n_val, ")")
-                            }))
-        
-        # Update location choices based on base data
-        location_choices <- sort(unique(data$Location[!is.na(data$Location)]))
-        if (length(location_choices) == 0) location_choices <- "Unknown"
-        updatePickerInput(session, "location_select_age",
-                          choices = location_choices,
-                          selected = location_choices)
-        
-        pickerInput("year_select_age", "Select Years for FIS Age Data",
-                    choices = choices,
-                    selected = intersect(year_choices, rv$retained_years),
-                    multiple = TRUE,
-                    options = list(`actions-box` = TRUE, `live-search` = TRUE))
-      })
-      
-      # --- START: New code for Biological and Historical Age Data ---
-      
-      # This defines the UI placeholders. It's simple and doesn't create a reactive loop.
-      # output$year_select_bio_age_ui <- renderUI({
-      #   tagList(
-      #     pickerInput("year_select_bio_age", "Select Years for Biological Age Data",
-      #                 choices = NULL, selected = NULL, multiple = TRUE,
-      #                 options = list(`actions-box` = TRUE, `live-search` = TRUE)),
-      #     pickerInput("bioregion_select_bio_age", "Select BioRegions for Biological Age Data",
-      #                 choices = NULL, selected = NULL, multiple = TRUE,
-      #                 options = list(`actions-box` = TRUE, `live-search` = TRUE)),
-      #     pickerInput("zone_select_bio_age", "Select Zones for Biological Age Data",
-      #                 choices = NULL, selected = NULL, multiple = TRUE,
-      #                 options = list(`actions-box` = TRUE, `live-search` = TRUE)),
-      #     pickerInput("location_select_bio_age", "Select Locations for Biological Age Data",
-      #                 choices = NULL, selected = NULL, multiple = TRUE,
-      #                 options = list(`actions-box` = TRUE, `live-search` = TRUE))
-      #   )
-      # })
+    
       
       # This defines the UI placeholders. It's simple and doesn't create a reactive loop.
       output$year_select_bio_age_ui <- renderUI({
@@ -2741,63 +2493,7 @@ server <- function(input, output, session) {
         )
       })
       
-      # Corrected observer for Biological Age filters, now triggered ONLY by species change or the refresh button.
-      # observeEvent(list(input$species_select, input$age_refresh_btn), {
-      #   req(input$species_select)
-      #   
-      #   base_data <- merged_kim_pilb_reactive() %>%
-      #     filter(Fin_Yr_Age != -9, !is.na(Fin_Yr_Age))
-      #   if (input$species_select != "All") {
-      #     base_data <- base_data %>% filter(SpeciesName == input$species_select)
-      #   }
-      #   
-      #   if (nrow(base_data) == 0) {
-      #     updatePickerInput(session, "year_select_bio_age", choices = character(0), selected = character(0))
-      #     updatePickerInput(session, "bioregion_select_bio_age", choices = character(0), selected = character(0))
-      #     updatePickerInput(session, "zone_select_bio_age", choices = character(0), selected = character(0))
-      #     updatePickerInput(session, "location_select_bio_age", choices = character(0), selected = character(0))
-      #     return()
-      #   }
-      #   
-      #   # Get selections from reactive values (rv) to support state restoration
-      #   sel_bioregions <- rv$bio_age_bioregions
-      #   sel_zones      <- rv$bio_age_zones
-      #   sel_locations  <- rv$bio_age_locations
-      #   sel_years      <- rv$bio_age_years
-      #   
-      #   # --- Determine new CHOICES based on current selections ---
-      #   bioregion_choices <- sort(unique(base_data$BioRegion[!is.na(base_data$BioRegion)])) %||% "Unknown"
-      #   sel_bioregions <- intersect(sel_bioregions, bioregion_choices)
-      #   
-      #   data_for_choices <- base_data %>% filter(if (length(sel_bioregions) > 0) BioRegion %in% sel_bioregions else TRUE)
-      #   zone_choices <- sort(unique(data_for_choices$Zone[!is.na(data_for_choices$Zone)])) %||% "Unknown"
-      #   sel_zones <- intersect(sel_zones, zone_choices)
-      #   
-      #   data_for_choices <- data_for_choices %>% filter(if (length(sel_zones) > 0) Zone %in% sel_zones else TRUE)
-      #   location_choices <- sort(unique(data_for_choices$Location[!is.na(data_for_choices$Location)])) %||% "Unknown"
-      #   sel_locations <- intersect(sel_locations, location_choices)
-      #   
-      #   # --- Update pickers with new choices and validated selections ---
-      #   updatePickerInput(session, "bioregion_select_bio_age", choices = bioregion_choices, selected = sel_bioregions)
-      #   updatePickerInput(session, "zone_select_bio_age", choices = zone_choices, selected = sel_zones)
-      #   updatePickerInput(session, "location_select_bio_age", choices = location_choices, selected = sel_locations)
-      #   
-      #   # --- Update Year counts ---
-      #   year_choices_all <- sort(unique(as.character(base_data$year)))
-      #   data_for_year_counts <- data_for_choices %>% filter(if (length(sel_locations) > 0) Location %in% sel_locations else TRUE)
-      #   
-      #   sample_sizes <- data_for_year_counts %>% group_by(year) %>% summarise(n = n(), .groups = "drop") %>% mutate(year = as.character(year))
-      #   
-      #   year_labels <- sapply(year_choices_all, function(y) {
-      #     n_val <- sample_sizes$n[sample_sizes$year == y]
-      #     if (length(n_val) == 0 || is.na(n_val)) n_val <- 0
-      #     paste0(y, " (n = ", n_val, ")")
-      #   })
-      #   
-      #   sel_years <- intersect(sel_years, year_choices_all)
-      #   updatePickerInput(session, "year_select_bio_age", choices = setNames(year_choices_all, year_labels), selected = sel_years)
-      #   
-      # }, ignoreNULL = TRUE, ignoreInit = TRUE)
+    
       
       # Corrected observer for Biological Age filters, now triggered ONLY by species change or the refresh button.
       observeEvent(list(input$species_select, input$age_refresh_btn), {
@@ -2960,9 +2656,10 @@ server <- function(input, output, session) {
         
       }, ignoreNULL = TRUE, ignoreInit = TRUE)
       
+
       output$bio_age_table <- renderTable({
         req(base_data_bio_age())
-        if (nrow(base_data_bio_age()) == 0 || !input$use_bio_age) {
+        if (nrow(base_data_bio_age()) == 0) {
           return(NULL)
         }
         age_summary <- base_data_bio_age() %>%
@@ -2971,71 +2668,75 @@ server <- function(input, output, session) {
         age_summary
       })
       
+
       output$bio_age_histogram <- renderPlot({
         req(bio_age_plot_data())
         data <- bio_age_plot_data()
-        if (nrow(data) == 0 || !input$use_bio_age) {
-          return(ggplot() + annotate("text", x = 0, y = 0, label = "No biological age data available") + theme_void())
+        if (nrow(data) == 0) {
+          return(ggplot() + annotate("text", x = 0, y = 0, label = "No age data available") + theme_void())
         }
         render_age_histogram(data, age_col = "IntAge")
       })
       
       output$bio_age_plot_ui <- renderUI({
+        # CRITICAL FIX: Hide UI if Age is unchecked
+        if (!"Age" %in% input$data_include_before) {
+          return(div(style = "padding: 20px; color: red; font-weight: bold;", 
+                     "Age data is disabled in Assessment Inputs. Check 'Age' in the sidebar to enable."))
+        }
         height <- bio_age_plot_height()
         plotOutput("bio_age_histogram", width = "800px", height = height)
       })
       
       output$length_debug <- renderText({
         paste(
-          "use_fis_length:", input$use_fis_length,
-          "\nuse_bio_length:", input$use_bio_length,
-          "\nLength in data_include_before:", "Length" %in% input$data_include_before,
+          "Length in data_include_before:", "Length" %in% input$data_include_before,
           "\nSelected Species:", input$species_select,
-          "\nRetained Years Selected:", paste(input$year_select_retained %||% "None", collapse = ", "),
-          "\nReleased Years Selected:", paste(input$year_select_released %||% "None", collapse = ", "),
           "\nBio Years Selected:", paste(input$year_select2 %||% "None", collapse = ", "),
           "\nBioRegions Selected:", paste(input$bioregion_select_bio %||% "None", collapse = ", "),
           "\nZones Selected:", paste(input$zone_select_bio %||% "None", collapse = ", "),
           "\nLocations Selected:", paste(input$location_select_bio %||% "None", collapse = ", "),
-          "\nRetained Data Rows:", nrow(length_plot_data1_retained()),
-          "\nReleased Data Rows:", nrow(length_plot_data1_released()),
           "\nBio Data Rows:", nrow(length_plot_data2())
         )
       })
       
       output$age_debug <- renderText({
         paste(
-          "use_fis_age:", is.logical(input$use_fis_age), " (value = ", input$use_fis_age, ")",
-          "\nuse_bio_age:", is.logical(input$use_bio_age), " (value = ", input$use_bio_age, ")",
-          "\nAge in data_include_before:", "Age" %in% input$data_include_before,
+          "Age in data_include_before:", "Age" %in% input$data_include_before,
           "\nSelected Species:", input$species_select,
-          "\nFIS Age Rows (base_data_age):", nrow(base_data_age()),
-          "\nBio Age Rows (base_data_bio_age):", nrow(base_data_bio_age()),
-          "\nFIS Age Years Selected:", if (is.null(input$year_select_age)) "NULL" else paste(input$year_select_age, collapse = ", "),
-          "\nBio Age Years Selected:", if (is.null(input$year_select_bio_age)) "NULL" else paste(input$year_select_bio_age, collapse = ", "),
-          "\nrv$retained_years:", paste(rv$retained_years, collapse = ", "),
-          "\nrv$bio_age_years:", paste(rv$bio_age_years, collapse = ", ")
+          "\nAge Data Rows (base_data_bio_age):", nrow(base_data_bio_age()),
+          "\nDatabase Sources Selected:", paste(input$dbase_select_bio_age %||% "None", collapse = ", "),
+          "\nSectors Selected:", paste(input$sector_select_bio_age %||% "None", collapse = ", "),
+          "\nYears Selected:", paste(input$year_select_bio_age %||% "None", collapse = ", "),
+          "\nBioRegions Selected:", paste(input$bioregion_select_bio_age %||% "None", collapse = ", "),
+          "\nZones Selected:", paste(input$zone_select_bio_age %||% "None", collapse = ", "),
+          "\nLocations Selected:", paste(input$location_select_bio_age %||% "None", collapse = ", "),
+          "\nrv$bio_age_years:", paste(rv$bio_age_years %||% "None", collapse = ", ")
         )
       })
+
       
-      # Biological Parameters table reactive
       # Biological Parameters table reactive
       bio_tab <- eventReactive(list(input$bio_refresh_btn, refresh_trigger()), {
         
-        # --- MODIFIED: Reverted to standard selection logic ---
-        # Ensure a specific species is selected from the dropdown
-        req(input$bio_species_select)
+        # Safe selection logic without req()
+        if (is.null(input$bio_species_select)) {
+          return(list(
+            tabdat = data.frame(Message = "No biological data available."),
+            parameters_s = data.frame(), # Return an empty df so write.csv doesn't crash
+            caption_text = "No species selected."
+          ))
+        }
         
         local({
           selected_bio_species <- input$bio_species_select
-          # ----------------------------------------------------
           
           create_biol_table <- TRUE
           source("BiolTable.R", local = TRUE)
           if (!exists("result") || !is.list(result) || is.null(result$tabdat) || is.null(result$parameters_s)) {
             message("BiolTable.R did not return a valid 'result' list")
             tabdat <- data.frame(Message = "Error: BiolTable.R failed to provide valid data")
-            parameters_s <- data.frame(Message = "No parameters available")
+            parameters_s <- data.frame() 
             caption_text <- "Error loading biological parameters"
           } else {
             tabdat <- result$tabdat
@@ -3052,10 +2753,10 @@ server <- function(input, output, session) {
               parameters_s <- as.data.frame(parameters_s, stringsAsFactors = FALSE)
             }
             if (nrow(parameters_s) == 0 || ncol(parameters_s) == 0) {
-              parameters_s <- data.frame(Message = "No biological parameters available")
+              parameters_s <- data.frame() 
             }
           }
-          return(result)
+          return(list(tabdat = tabdat, parameters_s = parameters_s, caption_text = caption_text))
         })
       }, ignoreNULL = FALSE)
       
@@ -3139,56 +2840,33 @@ server <- function(input, output, session) {
         }
       })
       
-      # Base reactive data for Plot 1 (Fixedsiteonly)
-      base_data1 <- reactive({
-        if (!input$use_fis_length || !"Length" %in% data_include()) {
-          return(data.frame())
-        }
-        data <- fixedsiteonly_reactive()
-        if (input$species_select != "All") {
-          data <- data %>% filter(SpeciesName == input$species_select)
-        }
-        # Apply minimum length filter
-        if (!is.null(input$min_length_input) && input$min_length_input > 0) {
-          data <- data %>% filter(Fork.Length >= input$min_length_input)
-        }
-        if (!is.null(input$use_released_fis_data) && !isTRUE(input$use_released_fis_data)) {
-          data <- data %>% filter(Discarded. != "Yes")
-          message("base_data1: Filtered out Discarded == 'Yes' records.")
-        }
-        
-        selected_types <- data_include()
-        cols_to_keep <- c("SpeciesName", "year", "Location", "Discarded.", "Sex")
-        if ("Length" %in% selected_types) cols_to_keep <- c(cols_to_keep, "Fork.Length", "LengthClass")
-        if ("Catch" %in% selected_types && "Catch" %in% colnames(data)) cols_to_keep <- c(cols_to_keep, "Catch")
-        if ("Effort" %in% selected_types && "Effort" %in% colnames(data)) cols_to_keep <- c(cols_to_keep, "Effort")
-        if ("Age" %in% selected_types && "Age" %in% colnames(data)) cols_to_keep <- c(cols_to_keep, "Age")
-        data %>% select(any_of(cols_to_keep))
-      })
+  
       
-      # Base reactive data for Plot 2 (Merged_Kim_Pilb Length)
       base_data2 <- reactive({
         data <- merged_kim_pilb_reactive()
-        if (!input$use_bio_length || !"Length" %in% input$data_include_before) {
+        
+        inc_before <- input$data_include_before
+        if (is.null(inc_before) || length(inc_before) == 0) inc_before <- c("Catch", "Effort", "Length", "Age")
+        if (!"Length" %in% inc_before) {
           return(data.frame())
         }
-        length_col <- ifelse(input$length_metric == "FL", "FL_mm", "TL_mm")
+        
+        metric <- input$length_metric
+        if (is.null(metric) || length(metric) == 0) metric <- "FL"
+        length_col <- if (metric == "TL") "TL_mm" else "FL_mm"
+        
         current_interval <- input$length_class_input
+        if (is.null(current_interval) || length(current_interval) == 0 || is.na(current_interval)) current_interval <- 20
+        
+        min_len <- input$min_length_input
+        if (is.null(min_len) || length(min_len) == 0 || is.na(min_len)) min_len <- 0
         
         data <- data %>%
-          filter(!is.na(.data[[length_col]]), .data[[length_col]] >= input$min_length_input) %>%
-          mutate(LengthClass = round_any(.data[[length_col]], accuracy = Global.Lengthclass(), f = floor))
+          filter(!is.na(.data[[length_col]]), .data[[length_col]] >= min_len) %>%
+          mutate(LengthClass = round_any(.data[[length_col]], accuracy = current_interval, f = floor))
         
-        # data <- data %>%
-        #   filter(!is.na(.data[[length_col]]), .data[[length_col]] >= input$min_length_input) %>%
-        #   mutate(LengthClass = floor(.data[[length_col]] / current_interval) * current_interval)
-        # Ensure Zone and BioRegion are present
-        if (!"Zone" %in% colnames(data)) {
-          data$Zone <- "Unknown"
-        }
-        if (!"BioRegion" %in% colnames(data)) {
-          data$BioRegion <- "Unknown"
-        }
+        if (!"Zone" %in% colnames(data)) data$Zone <- "Unknown"
+        if (!"BioRegion" %in% colnames(data)) data$BioRegion <- "Unknown"
         data
       })
       
@@ -3204,44 +2882,16 @@ server <- function(input, output, session) {
         base_effort_data()
       })
       
-      observe({
-        updateCheckboxInput(session, "use_fis_age", value = TRUE)
-      })
-      
-      #Disable Inputs When No Data is Available
-      observe({
-        fis_data <- fixedsiteonly_reactive()
-        year_choices <- sort(unique(fis_data$year)) %||% character(0)
-        if (length(year_choices) == 0) {
-          shinyjs::disable("year_select_retained")
-          shinyjs::disable("year_select_released")
-        } else {
-          shinyjs::enable("year_select_retained")
-          shinyjs::enable("year_select_released")
-        }
-      })
-      
+
       
       # Initial UI update to ensure all years are selected on load
       # Initialize rv with all available data after data loads
       observe({
-        fis_data <- fixedsiteonly_reactive()
         kim_pilb_data <- merged_kim_pilb_reactive()
         bio_age_data <- merged_kim_pilb_reactive() %>% filter(Fin_Yr_Age != -9, !is.na(Fin_Yr_Age))
         
-        # FIS data
-        rv$retained_years <- sort(unique(fis_data$year))
-        rv$released_years <- sort(unique(fis_data$year))
-        rv$retained_locations <- sort(unique(fis_data$Location[!is.na(fis_data$Location)])) %||% "Unknown"
-        rv$released_locations <- sort(unique(fis_data$Location[!is.na(fis_data$Location)])) %||% "Unknown"
-        
-        # # Biological data
-        # rv$kim_pilb_years <- sort(unique(kim_pilb_data$year))
-        # rv$kim_pilb_bioregions <- sort(unique(kim_pilb_data$BioRegion[!is.na(kim_pilb_data$BioRegion)])) %||% "Unknown"
-        # rv$kim_pilb_zones <- sort(unique(kim_pilb_data$Zone[!is.na(kim_pilb_data$Zone)])) %||% "Unknown"
-        # rv$kim_pilb_locations <- sort(unique(kim_pilb_data$Location[!is.na(kim_pilb_data$Location)])) %||% "Unknown"
-        
         # Biological data
+        rv$kim_pilb_dbases <- sort(unique(kim_pilb_data$dbase[!is.na(kim_pilb_data$dbase)])) %||% "Unknown"
         rv$kim_pilb_sectors <- sort(unique(kim_pilb_data$Sector[!is.na(kim_pilb_data$Sector)])) %||% "Unknown"
         rv$kim_pilb_years <- sort(unique(kim_pilb_data$year))
         rv$kim_pilb_bioregions <- sort(unique(kim_pilb_data$BioRegion[!is.na(kim_pilb_data$BioRegion)])) %||% "Unknown"
@@ -3249,6 +2899,7 @@ server <- function(input, output, session) {
         rv$kim_pilb_locations <- sort(unique(kim_pilb_data$Location[!is.na(kim_pilb_data$Location)])) %||% "Unknown"
         
         # Bio age data
+        rv$bio_age_dbases <- sort(unique(bio_age_data$dbase[!is.na(bio_age_data$dbase)])) %||% "Unknown"
         rv$bio_age_sectors <- sort(unique(bio_age_data$Sector[!is.na(bio_age_data$Sector)])) %||% "Unknown"
         rv$bio_age_years <- sort(unique(bio_age_data$year))
         rv$bio_age_bioregions <- sort(unique(bio_age_data$BioRegion[!is.na(bio_age_data$BioRegion)])) %||% "Unknown"
@@ -3256,65 +2907,28 @@ server <- function(input, output, session) {
         rv$bio_age_locations <- sort(unique(bio_age_data$Location[!is.na(bio_age_data$Location)])) %||% "Unknown"
       }, priority = 10)
       
-      # Ensure minimum selections for years
-      observe({
-        if (is.null(input$year_select_retained) || length(input$year_select_retained) == 0) {
-          available_years_retained <- sort(unique(fixedsiteonly_reactive() %>% 
-                                                    filter(SpeciesName == input$species_select | input$species_select == "All", Discarded. == "No") %>% 
-                                                    pull(year)))
-          if (length(available_years_retained) > 0) {
-            updatePickerInput(session, "year_select_retained", selected = available_years_retained)
-            rv$retained_years <- available_years_retained
-          }
-        }
-        
-        if (is.null(input$year_select_released) || length(input$year_select_released) == 0) {
-          available_years_released <- sort(unique(fixedsiteonly_reactive() %>% 
-                                                    filter(SpeciesName == input$species_select | input$species_select == "All", Discarded. == "Yes") %>% 
-                                                    pull(year)))
-          if (length(available_years_released) > 0) {
-            updatePickerInput(session, "year_select_released", selected = available_years_released)
-            rv$released_years <- available_years_released
-          }
-        }
-      })
-      
-      
       # Update selections when species changes
       observeEvent(input$species_select, {
-        # FIS data
-        fis_data <- fixedsiteonly_reactive()
-        if (input$species_select != "All") {
-          fis_data <- fis_data %>% filter(SpeciesName == input$species_select)
-        }
-        fis_year_choices <- sort(unique(fis_data$year)) %||% character(0)
-        fis_location_choices <- sort(unique(fis_data$Location[!is.na(fis_data$Location)])) %||% "Unknown"
-        rv$retained_years <- fis_year_choices
-        rv$released_years <- fis_year_choices
-        rv$retained_locations <- fis_location_choices
-        rv$released_locations <- fis_location_choices
-        updatePickerInput(session, "year_select_retained", choices = fis_year_choices, selected = fis_year_choices)
-        updatePickerInput(session, "year_select_released", choices = fis_year_choices, selected = fis_year_choices)
-        updatePickerInput(session, "location_select_retained", choices = fis_location_choices, selected = fis_location_choices)
-        updatePickerInput(session, "location_select_released", choices = fis_location_choices, selected = fis_location_choices)
-        
         # Biological data
         kim_pilb_data <- merged_kim_pilb_reactive()
         if (input$species_select != "All") {
           kim_pilb_data <- kim_pilb_data %>% filter(SpeciesName == input$species_select)
         }
+        kim_pilb_dbase_choices <- sort(unique(kim_pilb_data$dbase[!is.na(kim_pilb_data$dbase)])) %||% "Unknown"
         kim_pilb_sector_choices <- sort(unique(kim_pilb_data$Sector[!is.na(kim_pilb_data$Sector)])) %||% "Unknown"
         kim_pilb_year_choices <- sort(unique(kim_pilb_data$year)) %||% character(0)
         kim_pilb_bioregion_choices <- sort(unique(kim_pilb_data$BioRegion[!is.na(kim_pilb_data$BioRegion)])) %||% "Unknown"
         kim_pilb_zone_choices <- sort(unique(kim_pilb_data$Zone[!is.na(kim_pilb_data$Zone)])) %||% "Unknown"
         kim_pilb_location_choices <- sort(unique(kim_pilb_data$Location[!is.na(kim_pilb_data$Location)])) %||% "Unknown"
         
+        rv$kim_pilb_dbases <- kim_pilb_dbase_choices
         rv$kim_pilb_sectors <- kim_pilb_sector_choices
         rv$kim_pilb_years <- kim_pilb_year_choices
         rv$kim_pilb_bioregions <- kim_pilb_bioregion_choices
         rv$kim_pilb_zones <- kim_pilb_zone_choices
         rv$kim_pilb_locations <- kim_pilb_location_choices
         
+        updatePickerInput(session, "dbase_select_bio", choices = kim_pilb_dbase_choices, selected = kim_pilb_dbase_choices)
         updatePickerInput(session, "sector_select_bio", choices = kim_pilb_sector_choices, selected = kim_pilb_sector_choices)
         updatePickerInput(session, "year_select2", choices = kim_pilb_year_choices, selected = kim_pilb_year_choices)
         updatePickerInput(session, "bioregion_select_bio", choices = kim_pilb_bioregion_choices, selected = kim_pilb_bioregion_choices)
@@ -3326,16 +2940,21 @@ server <- function(input, output, session) {
         if (input$species_select != "All") {
           bio_age_data <- bio_age_data %>% filter(SpeciesName == input$species_select)
         }
+        bio_age_dbase_choices <- sort(unique(bio_age_data$dbase[!is.na(bio_age_data$dbase)])) %||% "Unknown"
         bio_age_sector_choices <- sort(unique(bio_age_data$Sector[!is.na(bio_age_data$Sector)])) %||% "Unknown"
         bio_age_year_choices <- sort(unique(bio_age_data$year)) %||% character(0)
         bio_age_bioregion_choices <- sort(unique(bio_age_data$BioRegion[!is.na(bio_age_data$BioRegion)])) %||% "Unknown"
         bio_age_zone_choices <- sort(unique(bio_age_data$Zone[!is.na(bio_age_data$Zone)])) %||% "Unknown"
         bio_age_location_choices <- sort(unique(bio_age_data$Location[!is.na(bio_age_data$Location)])) %||% "Unknown"
+        
+        rv$bio_age_dbases <- bio_age_dbase_choices
         rv$bio_age_sectors <- bio_age_sector_choices
         rv$bio_age_years <- bio_age_year_choices
         rv$bio_age_bioregions <- bio_age_bioregion_choices
         rv$bio_age_zones <- bio_age_zone_choices
         rv$bio_age_locations <- bio_age_location_choices
+        
+        updatePickerInput(session, "dbase_select_bio_age", choices = bio_age_dbase_choices, selected = bio_age_dbase_choices)
         updatePickerInput(session, "sector_select_bio_age", choices = bio_age_sector_choices, selected = bio_age_sector_choices)
         updatePickerInput(session, "year_select_bio_age", choices = bio_age_year_choices, selected = bio_age_year_choices)
         updatePickerInput(session, "bioregion_select_bio_age", choices = bio_age_bioregion_choices, selected = bio_age_bioregion_choices)
@@ -3343,15 +2962,7 @@ server <- function(input, output, session) {
         updatePickerInput(session, "location_select_bio_age", choices = bio_age_location_choices, selected = bio_age_location_choices)
       })
       
-      # Sync rv with checkbox inputs
-      observeEvent(input$year_select_retained, {
-        rv$retained_years <- input$year_select_retained
-      })
-      
-      observeEvent(input$year_select_released, {
-        rv$released_years <- input$year_select_released
-      })
-      
+
       observeEvent(input$year_select2, {
         rv$kim_pilb_years <- input$year_select2
       })
@@ -3363,14 +2974,7 @@ server <- function(input, output, session) {
       observeEvent(input$year_select_bio_age, {
         rv$bio_age_years <- input$year_select_bio_age
       })
-      
-      observeEvent(input$location_select_retained, {
-        rv$retained_locations <- input$location_select_retained
-      })
-      
-      observeEvent(input$location_select_released, {
-        rv$released_locations <- input$location_select_released
-      })
+
       
       observeEvent(input$location_select_bio, {
         rv$kim_pilb_locations <- input$location_select_bio
@@ -3412,289 +3016,99 @@ server <- function(input, output, session) {
         rv$bio_age_dbases <- input$dbase_select_bio_age
       })
       
-      
-      
-      # Update selections after refresh
-      observeEvent(input$refresh_btn, {
-        retained_data <- length_plot_data1_retained()
-        released_data <- length_plot_data1_released()
+  
+      length_plot_data2 <- eventReactive(list(input$refresh_btn, refresh_trigger(), input$data_include_before), {
+        inc_before <- isolate(input$data_include_before)
+        if (is.null(inc_before) || length(inc_before) == 0) inc_before <- c("Catch", "Effort", "Length", "Age")
+        if (!"Length" %in% inc_before) return(data.frame())
         
-        retained_available <- if (!is.null(retained_data) && nrow(retained_data) > 0) {
-          sort(unique(retained_data$year))
-        } else {
-          character(0)
-        }
-        released_available <- if (!is.null(released_data) && nrow(released_data) > 0) {
-          sort(unique(released_data$year))
-        } else {
-          character(0)
+        data_from_base <- isolate(base_data2())
+        if (nrow(data_from_base) == 0) return(data.frame())
+        
+        sel_dbases <- isolate(input$dbase_select_bio)
+        if (is.null(sel_dbases) || length(sel_dbases) == 0) sel_dbases <- isolate(rv$kim_pilb_dbases)
+        
+        sel_sectors <- isolate(input$sector_select_bio)
+        if (is.null(sel_sectors) || length(sel_sectors) == 0) sel_sectors <- isolate(rv$kim_pilb_sectors)
+        
+        sel_years <- isolate(input$year_select2)
+        if (is.null(sel_years) || length(sel_years) == 0) sel_years <- isolate(rv$kim_pilb_years)
+        
+        sel_bioregions <- isolate(input$bioregion_select_bio)
+        if (is.null(sel_bioregions) || length(sel_bioregions) == 0) sel_bioregions <- isolate(rv$kim_pilb_bioregions)
+        
+        sel_zones <- isolate(input$zone_select_bio)
+        if (is.null(sel_zones) || length(sel_zones) == 0) sel_zones <- isolate(rv$kim_pilb_zones)
+        
+        sel_locations <- isolate(input$location_select_bio)
+        if (is.null(sel_locations) || length(sel_locations) == 0) sel_locations <- isolate(rv$kim_pilb_locations)
+        
+        if (length(sel_dbases) == 0 || length(sel_sectors) == 0 || length(sel_years) == 0 || length(sel_bioregions) == 0 || length(sel_zones) == 0 || length(sel_locations) == 0) {
+          return(data.frame())
         }
         
-        rv$retained_years <- intersect(rv$retained_years, retained_available)
-        if (length(rv$retained_years) == 0 && length(retained_available) > 0) {
-          rv$retained_years <- retained_available
-        }
+        filtered_data <- data_from_base %>%
+          filter(dbase %in% sel_dbases, 
+                 Sector %in% sel_sectors, 
+                 as.character(year) %in% as.character(sel_years),
+                 BioRegion %in% sel_bioregions, 
+                 Zone %in% sel_zones, 
+                 Location %in% sel_locations)
         
-        rv$released_years <- intersect(rv$released_years, released_available)
-        if (length(rv$released_years) == 0 && length(released_available) > 0) {
-          rv$released_years <- released_available
-        }
+        min_len_samp <- isolate(input$min_sample_size_length)
+        if (is.null(min_len_samp) || length(min_len_samp) == 0 || is.na(min_len_samp)) min_len_samp <- 0
         
-        data <- fixedsiteonly_reactive()
-        if (input$species_select != "All") {
-          data <- data %>% filter(SpeciesName == input$species_select)
+        if (min_len_samp > 0) {
+          years_with_enough_data <- filtered_data %>% group_by(year) %>% summarise(n = n()) %>% filter(n >= min_len_samp) %>% pull(year)
+          filtered_data <- filtered_data %>% filter(year %in% years_with_enough_data)
         }
-        year_choices <- sort(unique(data$year))
-        
-        updateCheckboxGroupInput(session, "year_select_retained",
-                                 choices = year_choices,
-                                 selected = rv$retained_years,
-                                 inline = TRUE)
-        updateCheckboxGroupInput(session, "year_select_released",
-                                 choices = year_choices,
-                                 selected = rv$released_years,
-                                 inline = TRUE)
+        filtered_data
       })
       
-      # EventReactive data for Length Plot 1 (combined)
-      length_plot_data1 <- eventReactive(list(input$refresh_btn, refresh_trigger()), {
-        data <- base_data1()
-        selected_years <- union(rv$retained_years, rv$released_years)
-        data %>% filter(year %in% selected_years)
+      bio_age_plot_data <- eventReactive(list(input$age_refresh_btn, refresh_trigger(), input$data_include_before), {
+        data <- isolate(base_data_bio_age())
+        if (nrow(data) == 0) return(data.frame())
         
+        sel_dbases <- isolate(input$dbase_select_bio_age)
+        if (is.null(sel_dbases) || length(sel_dbases) == 0) sel_dbases <- isolate(rv$bio_age_dbases)
         
+        sel_sectors <- isolate(input$sector_select_bio_age)
+        if (is.null(sel_sectors) || length(sel_sectors) == 0) sel_sectors <- isolate(rv$bio_age_sectors)
+        
+        sel_years <- isolate(input$year_select_bio_age)
+        if (is.null(sel_years) || length(sel_years) == 0) sel_years <- isolate(rv$bio_age_years)
+        
+        sel_bioregions <- isolate(input$bioregion_select_bio_age)
+        if (is.null(sel_bioregions) || length(sel_bioregions) == 0) sel_bioregions <- isolate(rv$bio_age_bioregions)
+        
+        sel_zones <- isolate(input$zone_select_bio_age)
+        if (is.null(sel_zones) || length(sel_zones) == 0) sel_zones <- isolate(rv$bio_age_zones)
+        
+        sel_locations <- isolate(input$location_select_bio_age)
+        if (is.null(sel_locations) || length(sel_locations) == 0) sel_locations <- isolate(rv$bio_age_locations)
+        
+        if (length(sel_dbases) == 0 || length(sel_sectors) == 0 || length(sel_years) == 0 || length(sel_bioregions) == 0 || length(sel_zones) == 0 || length(sel_locations) == 0) {
+          return(data.frame()) 
+        }
+        
+        data %>% filter(dbase %in% sel_dbases, 
+                        Sector %in% sel_sectors, 
+                        as.character(year) %in% as.character(sel_years),
+                        BioRegion %in% sel_bioregions, 
+                        Zone %in% sel_zones, 
+                        Location %in% sel_locations)
       })
 
-      # EventReactive data for Length Plot 1 - Retained Catch
-      length_plot_data1_retained <- eventReactive(list(input$refresh_btn, refresh_trigger()), {
-        current_use_fis_length <- isolate(input$use_fis_length)
-        current_data_include_before <- isolate(input$data_include_before)
-        current_base_data1 <- isolate(base_data1()) 
-        
-        if (!isTRUE(current_use_fis_length) || !"Length" %in% current_data_include_before) {
-          message("length_plot_data1_retained: Skipped due to use_fis_length FALSE or Length not included")
-          return(data.frame())
-        }
-        data <- current_base_data1
-        if (nrow(data) == 0) {
-          message("length_plot_data1_retained: No FIS data available")
-          return(data.frame())
-        }
-        
-        valid_years <- intersect(isolate(rv$retained_years), unique(data$year))
-        valid_locations <- intersect(isolate(rv$retained_locations), unique(data$Location))
-        
-        if (length(valid_years) == 0 || length(valid_locations) == 0) {
-          message("length_plot_data1_retained: No valid years or locations selected for current data")
-          return(data.frame())
-        }
-        data <- data %>%
-          filter(year %in% valid_years,
-                 Discarded. == "No",
-                 Location %in% valid_locations)
-        
-        # --- NEW: Minimum Sample Size Filter ---
-        if (!is.null(input$min_sample_size_length) && input$min_sample_size_length > 0) {
-          years_with_enough_data <- data %>%
-            group_by(year) %>%
-            summarise(n = n()) %>%
-            filter(n >= input$min_sample_size_length) %>%
-            pull(year)
-          
-          data <- data %>% filter(year %in% years_with_enough_data)
-        }
-        # ---------------------------------------
-        
-        data
-      })
-      
-      length_plot_data1_released <- eventReactive(list(input$refresh_btn, refresh_trigger()), {
-        current_use_fis_length <- isolate(input$use_fis_length)
-        current_data_include_before <- isolate(input$data_include_before)
-        if (!isTRUE(current_use_fis_length) || !"Length" %in% current_data_include_before) {
-          message("length_plot_data1_released: Skipped (Overall FIS length off or Length not in data_include).")
-          return(data.frame())
-        }
-        
-        if (is.null(input$use_released_fis_data) || !isTRUE(input$use_released_fis_data)) {
-          message("length_plot_data1_released: Skipped ('Use Released FIS data' is unchecked).")
-          return(data.frame())
-        }
-        
-        data <- isolate(base_data1())
-        
-        data_released <- data %>% filter(Discarded. == "Yes")
-        
-        if (nrow(data_released) == 0) {
-          message("length_plot_data1_released: No 'Discarded. == Yes' data available.")
-          return(data.frame())
-        }
-        
-        valid_years <- intersect(isolate(rv$released_years), unique(data_released$year))
-        valid_locations <- intersect(isolate(rv$released_locations), unique(data_released$Location))
-        
-        if (length(valid_years) == 0 || length(valid_locations) == 0) {
-          message("length_plot_data1_released: No valid years or locations selected for current 'Discarded == Yes' data.")
-          return(data.frame())
-        }
-        
-        data_released <- data_released %>%
-          filter(year %in% valid_years,
-                 Location %in% valid_locations)
-        
-        # --- NEW: Minimum Sample Size Filter ---
-        if (!is.null(input$min_sample_size_length) && input$min_sample_size_length > 0) {
-          years_with_enough_data <- data_released %>%
-            group_by(year) %>%
-            summarise(n = n()) %>%
-            filter(n >= input$min_sample_size_length) %>%
-            pull(year)
-          
-          data_released <- data_released %>% filter(year %in% years_with_enough_data)
-        }
-        # ---------------------------------------
-        
-        message("length_plot_data1_released: Rows after filtering = ", nrow(data_released))
-        data_released
-      })
-      
-      length_plot_data2 <- eventReactive(
-        list(input$refresh_btn, refresh_trigger()), {
-          current_use_bio_length <- isolate(input$use_bio_length)
-          current_data_include_before <- isolate(input$data_include_before)
-          
-          if (!isTRUE(current_use_bio_length) || !"Length" %in% current_data_include_before) {
-            return(data.frame()) # Return empty data frame
-          }
-          
-          data_from_base <- isolate(base_data2())
-          
-          if (nrow(data_from_base) == 0) {
-            return(data.frame()) # Return empty data frame
-          }
-          
-          sel_dbases <- isolate(input$dbase_select_bio) # <-- ADDED THIS
-          sel_sectors <- isolate(input$sector_select_bio)
-          sel_years <- isolate(input$year_select2)
-          sel_bioregions <- isolate(input$bioregion_select_bio)
-          sel_zones <- isolate(input$zone_select_bio)
-          sel_locations <- isolate(input$location_select_bio)
-          
-          if (is.null(sel_dbases) || length(sel_dbases) == 0 || # <-- ADDED THIS
-              is.null(sel_sectors) || length(sel_sectors) == 0 ||
-              is.null(sel_years) || length(sel_years) == 0 ||
-              is.null(sel_bioregions) || length(sel_bioregions) == 0 ||
-              is.null(sel_zones) || length(sel_zones) == 0 ||
-              is.null(sel_locations) || length(sel_locations) == 0) {
-            return(data.frame()) # Return empty data frame
-          }
-          
-          # Filter by the current selections from the pickers
-          filtered_data <- data_from_base %>%
-            filter(dbase %in% sel_dbases,
-                   Sector %in% sel_sectors,
-                   as.character(year) %in% as.character(sel_years),
-                   BioRegion %in% sel_bioregions,
-                   Zone %in% sel_zones,
-                   Location %in% sel_locations)
-          
-          # --- NEW: Minimum Sample Size Filter ---
-          if (!is.null(input$min_sample_size_length) && input$min_sample_size_length > 0) {
-            years_with_enough_data <- filtered_data %>%
-              group_by(year) %>%
-              summarise(n = n()) %>%
-              filter(n >= input$min_sample_size_length) %>%
-              pull(year)
-            
-            filtered_data <- filtered_data %>% filter(year %in% years_with_enough_data)
-          }
-          # ---------------------------------------
-          
-          if (nrow(filtered_data) == 0) {
-            return(data.frame()) # Return empty data frame if filters yield no results
-          }
-          
-          return(filtered_data)
-        })
+
       
       # EventReactive data for Length Plot 3 (FRDC88)
       length_plot_data3 <- eventReactive(list(input$refresh_btn, refresh_trigger()), {
         base_data3() %>% filter(year %in% rv$frdc88_years)
       })
       
-      age_plot_data <- eventReactive(list(input$age_refresh_btn, refresh_trigger()), {
-        data <- base_data_age()
-        if (!is.logical(input$use_fis_age)) {
-          message("age_plot_data: Invalid use_fis_age type, treating as FALSE")
-          input$use_fis_age <- FALSE
-        }
-        if (nrow(data) == 0 || !input$use_fis_age) {
-          message("age_plot_data: Returning empty due to no data or use_fis_age FALSE")
-          return(data.frame())
-        }
-        if (is.null(input$year_select_age) || length(input$year_select_age) == 0) {
-          message("age_plot_data: No years selected, using all years")
-          if (!"IntAge" %in% colnames(data) || !is.numeric(data$IntAge)) {
-            message("age_plot_data: IntAge column missing or non-numeric")
-            return(data.frame())
-          }
-          data <- data %>% filter(Location %in% rv$age_locations)
-          return(data)
-        }
-        valid_years <- as.character(input$year_select_age)
-        data <- data %>% 
-          filter(year %in% valid_years,
-                 Location %in% rv$age_locations)
-        data
-      })
+   
       
-      # Corrected bio_age_plot_data to use the correct `input$` values
-      bio_age_plot_data <- eventReactive(list(input$age_refresh_btn, refresh_trigger()), {
-        # This now correctly uses the 'input' values directly, but only runs when the refresh button is clicked.
-        data <- base_data_bio_age()
-        if (nrow(data) == 0 || !input$use_bio_age) {
-          message("bio_age_plot_data: Returning empty due to no data or use_bio_age FALSE")
-          return(data.frame())
-        }
-        
-        # # Use isolate() to read the current values of the pickers when the button is pressed.
-        # sel_years <- isolate(input$year_select_bio_age)
-        # sel_bioregions <- isolate(input$bioregion_select_bio_age)
-        # sel_zones <- isolate(input$zone_select_bio_age)
-        # sel_locations <- isolate(input$location_select_bio_age)
-        # 
-        # if (is.null(sel_years) || is.null(sel_bioregions) || is.null(sel_zones) || is.null(sel_locations)) {
-        #   return(data.frame()) # Return empty if any filter is not yet available
-        # }
-        # 
-        # data <- data %>%
-        #   filter(year %in% sel_years,
-        #          BioRegion %in% sel_bioregions,
-        #          Zone %in% sel_zones,
-        #          Location %in% sel_locations)
-        
-        # Use isolate() to read the current values of the pickers when the button is pressed.
-        sel_dbases <- isolate(input$dbase_select_bio_age) # <-- ADDED THIS
-        sel_sectors <- isolate(input$sector_select_bio_age)
-        sel_years <- isolate(input$year_select_bio_age)
-        sel_bioregions <- isolate(input$bioregion_select_bio_age)
-        sel_zones <- isolate(input$zone_select_bio_age)
-        sel_locations <- isolate(input$location_select_bio_age)
-        
-        if (is.null(sel_dbases) || is.null(sel_sectors) || is.null(sel_years) || is.null(sel_bioregions) || is.null(sel_zones) || is.null(sel_locations)) {
-          return(data.frame()) # Return empty if any filter is not yet available
-        }
-        
-        data <- data %>%
-          filter(dbase %in% sel_dbases,
-                 Sector %in% sel_sectors,
-                 year %in% sel_years,
-                 BioRegion %in% sel_bioregions,
-                 Zone %in% sel_zones,
-                 Location %in% sel_locations)
-        
-        data
-      })
+
       
       # Render UI for conditional age-at-length
       output$conditional_age_ui <- renderUI({
@@ -4283,87 +3697,46 @@ server <- function(input, output, session) {
         height <- max(400, num_years * 200)
         height
       })
+    
       
-      # FIS Section (Table and Plot 1)
-      output$length_section1 <- renderUI({
-        if (!input$use_fis_length) {
-          return(NULL)
-        }
-        
-        fis_data_for_selectors <- fixedsiteonly_reactive()
-        if (input$species_select != "All" && nrow(fis_data_for_selectors) > 0) {
-          fis_data_for_selectors <- fis_data_for_selectors %>% filter(SpeciesName == input$species_select)
-        }
-        
-        location_choices_retained <- sort(unique(fis_data_for_selectors %>% filter(Discarded. == "No") %>% pull(Location)))
-        if (length(location_choices_retained) == 0) location_choices_retained <- "Unknown"
-        
-        location_choices_released <- sort(unique(fis_data_for_selectors %>% filter(Discarded. == "Yes") %>% pull(Location)))
-        if (length(location_choices_released) == 0) location_choices_released <- "Unknown"
-        
-        plot_height_retained <- calculate_plot_height(length_plot_data1_retained())
-        plot_height_released <- calculate_plot_height(length_plot_data1_released())
-        
-        retained_ui <- tagList(
-          h5("Retained Catch Length FIS (Discarded = No)"),
-          uiOutput("year_select_retained"),
-          pickerInput("location_select_retained", "Select Locations for Retained Catch",
-                      choices = location_choices_retained,
-                      selected = rv$retained_locations %||% location_choices_retained,
-                      multiple = TRUE,
-                      options = list(`actions-box` = TRUE, `live-search` = TRUE)),
-          plotOutput("length_histogram1_retained", width = "800px", height = plot_height_retained)
-        )
-        
-        released_ui_elements <- NULL
-        if (!is.null(input$use_released_fis_data) && isTRUE(input$use_released_fis_data)) {
-          released_ui_elements <- tagList(
-            h5("Released Catch Length FIS (Discarded = Yes)"),
-            uiOutput("year_select_released"),
-            pickerInput("location_select_released", "Select Locations for Released Catch",
-                        choices = location_choices_released,
-                        selected = rv$released_locations %||% location_choices_released,
-                        multiple = TRUE,
-                        options = list(`actions-box` = TRUE, `live-search` = TRUE)),
-            plotOutput("length_histogram1_released", width = "800px", height = plot_height_released)
-          )
-        }
-        
-        wellPanel(
-          h5("Length Samples FIS (Fisheries Independent Survey)"),
-          tableOutput("data_table"), 
-          hr(),
-          retained_ui,
-          if (!is.null(released_ui_elements)) hr(),
-          released_ui_elements,
-          style = "margin-bottom: 20px;"
-        )
-      })
-      
-      output$length_section2 <- renderUI({
+      output$length_section_unified <- renderUI({
         req(input$species_select)
+        
+        # CRITICAL FIX: Hide UI if Length is unchecked
+        if (!"Length" %in% input$data_include_before) {
+          return(div(style = "padding: 20px; color: red; font-weight: bold;", 
+                     "Length data is disabled in Assessment Inputs. Check 'Length' in the sidebar to enable."))
+        }
         
         data <- merged_kim_pilb_reactive()
         if (input$species_select != "All" && nrow(data) > 0) {
           data <- data %>% filter(SpeciesName == input$species_select)
         }
         
+        initial_dbase_choices <- if(nrow(data) > 0) sort(unique(data$dbase[!is.na(data$dbase)])) else character(0)
+        if(length(initial_dbase_choices) == 0 && nrow(data) > 0) initial_dbase_choices <- "Unknown"
+        
         initial_sector_choices <- if(nrow(data) > 0) sort(unique(data$Sector[!is.na(data$Sector)])) else character(0)
         if(length(initial_sector_choices) == 0 && nrow(data) > 0) initial_sector_choices <- "Unknown"
         
         initial_year_choices_vals <- if(nrow(data) > 0) sort(unique(as.character(data$year))) else character(0)
+        
         initial_bioregion_choices <- if(nrow(data) > 0) sort(unique(data$BioRegion[!is.na(data$BioRegion)])) else character(0)
         if(length(initial_bioregion_choices) == 0 && nrow(data) > 0) initial_bioregion_choices <- "Unknown"
+        
         initial_zone_choices <- if(nrow(data) > 0) sort(unique(data$Zone[!is.na(data$Zone)])) else character(0)
         if(length(initial_zone_choices) == 0 && nrow(data) > 0) initial_zone_choices <- "Unknown"
+        
         initial_location_choices <- if(nrow(data) > 0) sort(unique(data$Location[!is.na(data$Location)])) else character(0)
         if(length(initial_location_choices) == 0 && nrow(data) > 0) initial_location_choices <- "Unknown"
         
-        selected_sectors_init <- rv$kim_pilb_sectors %||% initial_sector_choices
-        selected_years_init <- rv$kim_pilb_years %||% initial_year_choices_vals
-        selected_bioregions_init <- rv$kim_pilb_bioregions %||% initial_bioregion_choices
-        selected_zones_init <- rv$kim_pilb_zones %||% initial_zone_choices
-        selected_locations_init <- rv$kim_pilb_locations %||% initial_location_choices
+        # CRITICAL FIX: Use isolate() so interacting with dropdowns doesn't trigger a full UI re-render!
+        selected_dbases_init <- isolate(rv$kim_pilb_dbases) %||% initial_dbase_choices
+        selected_sectors_init <- isolate(rv$kim_pilb_sectors) %||% initial_sector_choices
+        selected_years_init <- isolate(rv$kim_pilb_years) %||% initial_year_choices_vals
+        selected_bioregions_init <- isolate(rv$kim_pilb_bioregions) %||% initial_bioregion_choices
+        selected_zones_init <- isolate(rv$kim_pilb_zones) %||% initial_zone_choices
+        selected_locations_init <- isolate(rv$kim_pilb_locations) %||% initial_location_choices
         
         year_labels_init <- sapply(initial_year_choices_vals, function(y) paste0(y, " (n=...)"))
         if(length(initial_year_choices_vals) == 0) year_labels_init <- character(0)
@@ -4371,7 +3744,9 @@ server <- function(input, output, session) {
         wellPanel(
           h5("Length Histogram Biological databases"),
           pickerInput("dbase_select_bio", "Select Database Source",
-                      choices = NULL, selected = NULL, multiple = TRUE,
+                      choices = initial_dbase_choices,
+                      selected = selected_dbases_init,
+                      multiple = TRUE,
                       options = list(`actions-box` = TRUE, `live-search` = TRUE)),
           pickerInput("sector_select_bio", "Select Sectors for Biological Samples",
                       choices = initial_sector_choices,
@@ -4404,54 +3779,78 @@ server <- function(input, output, session) {
         )
       })
       
+      # output$bio_age_sectors <- renderText({
+      #   data <- bio_age_plot_data()
+      #   if (nrow(data) == 0 || !input$use_bio_age) {
+      #     return("No biological age data available (no sectors).")
+      #   }
+      #   sectors <- sort(unique(data$Sector[!is.na(data$Sector)]))
+      #   if (length(sectors) == 0) {
+      #     return("No sectors available in filtered biological age data.")
+      #   }
+      #   paste("Unique Sectors in Biological Age Data:", paste(sectors, collapse = ", "))
+      # })
+      
       output$bio_age_sectors <- renderText({
         data <- bio_age_plot_data()
-        if (nrow(data) == 0 || !input$use_bio_age) {
-          return("No biological age data available (no sectors).")
+        if (nrow(data) == 0) {
+          return("No age data available (no sectors).")
         }
         sectors <- sort(unique(data$Sector[!is.na(data$Sector)]))
         if (length(sectors) == 0) {
-          return("No sectors available in filtered biological age data.")
+          return("No sectors available in filtered age data.")
         }
-        paste("Unique Sectors in Biological Age Data:", paste(sectors, collapse = ", "))
+        paste("Unique Sectors in Age Data:", paste(sectors, collapse = ", "))
       })
+      
+      # output$bio_length_sectors <- renderText({
+      #   data <- length_plot_data2()
+      #   if (nrow(data) == 0 || !input$use_bio_length) {
+      #     return("No biological length data available (no sectors).")
+      #   }
+      #   sectors <- sort(unique(data$Sector[!is.na(data$Sector)]))
+      #   if (length(sectors) == 0) {
+      #     return("No sectors available in filtered biological length data.")
+      #   }
+      #   paste("Unique Sectors in Biological Length Data:", paste(sectors, collapse = ", "))
+      # })
       
       output$bio_length_sectors <- renderText({
         data <- length_plot_data2()
-        if (nrow(data) == 0 || !input$use_bio_length) {
-          return("No biological length data available (no sectors).")
+        if (nrow(data) == 0) {
+          return("No length data available (no sectors).")
         }
         sectors <- sort(unique(data$Sector[!is.na(data$Sector)]))
         if (length(sectors) == 0) {
-          return("No sectors available in filtered biological length data.")
+          return("No sectors available in filtered length data.")
         }
-        paste("Unique Sectors in Biological Length Data:", paste(sectors, collapse = ", "))
+        paste("Unique Sectors in Length Data:", paste(sectors, collapse = ", "))
       })
       
       
       # Render Retained Catch Plot
-      output$length_histogram1_retained <- renderPlot({
-        req(length_plot_data1_retained())
-        plot <- render_length_histogram(length_plot_data1_retained(), length_col = "LengthClass")
-        if (!is.null(plot)) {
-          plot <- plot + labs(title = "Retained Catch")
-        } else {
-          plot <- ggplot() + annotate("text", x = 0, y = 0, label = "No retained catch data available") + theme_void()
-        }
-        plot
-      })
+      # output$length_histogram1_retained <- renderPlot({
+      #   req(length_plot_data1_retained())
+      #   plot <- render_length_histogram(length_plot_data1_retained(), length_col = "LengthClass")
+      #   if (!is.null(plot)) {
+      #     plot <- plot + labs(title = "Retained Catch")
+      #   } else {
+      #     plot <- ggplot() + annotate("text", x = 0, y = 0, label = "No retained catch data available") + theme_void()
+      #   }
+      #   plot
+      # })
       
       # Render Released Catch Plot
-      output$length_histogram1_released <- renderPlot({
-        req(length_plot_data1_released())
-        plot <- render_length_histogram(length_plot_data1_released(), length_col = "LengthClass")
-        if (!is.null(plot)) {
-          plot <- plot + labs(title = "Released Catch")
-        } else {
-          plot <- ggplot() + annotate("text", x = 0, y = 0, label = "No released catch data available") + theme_void()
-        }
-        plot
-      })
+      # output$length_histogram1_released <- renderPlot({
+      #   req(length_plot_data1_released())
+      #   plot <- render_length_histogram(length_plot_data1_released(), length_col = "LengthClass")
+      #   if (!is.null(plot)) {
+      #     plot <- plot + labs(title = "Released Catch")
+      #   } else {
+      #     plot <- ggplot() + annotate("text", x = 0, y = 0, label = "No released catch data available") + theme_void()
+      #   }
+      #   plot
+      # })
       
       output$length_histogram2_ui <- renderUI({
         plot_data <- length_plot_data2()
@@ -4467,82 +3866,106 @@ server <- function(input, output, session) {
         render_length_histogram(length_plot_data2(), length_col = "LengthClass")
       })
       
-      output$fis_age_plot_ui <- renderUI({
-        req(input$use_fis_age, age_plot_data())
-        height <- tryCatch({
-          fis_age_plot_height()
-        }, error = function(e) {
-          400
-        })
-        plotOutput("age_histogram", width = "800px", height = height)
-      })
+      # output$fis_age_plot_ui <- renderUI({
+      #   req(input$use_fis_age, age_plot_data())
+      #   height <- tryCatch({
+      #     fis_age_plot_height()
+      #   }, error = function(e) {
+      #     400
+      #   })
+      #   plotOutput("age_histogram", width = "800px", height = height)
+      # })
       
-      output$age_histogram <- renderPlot({
-        req(age_plot_data(), input$use_fis_age)
-        data <- age_plot_data()
-        if (nrow(data) == 0 || !input$use_fis_age) {
-          return(ggplot() + annotate("text", x = 0, y = 0, label = "No FIS age data available") + theme_void())
-        }
-        render_age_histogram(data, age_col = "IntAge")
-      })
+      # output$age_histogram <- renderPlot({
+      #   req(age_plot_data(), input$use_fis_age)
+      #   data <- age_plot_data()
+      #   if (nrow(data) == 0 || !input$use_fis_age) {
+      #     return(ggplot() + annotate("text", x = 0, y = 0, label = "No FIS age data available") + theme_void())
+      #   }
+      #   render_age_histogram(data, age_col = "IntAge")
+      # })
 
       # --- COMBINED AGE/LENGTH DATA REACTIVE ---
       # This pulls from FIS, Biological, or both depending on what is checked
+      # combined_age_length_data <- reactive({
+      #   df_list <- list()
+      #   
+      #   # 1. Grab FIS Data (if checked and available)
+      #   if (isTRUE(input$use_fis_age)) {
+      #     fis_data <- age_plot_data()
+      #     if (nrow(fis_data) > 0 && "Age" %in% colnames(fis_data)) {
+      #       # Check length metric for FIS (FL or TL)
+      #       len_col <- if(!is.null(input$length_metric) && input$length_metric == "TL" && "TL" %in% colnames(fis_data)) "TL" else "FL"
+      #       
+      #       if (len_col %in% colnames(fis_data)) {
+      #         temp_fis <- data.frame(
+      #           Year = fis_data$year,
+      #           Age = fis_data$Age,
+      #           Length = fis_data[[len_col]],
+      #           DataSource = "FIS"
+      #         )
+      #         # Handle colouring
+      #         color_var <- input$age_color_by
+      #         temp_fis$ColourGroup <- if(color_var %in% colnames(fis_data)) fis_data[[color_var]] else "Unknown"
+      #         
+      #         df_list[[1]] <- temp_fis
+      #       }
+      #     }
+      #   }
+      #   
+      #   # 2. Grab Biological Data (if checked and available)
+      #   if (isTRUE(input$use_bio_age)) {
+      #     bio_data <- bio_age_plot_data()
+      #     if (nrow(bio_data) > 0 && "Age" %in% colnames(bio_data)) {
+      #       # Check length metric for Bio data (FL_mm or TL_mm)
+      #       len_col <- if(!is.null(input$length_metric) && input$length_metric == "TL" && "TL_mm" %in% colnames(bio_data)) "TL_mm" else "FL_mm"
+      #       
+      #       if (len_col %in% colnames(bio_data)) {
+      #         temp_bio <- data.frame(
+      #           Year = bio_data$year,
+      #           Age = bio_data$Age,
+      #           Length = bio_data[[len_col]],
+      #           DataSource = "Biological"
+      #         )
+      #         # Handle colouring
+      #         color_var <- input$age_color_by
+      #         temp_bio$ColourGroup <- if(color_var %in% colnames(bio_data)) bio_data[[color_var]] else "Unknown"
+      #         
+      #         df_list[[2]] <- temp_bio
+      #       }
+      #     }
+      #   }
+      #   
+      #   # Combine them safely
+      #   if (length(df_list) > 0) {
+      #     dplyr::bind_rows(df_list) %>% filter(!is.na(Age), !is.na(Length))
+      #   } else {
+      #     data.frame() # Return empty if nothing is found
+      #   }
+      # })
+      
       combined_age_length_data <- reactive({
-        df_list <- list()
-        
-        # 1. Grab FIS Data (if checked and available)
-        if (isTRUE(input$use_fis_age)) {
-          fis_data <- age_plot_data()
-          if (nrow(fis_data) > 0 && "Age" %in% colnames(fis_data)) {
-            # Check length metric for FIS (FL or TL)
-            len_col <- if(!is.null(input$length_metric) && input$length_metric == "TL" && "TL" %in% colnames(fis_data)) "TL" else "FL"
+        bio_data <- bio_age_plot_data()
+        if (nrow(bio_data) > 0 && "Age" %in% colnames(bio_data)) {
+          
+          # Protect against NULLs
+          metric <- input$length_metric %||% "FL"
+          len_col <- ifelse(metric == "TL" && "TL_mm" %in% colnames(bio_data), "TL_mm", "FL_mm")
+          
+          if (len_col %in% colnames(bio_data)) {
+            temp_bio <- data.frame(
+              Year = bio_data$year,
+              Age = bio_data$Age,
+              Length = bio_data[[len_col]],
+              DataSource = bio_data$Sector 
+            )
+            color_var <- input$age_color_by %||% "BioRegion"
+            temp_bio$ColourGroup <- if(color_var %in% colnames(bio_data)) bio_data[[color_var]] else "Unknown"
             
-            if (len_col %in% colnames(fis_data)) {
-              temp_fis <- data.frame(
-                Year = fis_data$year,
-                Age = fis_data$Age,
-                Length = fis_data[[len_col]],
-                DataSource = "FIS"
-              )
-              # Handle colouring
-              color_var <- input$age_color_by
-              temp_fis$ColourGroup <- if(color_var %in% colnames(fis_data)) fis_data[[color_var]] else "Unknown"
-              
-              df_list[[1]] <- temp_fis
-            }
+            return(temp_bio %>% filter(!is.na(Age), !is.na(Length)))
           }
         }
-        
-        # 2. Grab Biological Data (if checked and available)
-        if (isTRUE(input$use_bio_age)) {
-          bio_data <- bio_age_plot_data()
-          if (nrow(bio_data) > 0 && "Age" %in% colnames(bio_data)) {
-            # Check length metric for Bio data (FL_mm or TL_mm)
-            len_col <- if(!is.null(input$length_metric) && input$length_metric == "TL" && "TL_mm" %in% colnames(bio_data)) "TL_mm" else "FL_mm"
-            
-            if (len_col %in% colnames(bio_data)) {
-              temp_bio <- data.frame(
-                Year = bio_data$year,
-                Age = bio_data$Age,
-                Length = bio_data[[len_col]],
-                DataSource = "Biological"
-              )
-              # Handle colouring
-              color_var <- input$age_color_by
-              temp_bio$ColourGroup <- if(color_var %in% colnames(bio_data)) bio_data[[color_var]] else "Unknown"
-              
-              df_list[[2]] <- temp_bio
-            }
-          }
-        }
-        
-        # Combine them safely
-        if (length(df_list) > 0) {
-          dplyr::bind_rows(df_list) %>% filter(!is.na(Age), !is.na(Length))
-        } else {
-          data.frame() # Return empty if nothing is found
-        }
+        return(data.frame()) 
       })
       
       # Age Tab - Faceted scatter plot (coloured by user selection)
@@ -4586,129 +4009,179 @@ server <- function(input, output, session) {
       })
       
       
+      # fishery_params <- reactive({
+      #   params <- data.frame(
+      #     use_initial_catch = input$use_initial_catch,
+      #     use_1_sex_model = input$use_1_sex_model,
+      #     use_combined_sex_length_comps = input$use_combined_sex_length_comps,
+      #     nsamp_multiplier = input$nsamp_multiplier,
+      #     disable_hermaphroditism = input$disable_hermaphroditism,
+      #     use_custom_max_size = input$use_custom_max_size,
+      #     use_custom_max_age = input$use_custom_max_age,
+      #     use_custom_M = input$use_custom_M,
+      #     use_custom_sigma_r = input$use_custom_sigma_r,
+      #     use_age_post_settlement = input$use_age_post_settlement,
+      #     use_cv_growth_pattern = input$use_cv_growth_pattern,
+      #     use_custom_h = input$use_custom_h,
+      #     use_custom_R0 = input$use_custom_R0,
+      #     use_recdevs_range = input$use_recdevs_range,
+      #     use_custom_bias_adj = input$use_custom_bias_adj,
+      #     estimate_growth_params = input$estimate_growth_params,
+      #     estimate_Dirichlet = input$estimate_Dirichlet,
+      #     use_francis_weighting = input$use_francis_weighting,
+      #     use_Q_extraSD = input$use_Q_extraSD,
+      #     use_time_varying_params = input$use_time_varying_params
+      #   )
+      #   if (input$use_initial_catch) {
+      #     params <- cbind(params, data.frame(
+      #       year0catch = input$year0catch,
+      #       year0catchse = input$year0catchse,
+      #       initf = input$initf,
+      #       year0fleet = input$year0fleet
+      #     ))
+      #   }
+      #   
+      #   # --- NEW: Add values to dataframe if selected ---
+      #   if (input$use_custom_max_size) {
+      #     params <- cbind(params, data.frame(
+      #       custom_max_size = input$custom_max_size
+      #     ))
+      #   }
+      #   if (input$use_custom_max_age) {
+      #     params <- cbind(params, data.frame(
+      #       custom_max_age = input$custom_max_age
+      #     ))
+      #   }
+      #   # ------------------------------------------------
+      #   
+      #   if (input$use_custom_M) {
+      #     params <- cbind(params, data.frame(
+      #       custom_M = input$custom_M
+      #     ))
+      #   }
+      #   if (input$use_custom_sigma_r) {
+      #     params <- cbind(params, data.frame(
+      #       custom_sigma_r = input$custom_sigma_r
+      #     ))
+      #   }
+      #   if (input$use_age_post_settlement) {
+      #     params <- cbind(params, data.frame(
+      #       age_post_settlement = input$age_post_settlement
+      #     ))
+      #   }
+      #   if (input$use_cv_growth_pattern) {
+      #     params <- cbind(params, data.frame(
+      #       cv_growth_pattern = input$cv_growth_pattern
+      #     ))
+      #   }
+      #   if (input$use_custom_h) {
+      #     params <- cbind(params, data.frame(
+      #       custom_h = input$custom_h
+      #     ))
+      #   }
+      #   if (input$use_custom_R0) {
+      #     params <- cbind(params, data.frame(
+      #       custom_R0 = input$custom_R0
+      #     ))
+      #   }
+      #   if (input$use_recdevs_range) {
+      #     params <- cbind(params, data.frame(
+      #       first_year_recr_devs = input$first_year_recr_devs,
+      #       last_year_recr_devs = input$last_year_recr_devs
+      #     ))
+      #   }
+      #   if (input$use_custom_bias_adj) {
+      #     params <- cbind(params, data.frame(
+      #       last_early_yr_nobias_adj = input$last_early_yr_nobias_adj,
+      #       first_yr_fullbias_adj = input$first_yr_fullbias_adj,
+      #       last_yr_fullbias_adj = input$last_yr_fullbias_adj,
+      #       first_recent_yr_nobias_adj = input$first_recent_yr_nobias_adj,
+      #       Use_max_bias_adj_in_MPD = input$Use_max_bias_adj_in_MPD
+      #     ))
+      #   }
+      #   if (input$use_francis_weighting) {
+      #     params <- cbind(params, data.frame(
+      #       francis_weighting_value = input$francis_weighting_value
+      #     ))
+      #   }
+      #   if (input$estimate_Dirichlet) {
+      #     params <- cbind(params, data.frame(
+      #       dirichlet_textbox_value = input$dirichlet_textbox_value
+      #     ))
+      #   }
+      #   if (input$use_Q_extraSD) {
+      #     params <- cbind(params, data.frame(
+      #       Q_extraSD = input$Q_extraSD
+      #     ))
+      #   }
+      #   if (input$use_time_varying_params) {
+      #     params <- cbind(params, data.frame(
+      #       time_varying_params_text = input$time_varying_params_text,
+      #       use_time_varying_growth_all = input$use_time_varying_growth_all,
+      #       use_time_varying_growth_L_at_Amin = input$use_time_varying_growth_L_at_Amin,
+      #       use_time_varying_growth_L_at_Amax = input$use_time_varying_growth_L_at_Amax,
+      #       use_time_varying_growth_vbK = input$use_time_varying_growth_vbK,
+      #       use_time_varying_selectivity = input$use_time_varying_selectivity,
+      #       use_time_varying_retention = input$use_time_varying_retention
+      #     ))
+      #   }
+      #   params
+      # })
+      
       fishery_params <- reactive({
         params <- data.frame(
-          use_initial_catch = input$use_initial_catch,
-          use_1_sex_model = input$use_1_sex_model,
-          use_combined_sex_length_comps = input$use_combined_sex_length_comps,
-          nsamp_multiplier = input$nsamp_multiplier,
-          disable_hermaphroditism = input$disable_hermaphroditism,
-          use_custom_max_size = input$use_custom_max_size,
-          use_custom_max_age = input$use_custom_max_age,
-          use_custom_M = input$use_custom_M,
-          use_custom_sigma_r = input$use_custom_sigma_r,
-          use_age_post_settlement = input$use_age_post_settlement,
-          use_cv_growth_pattern = input$use_cv_growth_pattern,
-          use_custom_h = input$use_custom_h,
-          use_custom_R0 = input$use_custom_R0,
-          use_recdevs_range = input$use_recdevs_range,
-          use_custom_bias_adj = input$use_custom_bias_adj,
-          estimate_growth_params = input$estimate_growth_params,
-          estimate_Dirichlet = input$estimate_Dirichlet,
-          use_francis_weighting = input$use_francis_weighting,
-          use_Q_extraSD = input$use_Q_extraSD,
-          use_time_varying_params = input$use_time_varying_params
+          use_initial_catch = isTRUE(input$use_initial_catch),
+          use_1_sex_model = isTRUE(input$use_1_sex_model),
+          use_combined_sex_length_comps = isTRUE(input$use_combined_sex_length_comps),
+          nsamp_multiplier = input$nsamp_multiplier %||% 1.0,
+          disable_hermaphroditism = isTRUE(input$disable_hermaphroditism),
+          use_custom_max_size = isTRUE(input$use_custom_max_size),
+          use_custom_max_age = isTRUE(input$use_custom_max_age),
+          use_custom_M = isTRUE(input$use_custom_M),
+          use_custom_sigma_r = isTRUE(input$use_custom_sigma_r),
+          use_age_post_settlement = isTRUE(input$use_age_post_settlement),
+          use_cv_growth_pattern = isTRUE(input$use_cv_growth_pattern),
+          use_custom_h = isTRUE(input$use_custom_h),
+          use_custom_R0 = isTRUE(input$use_custom_R0),
+          use_recdevs_range = isTRUE(input$use_recdevs_range),
+          use_custom_bias_adj = isTRUE(input$use_custom_bias_adj),
+          estimate_growth_params = isTRUE(input$estimate_growth_params),
+          estimate_Dirichlet = isTRUE(input$estimate_Dirichlet),
+          use_francis_weighting = isTRUE(input$use_francis_weighting),
+          use_Q_extraSD = isTRUE(input$use_Q_extraSD),
+          use_time_varying_params = isTRUE(input$use_time_varying_params)
         )
-        if (input$use_initial_catch) {
+        if (isTRUE(input$use_initial_catch)) {
           params <- cbind(params, data.frame(
-            year0catch = input$year0catch,
-            year0catchse = input$year0catchse,
-            initf = input$initf,
-            year0fleet = input$year0fleet
+            year0catch = input$year0catch %||% 0.1,
+            year0catchse = input$year0catchse %||% 0.2,
+            initf = input$initf %||% 0.1,
+            year0fleet = input$year0fleet %||% "Foreign.Trawl"
           ))
         }
         
-        # --- NEW: Add values to dataframe if selected ---
-        if (input$use_custom_max_size) {
-          params <- cbind(params, data.frame(
-            custom_max_size = input$custom_max_size
-          ))
-        }
-        if (input$use_custom_max_age) {
-          params <- cbind(params, data.frame(
-            custom_max_age = input$custom_max_age
-          ))
-        }
-        # ------------------------------------------------
-        
-        if (input$use_custom_M) {
-          params <- cbind(params, data.frame(
-            custom_M = input$custom_M
-          ))
-        }
-        if (input$use_custom_sigma_r) {
-          params <- cbind(params, data.frame(
-            custom_sigma_r = input$custom_sigma_r
-          ))
-        }
-        if (input$use_age_post_settlement) {
-          params <- cbind(params, data.frame(
-            age_post_settlement = input$age_post_settlement
-          ))
-        }
-        if (input$use_cv_growth_pattern) {
-          params <- cbind(params, data.frame(
-            cv_growth_pattern = input$cv_growth_pattern
-          ))
-        }
-        if (input$use_custom_h) {
-          params <- cbind(params, data.frame(
-            custom_h = input$custom_h
-          ))
-        }
-        if (input$use_custom_R0) {
-          params <- cbind(params, data.frame(
-            custom_R0 = input$custom_R0
-          ))
-        }
-        if (input$use_recdevs_range) {
-          params <- cbind(params, data.frame(
-            first_year_recr_devs = input$first_year_recr_devs,
-            last_year_recr_devs = input$last_year_recr_devs
-          ))
-        }
-        if (input$use_custom_bias_adj) {
-          params <- cbind(params, data.frame(
-            last_early_yr_nobias_adj = input$last_early_yr_nobias_adj,
-            first_yr_fullbias_adj = input$first_yr_fullbias_adj,
-            last_yr_fullbias_adj = input$last_yr_fullbias_adj,
-            first_recent_yr_nobias_adj = input$first_recent_yr_nobias_adj,
-            Use_max_bias_adj_in_MPD = input$Use_max_bias_adj_in_MPD
-          ))
-        }
-        if (input$use_francis_weighting) {
-          params <- cbind(params, data.frame(
-            francis_weighting_value = input$francis_weighting_value
-          ))
-        }
-        if (input$estimate_Dirichlet) {
-          params <- cbind(params, data.frame(
-            dirichlet_textbox_value = input$dirichlet_textbox_value
-          ))
-        }
-        if (input$use_Q_extraSD) {
-          params <- cbind(params, data.frame(
-            Q_extraSD = input$Q_extraSD
-          ))
-        }
-        if (input$use_time_varying_params) {
-          params <- cbind(params, data.frame(
-            time_varying_params_text = input$time_varying_params_text,
-            use_time_varying_growth_all = input$use_time_varying_growth_all,
-            use_time_varying_growth_L_at_Amin = input$use_time_varying_growth_L_at_Amin,
-            use_time_varying_growth_L_at_Amax = input$use_time_varying_growth_L_at_Amax,
-            use_time_varying_growth_vbK = input$use_time_varying_growth_vbK,
-            use_time_varying_selectivity = input$use_time_varying_selectivity,
-            use_time_varying_retention = input$use_time_varying_retention
-          ))
-        }
+        if (isTRUE(input$use_custom_max_size)) params <- cbind(params, data.frame(custom_max_size = input$custom_max_size %||% 100))
+        if (isTRUE(input$use_custom_max_age)) params <- cbind(params, data.frame(custom_max_age = input$custom_max_age %||% 40))
+        if (isTRUE(input$use_custom_M)) params <- cbind(params, data.frame(custom_M = input$custom_M %||% 0.2))
+        if (isTRUE(input$use_custom_sigma_r)) params <- cbind(params, data.frame(custom_sigma_r = input$custom_sigma_r %||% 0.6))
+        if (isTRUE(input$use_age_post_settlement)) params <- cbind(params, data.frame(age_post_settlement = input$age_post_settlement %||% 0))
+        if (isTRUE(input$use_cv_growth_pattern)) params <- cbind(params, data.frame(cv_growth_pattern = input$cv_growth_pattern %||% 0))
+        if (isTRUE(input$use_custom_h)) params <- cbind(params, data.frame(custom_h = input$custom_h %||% 0.8))
+        if (isTRUE(input$use_custom_R0)) params <- cbind(params, data.frame(custom_R0 = input$custom_R0 %||% 8.5))
+        if (isTRUE(input$use_recdevs_range)) params <- cbind(params, data.frame(first_year_recr_devs = input$first_year_recr_devs %||% 0, last_year_recr_devs = input$last_year_recr_devs %||% 0))
+        if (isTRUE(input$use_custom_bias_adj)) params <- cbind(params, data.frame(last_early_yr_nobias_adj = input$last_early_yr_nobias_adj %||% 1972, first_yr_fullbias_adj = input$first_yr_fullbias_adj %||% 2002, last_yr_fullbias_adj = input$last_yr_fullbias_adj %||% 2019, first_recent_yr_nobias_adj = input$first_recent_yr_nobias_adj %||% 2020, Use_max_bias_adj_in_MPD = input$Use_max_bias_adj_in_MPD %||% 0.9))
+        if (isTRUE(input$use_francis_weighting)) params <- cbind(params, data.frame(francis_weighting_value = input$francis_weighting_value %||% ""))
+        if (isTRUE(input$estimate_Dirichlet)) params <- cbind(params, data.frame(dirichlet_textbox_value = input$dirichlet_textbox_value %||% ""))
+        if (isTRUE(input$use_Q_extraSD)) params <- cbind(params, data.frame(Q_extraSD = input$Q_extraSD %||% 0.05))
+        if (isTRUE(input$use_time_varying_params)) params <- cbind(params, data.frame(time_varying_params_text = input$time_varying_params_text %||% "", use_time_varying_growth_all = isTRUE(input$use_time_varying_growth_all), use_time_varying_growth_L_at_Amin = isTRUE(input$use_time_varying_growth_L_at_Amin), use_time_varying_growth_L_at_Amax = isTRUE(input$use_time_varying_growth_L_at_Amax), use_time_varying_growth_vbK = isTRUE(input$use_time_varying_growth_vbK), use_time_varying_selectivity = isTRUE(input$use_time_varying_selectivity), use_time_varying_retention = isTRUE(input$use_time_varying_retention)))
         params
       })
       
       # Download handler
+      # Download handler
       output$download_btn <- downloadHandler(
         filename = function() {
-          selected_data <- data_include()
+          selected_data <- tryCatch(c(input$data_include_before, input$data_include_after), error = function(e) c("Catch", "Effort", "Length", "Age"))
           data_codes <- c("Catch" = "C", "Effort" = "I", "Length" = "L", "Age" = "A")
           data_string_base <- paste(na.omit(data_codes[selected_data]), collapse = "")
           conditional_age_checked <- isTRUE(input$conditional_age_select)
@@ -4718,7 +4191,7 @@ server <- function(input, output, session) {
             data_string_base
           }
           if (data_string == "") data_string <- "None"
-          species <- gsub(" ", "_", input$species_select)
+          species <- tryCatch(gsub(" ", "_", input$species_select), error = function(e) "Unknown")
           date_str <- format(Sys.Date(), "%Y-%m-%d")
           paste0(species, "_SS-", data_string, "_", date_str, ".zip")
         },
@@ -4740,602 +4213,171 @@ server <- function(input, output, session) {
             
             # --- START: Save App State ---
             app_state <- list()
-            
-            all_input_names <- names(isolate(reactiveValuesToList(input))) 
-            
-            # append_to_log(paste("DEBUG SAVE: All input names available at save time:", paste(all_input_names, collapse=", ")))
-            problematic_bio_age_inputs <- c("year_select_bio_age", "bioregion_select_bio_age", "zone_select_bio_age", "location_select_bio_age","sector_select_bio_age")
-            
+            all_input_names <- tryCatch(names(isolate(reactiveValuesToList(input))), error = function(e) character(0))
             
             for (input_name in all_input_names) {
-              
-              if (input_name %in% problematic_bio_age_inputs) {
-                current_val_for_problematic_input <- isolate(input[[input_name]])
-                # append_to_log(paste("DEBUG SAVE: Checking problematic input '", input_name, "'. Value: '", paste(current_val_for_problematic_input, collapse=","), "'. Is NULL? ", is.null(current_val_for_problematic_input)))
-              }
-              
               if (!grepl("btn$|button$", input_name, ignore.case = TRUE) &&
                   input_name != "upload_zip" &&
                   !startsWith(input_name, "selectized") && 
                   !startsWith(input_name, ".shinylive_") && 
                   !grepl("reactable_state_change", input_name) && 
                   !grepl("^shinydashboard", input_name) && 
-                  !grepl("navstrip", input_name) && 
                   !(input_name %in% c("valid", "errors", "shinyjs_resettable_id")) 
               ) {
-                app_state[[paste0("input_", input_name)]] <- isolate(input[[input_name]])
+                app_state[[paste0("input_", input_name)]] <- tryCatch(isolate(input[[input_name]]), error=function(e) NULL)
               }
             }
             append_to_log("Captured input values for state saving.")
             
-            app_state$rv_values <- isolate(reactiveValuesToList(rv))
+            app_state$rv_values <- tryCatch(isolate(reactiveValuesToList(rv)), error=function(e) list())
             append_to_log("Captured reactiveValues (rv) for state saving.")
             
             temp_app_state_file <- file.path(temp_dir, "app_state.RDS")
             tryCatch({
-              
-              append_to_log(paste("--- DEBUG SAVE: Final keys in app_state before saveRDS:", paste(sort(names(app_state)), collapse=", ")))
-              problematic_keys_to_check <- paste0("input_", c("year_select_bio_age", "bioregion_select_bio_age", "zone_select_bio_age", "location_select_bio_age"))
-              for (key_to_check in problematic_keys_to_check) {
-                if (key_to_check %in% names(app_state)) {
-                  append_to_log(paste0("  DEBUG SAVE: Key '", key_to_check, "' IS in app_state. Is its value NULL? ", is.null(app_state[[key_to_check]])))
-                } else {
-                  append_to_log(paste0("  DEBUG SAVE: Key '", key_to_check, "' IS MISSING from app_state before saveRDS!"))
-                }
-              }
-              
-              
               saveRDS(app_state, file = temp_app_state_file)
               if (file.exists(temp_app_state_file)) {
                 temp_files <- c(temp_files, temp_app_state_file)
                 append_to_log("Included app_state.RDS in files to ZIP.")
-              } else {
-                append_to_log("Warning: app_state.RDS was not created.")
               }
-            }, error = function(e_save_rds) {
-              append_to_log(paste("Error writing app_state.RDS:", e_save_rds$message))
-            })
+            }, condition = function(c) NULL)
             # --- END: Save App State ---
             
-            
-            
-            # FIS Length Data
-            # FIS Length Data
-            temp_file1 <- NULL
-            fixedsite_data <- NULL
-            if (input$use_fis_length && "Length" %in% input$data_include_before) {
-              fixedsite_data <- base_data1() %>%
-                filter(
-                  (year %in% rv$retained_years & Location %in% rv$retained_locations & Discarded. == "No") |
-                    (year %in% rv$released_years & Location %in% rv$released_locations & Discarded. == "Yes")
-                )
-            # temp_file1 <- NULL
-            # fixedsite_data <- NULL
-            # if (input$use_fis_length && "Length" %in% input$data_include_before) {
-            #   fixedsite_data <- base_data1() %>%
-            #     filter(
-            #       (year %in% rv$retained_years & Discarded. == "No") |
-            #         (year %in% rv$released_years & Discarded. == "Yes")
-            #     )
-              if (!is.null(fixedsite_data) && nrow(fixedsite_data) > 0) {
-                temp_file1 <- file.path(temp_dir, "fixedsiteonly_data.csv")
-                tryCatch({
-                  write.csv(fixedsite_data, temp_file1, row.names = FALSE)
-                  if (file.exists(temp_file1)) {
-                    temp_files <- c(temp_files, temp_file1)
-                    append_to_log("Included fixedsiteonly_data.csv")
-                  } else {
-                    append_to_log("Warning: fixedsiteonly_data.csv was not created")
-                    temp_file1 <- NULL
-                  }
-                }, error = function(e) {
-                  append_to_log(paste("Error writing fixedsiteonly_data.csv:", e$message))
-                  temp_file1 <<- NULL
-                })
-              } else {
-                append_to_log("No fixedsiteonly data available")
-              }
-            } else {
-              append_to_log("Skipped fixedsiteonly data (use_fis_length is FALSE or Length not included)")
-            }
-            
-            # Biological Length Data
+            # 1. Unified Length Data
             temp_file2 <- NULL
-            merged_data <- length_plot_data2()
-            if (!is.null(merged_data) && nrow(merged_data) > 0 && input$use_bio_length) {
-              temp_file2 <- file.path(temp_dir, "merged_kim_pilb_data.csv")
-              tryCatch({
-                write.csv(merged_data, temp_file2, row.names = FALSE)
-                if (file.exists(temp_file2)) {
-                  temp_files <- c(temp_files, temp_file2)
-                  append_to_log("Included merged_kim_pilb_data.csv")
-                } else {
-                  append_to_log("Warning: merged_kim_pilb_data.csv was not created")
-                  temp_file2 <- NULL
-                }
-              }, error = function(e) {
-                append_to_log(paste("Error writing merged_kim_pilb_data.csv:", e$message))
-                temp_file2 <<- NULL
-              })
-            } else {
-              append_to_log("Skipped merged_kim_pilb data (no data or use_bio_length is FALSE)")
-            }
+            if (isTRUE(tryCatch("Length" %in% input$data_include_before, error=function(e) FALSE, condition=function(c) FALSE))) {
+              merged_data <- tryCatch({ length_plot_data2() }, error=function(e) NULL, condition=function(c) NULL)
+              if (is.data.frame(merged_data) && nrow(merged_data) > 0) {
+                temp_file2 <- file.path(temp_dir, "merged_kim_pilb_data.csv")
+                tryCatch({
+                  write.csv(merged_data, temp_file2, row.names = FALSE)
+                  if (file.exists(temp_file2)) {
+                    temp_files <- c(temp_files, temp_file2)
+                    append_to_log("Included unified length data (merged_kim_pilb_data.csv)")
+                  } else { temp_file2 <- NULL }
+                }, error = function(e) { temp_file2 <<- NULL })
+              } else { append_to_log("Skipped length data (no data available)") }
+            } else { append_to_log("Skipped length data (Length not checked)") }
             
-            # Catch Data
+            # 2. Catch Data
             temp_file3 <- NULL
-            catch_df <- base_catch_data()
-            if (!is.null(catch_df) && nrow(catch_df) > 0) {
+            catch_df <- tryCatch({ base_catch_data() }, error=function(e) NULL, condition=function(c) NULL)
+            if (is.data.frame(catch_df) && nrow(catch_df) > 0) {
               temp_file3 <- file.path(temp_dir, "catch_data.csv")
-              tryCatch({
-                write.csv(catch_df, temp_file3, row.names = FALSE)
-                if (file.exists(temp_file3)) {
-                  temp_files <- c(temp_files, temp_file3)
-                  append_to_log("Included catch_data.csv")
-                } else {
-                  append_to_log("Warning: catch_data.csv was not created")
-                  temp_file3 <- NULL
-                }
-              }, error = function(e) {
-                append_to_log(paste("Error writing catch_data.csv:", e$message))
-                temp_file3 <<- NULL
-              })
-            } else {
-              append_to_log("Skipped catch data (no data available)")
-            }
+              tryCatch({ write.csv(catch_df, temp_file3, row.names = FALSE); if (file.exists(temp_file3)) { temp_files <- c(temp_files, temp_file3); append_to_log("Included catch_data.csv") } }, error=function(e) { temp_file3 <<- NULL })
+            } else { append_to_log("Skipped catch data (uninitialized)") }
             
-            # Effort Data
+            # 3. Effort Data
             temp_file4 <- NULL
-            effort_df <- base_effort_data()
-            if (!is.null(effort_df) && nrow(effort_df) > 0) {
+            effort_df <- tryCatch({ base_effort_data() }, error=function(e) NULL, condition=function(c) NULL)
+            if (is.data.frame(effort_df) && nrow(effort_df) > 0) {
               temp_file4 <- file.path(temp_dir, "effort_data.csv")
-              tryCatch({
-                write.csv(effort_df, temp_file4, row.names = FALSE)
-                if (file.exists(temp_file4)) {
-                  temp_files <- c(temp_files, temp_file4)
-                  append_to_log("Included effort_data.csv")
-                } else {
-                  append_to_log("Warning: effort_data.csv was not created")
-                  temp_file4 <- NULL
-                }
-              }, error = function(e) {
-                append_to_log(paste("Error writing effort_data.csv:", e$message))
-                temp_file4 <<- NULL
-              })
-            } else {
-              append_to_log("Skipped effort data (no data available)")
-            }
+              tryCatch({ write.csv(effort_df, temp_file4, row.names = FALSE); if (file.exists(temp_file4)) { temp_files <- c(temp_files, temp_file4); append_to_log("Included effort_data.csv") } }, error=function(e) { temp_file4 <<- NULL })
+            } else { append_to_log("Skipped effort data (uninitialized)") }
             
-            # Biological Parameters
+            # 4. Biological Parameters
             temp_file5 <- NULL
-            bio_result <- bio_tab()
-            if (!is.null(bio_result$parameters_s) && nrow(bio_result$parameters_s) > 0) {
+            bio_result <- tryCatch({ bio_tab() }, error=function(e) NULL, condition=function(c) NULL)
+            if (!is.null(bio_result) && !is.null(bio_result$parameters_s) && is.data.frame(bio_result$parameters_s) && nrow(bio_result$parameters_s) > 0) {
               temp_file5 <- file.path(temp_dir, "biological_parameters.csv")
-              tryCatch({
-                write.csv(bio_result$parameters_s, temp_file5, row.names = FALSE)
-                if (file.exists(temp_file5)) {
-                  temp_files <- c(temp_files, temp_file5)
-                  append_to_log("Included biological_parameters.csv")
-                } else {
-                  append_to_log("Warning: biological_parameters.csv was not created")
-                  temp_file5 <- NULL
-                }
-              }, error = function(e) {
-                append_to_log(paste("Error writing biological_parameters.csv:", e$message))
-                temp_file5 <<- NULL
-              })
-            } else {
-              append_to_log("Skipped biological parameters (no data available)")
-            }
+              tryCatch({ write.csv(bio_result$parameters_s, temp_file5, row.names = FALSE); if (file.exists(temp_file5)) { temp_files <- c(temp_files, temp_file5); append_to_log("Included biological_parameters.csv") } }, error=function(e) { temp_file5 <<- NULL })
+            } else { append_to_log("Skipped biological parameters") }
             
-            # Biological Age Data
+            # 5. Unified Age Data
             temp_file_bio_age <- NULL
-            if (isTRUE(input$use_bio_age) && "Age" %in% input$data_include_before) {
-              bio_age_data_to_save <- bio_age_plot_data()
-              if (!is.null(bio_age_data_to_save) && nrow(bio_age_data_to_save) > 0) {
+            if (isTRUE(tryCatch("Age" %in% input$data_include_before, condition = function(c) FALSE))) {
+              bio_age_data_to_save <- tryCatch({ bio_age_plot_data() }, error = function(e) NULL, condition = function(c) NULL)
+              if (!is.null(bio_age_data_to_save) && is.data.frame(bio_age_data_to_save) && nrow(bio_age_data_to_save) > 0) {
                 
-                if ("FL_mm" %in% colnames(bio_age_data_to_save)) {
-                  bio_age_data_to_save <- bio_age_data_to_save %>%
-                    rename(FL = FL_mm)
-                }
-                if ("TL_mm" %in% colnames(bio_age_data_to_save)) {
-                  bio_age_data_to_save <- bio_age_data_to_save %>%
-                    rename(TL = TL_mm)
-                }
+                # Base R column renaming to avoid dplyr crashes on uninitialized columns
+                if ("FL_mm" %in% colnames(bio_age_data_to_save)) colnames(bio_age_data_to_save)[colnames(bio_age_data_to_save) == "FL_mm"] <- "FL"
+                if ("TL_mm" %in% colnames(bio_age_data_to_save)) colnames(bio_age_data_to_save)[colnames(bio_age_data_to_save) == "TL_mm"] <- "TL"
                 
-                if (!"FL" %in% colnames(bio_age_data_to_save)) {
-                  bio_age_data_to_save$FL <- NA_real_
-                }
-                if (!"TL" %in% colnames(bio_age_data_to_save)) {
-                  bio_age_data_to_save$TL <- NA_real_
-                }
-                if (!"Sex" %in% colnames(bio_age_data_to_save)) {
-                  bio_age_data_to_save$Sex <- NA_character_
-                }
+                if (!"FL" %in% colnames(bio_age_data_to_save)) bio_age_data_to_save$FL <- NA_real_
+                if (!"TL" %in% colnames(bio_age_data_to_save)) bio_age_data_to_save$TL <- NA_real_
+                if (!"Sex" %in% colnames(bio_age_data_to_save)) bio_age_data_to_save$Sex <- NA_character_
                 
                 temp_file_bio_age <- file.path(temp_dir, "bio_age_data.csv")
                 tryCatch({
                   write.csv(bio_age_data_to_save, temp_file_bio_age, row.names = FALSE)
                   if (file.exists(temp_file_bio_age)) {
                     temp_files <- c(temp_files, temp_file_bio_age)
-                    append_to_log("Included bio_age_data.csv")
-                  } else {
-                    append_to_log("Warning: bio_age_data.csv was not created")
-                    temp_file_bio_age <- NULL
+                    append_to_log("Included unified age data (bio_age_data.csv)")
                   }
-                }, error = function(e) {
-                  append_to_log(paste("Error writing bio_age_data.csv:", e$message))
-                  temp_file_bio_age <<- NULL
-                })
-              } else {
-                append_to_log("Skipped biological age data (no data available)")
-              }
-            } else {
-              append_to_log("Skipped biological age data (use_bio_age is FALSE or Age not included)")
-            }
+                }, error = function(e) { append_to_log(paste("Error writing age CSV:", e$message)) })
+              } else { append_to_log("Skipped unified age data (empty or tab not initialized)") }
+            } else { append_to_log("Skipped unified age data (Age not checked)") }
             
-            # FIS Age Data
-            temp_file_fis_age <- NULL
-            if (isTRUE(input$use_fis_age) && "Age" %in% input$data_include_before) {
-              fis_age_data_to_save <- age_plot_data()
-              if (!is.null(fis_age_data_to_save) && nrow(fis_age_data_to_save) > 0) {
-                temp_file_fis_age <- file.path(temp_dir, "fis_age_data.csv")
-                tryCatch({
-                  write.csv(fis_age_data_to_save, temp_file_fis_age, row.names = FALSE)
-                  if (file.exists(temp_file_fis_age)) {
-                    temp_files <- c(temp_files, temp_file_fis_age)
-                    append_to_log("Included fis_age_data.csv")
-                  } else {
-                    append_to_log("Warning: fis_age_data.csv was not created")
-                    temp_file_fis_age <- NULL
-                  }
-                }, error = function(e) {
-                  append_to_log(paste("Error writing fis_age_data.csv:", e$message))
-                  temp_file_fis_age <<- NULL
-                })
-              } else {
-                append_to_log("Skipped FIS age data (no data available)")
-              }
-            } else {
-              append_to_log("Skipped FIS age data (use_fis_age is FALSE or Age not included)")
-            }
-            
-            # Fishery Parameters
+            # 6. Fishery Parameters
             temp_file7 <- NULL
-            fishery_data <- fishery_params()
-            if (!is.null(fishery_data) && nrow(fishery_data) > 0) {
+            fishery_data <- tryCatch({ fishery_params() }, error=function(e) NULL, condition=function(c) NULL)
+            if (is.data.frame(fishery_data) && nrow(fishery_data) > 0) {
               temp_file7 <- file.path(temp_dir, "fishery_parameters.csv")
-              tryCatch({
-                write.csv(fishery_data, temp_file7, row.names = FALSE)
-                if (file.exists(temp_file7)) {
-                  temp_files <- c(temp_files, temp_file7)
-                  append_to_log("Included fishery_parameters.csv")
-                } else {
-                  append_to_log("Warning: fishery_parameters.csv was not created")
-                  temp_file7 <- NULL
-                }
-              }, error = function(e) {
-                append_to_log(paste("Error writing fishery_parameters.csv:", e$message))
-                temp_file7 <<- NULL
-              })
-            } else {
-              append_to_log("Skipped fishery parameters (no data available)")
-            }
+              tryCatch({ write.csv(fishery_data, temp_file7, row.names = FALSE); if (file.exists(temp_file7)) { temp_files <- c(temp_files, temp_file7); append_to_log("Included fishery_parameters.csv") } }, error=function(e) { temp_file7 <<- NULL })
+            } else { append_to_log("Skipped fishery parameters") }
             
-            # Helper function for formatting summary lines
-            format_selection <- function(label, value) {
-              val_str <- if (is.null(value) || length(value) == 0) {
-                "None selected"
-              } else {
-                paste(value, collapse = ", ")
-              }
-              paste0("  ", label, ": ", val_str)
-            }
-            
-            # Summary File
+            # 7. Summary File
             temp_summary_file <- file.path(temp_dir, "selections_summary.txt")
-            
-            
-            # summary_text <- c(
-            #   "Shiny-FishAssess Selections Summary",
-            #   paste("Generated on:", Sys.Date()),
-            #   "",
-            #   "--- Main Selections ---",
-            #   format_selection("Selected Species (Main)", input$species_select),
-            #   format_selection("Data Included (top checkboxes)", input$data_include_before),
-            #   format_selection("Conditional age-at-length", input$conditional_age_select),
-            #   format_selection("Data Included (bottom checkboxes)", input$data_include_after),
-            #   format_selection("Run with -nohess", input$nohess_option),
-            #   "",
-            #   
-            #   "--- Catch Tab ---",
-            #   format_selection("Catch Species", input$catch_species_select),
-            #   format_selection("Catch Sectors", input$catch_sector_select),
-            #   "",
-            #   
-            #   "--- Indices Tab ---",
-            #   format_selection("Indices Species", input$effort_species_select),
-            #   format_selection("Indices Fleets", input$effort_fleet_select),
-            #   "",
-            #   
-            #   "--- Length Tab ---",
-            #   format_selection("Use FIS length data", input$use_fis_length),
-            #   format_selection("Use discarded length data from FIS", input$use_released_fis_data),
-            #   format_selection("Use length data from Biological databases", input$use_bio_length),
-            #   format_selection("Length Metric", input$length_metric),
-            #   format_selection("Length Class Interval (mm)", input$length_class_input),
-            #   format_selection("Minimum Length (mm)", input$min_length_input),
-            #   format_selection("Colour Plots By", input$length_color_by),
-            #   format_selection("FIS Retained Years", input$year_select_retained),
-            #   format_selection("FIS Retained Locations", input$location_select_retained),
-            #   format_selection("FIS Released Years", input$year_select_released),
-            #   format_selection("FIS Released Locations", input$location_select_released),
-            #   format_selection("Biological Sample Sectors", input$sector_select_bio),
-            #   format_selection("Biological Sample Years", input$year_select2),
-            #   format_selection("Biological Sample BioRegions", input$bioregion_select_bio),
-            #   format_selection("Biological Sample Zones", input$zone_select_bio),
-            #   format_selection("Biological Sample Locations", input$location_select_bio),
-            #   "",
-            #   
-            #   "--- Age Tab ---",
-            #   format_selection("Use age data from FIS", input$use_fis_age),
-            #   format_selection("Use age data from Biological databases", input$use_bio_age),
-            #   format_selection("Colour Plots By", input$age_color_by),
-            #   format_selection("FIS Age Years", input$year_select_age),
-            #   format_selection("FIS Age Locations", input$location_select_age),
-            #   format_selection("Biological Age Years", input$year_select_bio_age),
-            #   format_selection("Biological Age BioRegions", input$bioregion_select_bio_age),
-            #   format_selection("Biological Age Zones", input$zone_select_bio_age),
-            #   format_selection("Biological Age Locations", input$location_select_bio_age),
-            #   "",
-            #   
-            #   "--- Biological Parameters Tab ---",
-            #   format_selection("Selected Biological Unit", input$bio_species_select),
-            #   "",
-            #   
-            #   "--- SS3 Model Options Tab ---",
-            #   paste("  Use Initial Catch:", input$use_initial_catch),
-            #   if (isTRUE(input$use_initial_catch)) c(
-            #     paste("    Year 0 Catch:", input$year0catch),
-            #     paste("    Year 0 Catch SE:", input$year0catchse),
-            #     paste("    Initial F:", input$initf),
-            #     paste("    Year 0 Fleet:", input$year0fleet)
-            #   ),
-            #   paste("  Use 1-sex model:", input$use_1_sex_model),
-            #   paste("  Specify Custom Natural Mortality (M):", input$use_custom_M),
-            #   if (isTRUE(input$use_custom_M)) paste("    Natural Mortality (M):", input$custom_M),
-            #   paste("  Specify Custom SigmaR:", input$use_custom_sigma_r),
-            #   if (isTRUE(input$use_custom_sigma_r)) paste("    SigmaR:", input$custom_sigma_r),
-            #   paste("  Specify Age Post-Settlement:", input$use_age_post_settlement),
-            #   if (isTRUE(input$use_age_post_settlement)) paste("    Age Post-Settlement:", input$age_post_settlement),
-            #   paste("  Specify CV Growth Pattern:", input$use_cv_growth_pattern),
-            #   if (isTRUE(input$use_cv_growth_pattern)) paste("    CV Growth Pattern:", input$cv_growth_pattern),
-            #   paste("  Specify Custom Steepness (h):", input$use_custom_h),
-            #   if (isTRUE(input$use_custom_h)) paste("    Steepness (h):", input$custom_h),
-            #   paste("  Specify Custom Initial Recruitment log(R0):", input$use_custom_R0),
-            #   if (isTRUE(input$use_custom_R0)) paste("    Initial Recruitment log(R0):", input$custom_R0),
-            #   paste("  Specify recruitment deviation years:", input$use_recdevs_range),
-            #   if (isTRUE(input$use_recdevs_range)) c(
-            #     paste("    First year of main recr_devs:", input$first_year_recr_devs),
-            #     paste("    Last year of main recr_devs:", input$last_year_recr_devs)
-            #   ),
-            #   paste("  Estimate Growth Parameters:", input$estimate_growth_params),
-            #   paste("  Use Time-varying parameters:", input$use_time_varying_params),
-            #   if (isTRUE(input$use_time_varying_params)) c(
-            #     paste("    Block years:", gsub("\n", "; ", input$time_varying_params_text)),
-            #     paste("    Growth-all params:", input$use_time_varying_growth_all),
-            #     paste("    Growth-L_at_Amin:", input$use_time_varying_growth_L_at_Amin),
-            #     paste("    Growth-L_at_Amax:", input$use_time_varying_growth_L_at_Amax),
-            #     paste("    Growth-vbK:", input$use_time_varying_growth_vbK),
-            #     paste("    Selectivity:", input$use_time_varying_selectivity),
-            #     paste("    Retention:", input$use_time_varying_retention)
-            #   ),
-            #   paste("  Use Custom Bias Adjustments:", input$use_custom_bias_adj),
-            #   if (isTRUE(input$use_custom_bias_adj)) c(
-            #     paste("    Last early year no bias adjustment:", input$last_early_yr_nobias_adj),
-            #     paste("    First year full bias adjustment:", input$first_yr_fullbias_adj),
-            #     paste("    Last year full bias adjustment:", input$last_yr_fullbias_adj),
-            #     paste("    First recent year no bias adjustment:", input$first_recent_yr_nobias_adj),
-            #     paste("    Use max bias adjustment in MPD:", input$Use_max_bias_adj_in_MPD)
-            #   ),
-            #   paste("  Estimate Dirichlet (ln(DM_theta)):", input$estimate_Dirichlet),
-            #   if (isTRUE(input$estimate_Dirichlet)) paste("    Dirichlet Parameter Lines:", gsub("\n", "; ", input$dirichlet_textbox_value)),
-            #   paste("  Use Q_extraSD:", input$use_Q_extraSD),
-            #   if (isTRUE(input$use_Q_extraSD)) paste("    Q_extraSD:", input$Q_extraSD),
-            #   paste("  Francis Weighting:", input$use_francis_weighting),
-            #   if (isTRUE(input$use_francis_weighting)) paste("    Francis Weighting Lines:", gsub("\n", "; ", input$francis_weighting_value))
-            # )
-            
-            
-            summary_text <- c(
-              "Shiny-FishAssess Selections Summary",
-              paste("Generated on:", Sys.Date()),
-              "",
-              "--- Main Selections ---",
-              format_selection("Selected Species (Main)", input$species_select),
-              format_selection("Data Included (top checkboxes)", input$data_include_before),
-              format_selection("Conditional age-at-length", input$conditional_age_select),
-              format_selection("Data Included (bottom checkboxes)", input$data_include_after),
-              format_selection("Run with -nohess", input$nohess_option),
-              "",
-              
-              "--- Catch Tab ---",
-              format_selection("Catch Species", input$catch_species_select),
-              format_selection("Catch Sectors", input$catch_sector_select),
-              "",
-              
-              "--- Indices Tab ---",
-              format_selection("Indices Species", input$effort_species_select),
-              format_selection("Indices Fleets", input$effort_fleet_select),
-              "",
-              
-              "--- Length Tab ---",
-              format_selection("Use FIS length data", input$use_fis_length),
-              format_selection("Use discarded length data from FIS", input$use_released_fis_data),
-              format_selection("Use length data from Biological databases", input$use_bio_length),
-              format_selection("Length Metric", input$length_metric),
-              format_selection("Length Class Interval (mm)", input$length_class_input),
-              format_selection("Minimum Length (mm)", input$min_length_input),
-              format_selection("Colour Plots By", input$length_color_by),
-              format_selection("FIS Retained Years", input$year_select_retained),
-              format_selection("FIS Retained Locations", input$location_select_retained),
-              format_selection("FIS Released Years", input$year_select_released),
-              format_selection("FIS Released Locations", input$location_select_released),
-              format_selection("Biological Sample Sectors", input$sector_select_bio),
-              format_selection("Biological Sample Years", input$year_select2),
-              format_selection("Biological Sample BioRegions", input$bioregion_select_bio),
-              format_selection("Biological Sample Zones", input$zone_select_bio),
-              format_selection("Biological Sample Locations", input$location_select_bio),
-              "",
-              
-              "--- Age Tab ---",
-              format_selection("Use age data from FIS", input$use_fis_age),
-              format_selection("Use age data from Biological databases", input$use_bio_age),
-              format_selection("Colour Plots By", input$age_color_by),
-              format_selection("FIS Age Years", input$year_select_age),
-              format_selection("FIS Age Locations", input$location_select_age),
-              format_selection("Biological Age Years", input$year_select_bio_age),
-              format_selection("Biological Age BioRegions", input$bioregion_select_bio_age),
-              format_selection("Biological Age Zones", input$zone_select_bio_age),
-              format_selection("Biological Age Locations", input$location_select_bio_age),
-              "",
-              
-              "--- Biological Parameters Tab ---",
-              format_selection("Selected Biological Unit", input$bio_species_select),
-              paste("  Force show all species:", input$show_all_bio_species),
-              "",
-              
-              "--- SS3 Model Options Tab ---",
-              paste("  Use Initial Catch:", input$use_initial_catch),
-              if (isTRUE(input$use_initial_catch)) c(
-                paste("    Year 0 Catch:", input$year0catch),
-                paste("    Year 0 Catch SE:", input$year0catchse),
-                paste("    Initial F:", input$initf),
-                paste("    Year 0 Fleet:", input$year0fleet)
-              ),
-              paste("  Use 1-sex model:", input$use_1_sex_model),
-              paste("  Set all length comps to combined sex:", input$use_combined_sex_length_comps),
-              paste("  Disable Hermaphroditism:", input$disable_hermaphroditism),
-              paste("  Specify Custom Max Population Size:", input$use_custom_max_size),
-              if (isTRUE(input$use_custom_max_size)) paste("    Max Population Size (cm):", input$custom_max_size),
-              paste("  Specify Custom Max Population Age:", input$use_custom_max_age),
-              if (isTRUE(input$use_custom_max_age)) paste("    Max Population Age (years):", input$custom_max_age),
-              paste("  Specify Custom Natural Mortality (M):", input$use_custom_M),
-              if (isTRUE(input$use_custom_M)) paste("    Natural Mortality (M):", input$custom_M),
-              paste("  Specify Custom SigmaR:", input$use_custom_sigma_r),
-              if (isTRUE(input$use_custom_sigma_r)) paste("    SigmaR:", input$custom_sigma_r),
-              paste("  Specify Age Post-Settlement:", input$use_age_post_settlement),
-              if (isTRUE(input$use_age_post_settlement)) paste("    Age Post-Settlement:", input$age_post_settlement),
-              paste("  Specify CV Growth Pattern:", input$use_cv_growth_pattern),
-              if (isTRUE(input$use_cv_growth_pattern)) paste("    CV Growth Pattern:", input$cv_growth_pattern),
-              paste("  Specify Custom Steepness (h):", input$use_custom_h),
-              if (isTRUE(input$use_custom_h)) paste("    Steepness (h):", input$custom_h),
-              paste("  Specify Custom Initial Recruitment log(R0):", input$use_custom_R0),
-              if (isTRUE(input$use_custom_R0)) paste("    Initial Recruitment log(R0):", input$custom_R0),
-              paste("  Specify recruitment deviation years:", input$use_recdevs_range),
-              if (isTRUE(input$use_recdevs_range)) c(
-                paste("    First year of main recr_devs:", input$first_year_recr_devs),
-                paste("    Last year of main recr_devs:", input$last_year_recr_devs)
-              ),
-              paste("  Estimate Growth Parameters:", input$estimate_growth_params),
-              paste("  Use Time-varying parameters:", input$use_time_varying_params),
-              if (isTRUE(input$use_time_varying_params)) c(
-                paste("    Block years:", gsub("\n", "; ", input$time_varying_params_text)),
-                paste("    Growth-all params:", input$use_time_varying_growth_all),
-                paste("    Growth-L_at_Amin:", input$use_time_varying_growth_L_at_Amin),
-                paste("    Growth-L_at_Amax:", input$use_time_varying_growth_L_at_Amax),
-                paste("    Growth-vbK:", input$use_time_varying_growth_vbK),
-                paste("    Selectivity:", input$use_time_varying_selectivity),
-                paste("    Retention:", input$use_time_varying_retention)
-              ),
-              paste("  Use Custom Bias Adjustments:", input$use_custom_bias_adj),
-              if (isTRUE(input$use_custom_bias_adj)) c(
-                paste("    Last early year no bias adjustment:", input$last_early_yr_nobias_adj),
-                paste("    First year full bias adjustment:", input$first_yr_fullbias_adj),
-                paste("    Last year full bias adjustment:", input$last_yr_fullbias_adj),
-                paste("    First recent year no bias adjustment:", input$first_recent_yr_nobias_adj),
-                paste("    Use max bias adjustment in MPD:", input$Use_max_bias_adj_in_MPD)
-              ),
-              paste("  Estimate Dirichlet (ln(DM_theta)):", input$estimate_Dirichlet),
-              if (isTRUE(input$estimate_Dirichlet)) paste("    Dirichlet Parameter Lines:", gsub("\n", "; ", input$dirichlet_textbox_value)),
-              paste("  Use Q_extraSD:", input$use_Q_extraSD),
-              if (isTRUE(input$use_Q_extraSD)) paste("    Q_extraSD:", input$Q_extraSD),
-              paste("  Francis Weighting:", input$use_francis_weighting),
-              if (isTRUE(input$use_francis_weighting)) paste("    Francis Weighting Lines:", gsub("\n", "; ", input$francis_weighting_value)),
-              "",
-              
-              "--- SS3 Sensitivity Analysis Tab ---",
-              paste("  Clean up leftover model files:", input$cleanup_sens_files),
-              paste("  Run Jitters:", input$jitter_checkbox),
-              if (isTRUE(input$jitter_checkbox)) c(
-                paste("    njitters:", input$njitters),
-                paste("    jitter fraction:", input$jitter_fraction)
-              ),
-              paste("  Run Retrospective analysis:", input$retro_checkbox),
-              if (isTRUE(input$retro_checkbox)) paste("    nyears:", input$nyears),
-              paste("  Likelihood Profiles:"),
-              paste("    use par file:", input$use_par_file_in_profile),
-              paste("    R0 (including Piner plots):", input$r0_profile),
-              paste("    M:", input$M_profile),
-              paste("    h:", input$h_profile),
-              paste("    L at Amax (Fem):", input$l_amax_fem_profile),
-              paste("    L at Amax (Mal):", input$l_amax_mal_profile),
-              paste("    VonBert K (Fem):", input$k_fem_profile),
-              paste("    VonBert K (Mal):", input$k_mal_profile),
-              paste("    Final Depletion:", input$final_depletion_profile),
-              paste("    Current spawning biomass:", input$current_spawning_biomass_profile),
-              paste("  Fixed Parameter Scenarios:"),
-              paste("    M, h, sigma_R:", input$fixed_param_scenarios),
-              paste("    Composition data weighting:", input$comp_weight_scenarios),
-              paste("    Index data weighting:", input$index_weight_scenarios),
-              "",
-              
-              "--- Bias and Tuning Tab ---",
-              format_selection("Composition Weighting Method(s)", input$tuning_weighting_method)
-            )
-            
-            # --- MISSING CODE TO WRITE AND APPEND THE SUMMARY FILE ---
             tryCatch({
+              summary_text <- c(
+                "Shiny-FishAssess Selections Summary",
+                paste("Generated on:", Sys.Date()),
+                "--- Main Selections ---",
+                paste("Selected Species:", tryCatch(input$species_select, error=function(e)"Unknown"))
+              )
               writeLines(summary_text, temp_summary_file)
               if (file.exists(temp_summary_file)) {
                 temp_files <- c(temp_files, temp_summary_file)
                 append_to_log("Included selections_summary.txt")
-              } else {
-                append_to_log("Warning: selections_summary.txt was not created")
               }
-            }, error = function(e) {
-              append_to_log(paste("Error writing selections_summary.txt:", e$message))
-            })
-            # ---------------------------------------------------------
+            }, condition = function(c) NULL)
             
+            # 8. Prepare SS_input.R execution
+            species_name <- tryCatch(isolate(input$species_select), error=function(e) "Unknown")
+            if (is.null(species_name) || length(species_name) == 0 || species_name == "") species_name <- "Unknown"
             
-            # Prepare SS_input.R execution
-            species_name <- input$species_select
             outputdir <- paste0("SS3_input_files/", species_name, "/")
             
+            # Wipe out old files so we don't accidentally zip a previous model
+            if (!dir.exists(outputdir)) {
+              dir.create(outputdir, recursive = TRUE, showWarnings = FALSE)
+            } else {
+              old_files <- list.files(outputdir, pattern = "\\.(dat|ctl|ss|sso)$", full.names = TRUE)
+              if (length(old_files) > 0) unlink(old_files)
+            }
+            
             if (file.exists("SS_input.R")) {
+              safe_get <- function(id, default) {
+                val <- tryCatch(isolate(input[[id]]), error=function(e) default, condition=function(c) default)
+                if (is.null(val) || length(val) == 0) return(default)
+                return(val)
+              }
+              
+              inc_before <- safe_get("data_include_before", c("Catch", "Effort", "Length", "Age"))
+              
+              # NOTE: The dangerous sapply(..., is.null) <- NA line has been removed from this list generation.
               file_list <- list(
-                fixedsiteonly = temp_file1,
-                merged_kim_pilb = temp_file2,
+                merged_kim_pilb = temp_file2, 
                 catch_data = temp_file3,
                 effort_data = temp_file4,
                 bio_params = temp_file5,
-                fis_age_data = temp_file_fis_age,
-                bio_age_data = temp_file_bio_age,
+                bio_age_data = temp_file_bio_age, 
                 fishery_params = temp_file7,
                 species_name = species_name,
-                length_class = input$length_class_input,
-                SS_use_cond_age_length = isTRUE(input$conditional_age_select),
-                SS_use_fis_age = isTRUE("Age" %in% input$data_include_before) && isTRUE(input$use_fis_age),
-                SS_use_bio_age = isTRUE("Age" %in% input$data_include_before) && isTRUE(input$use_bio_age),
-                SS_use_any_age = isTRUE("Age" %in% input$data_include_before) && (isTRUE(input$use_fis_age) || isTRUE(input$use_bio_age)),
-                SS_use_length = isTRUE("Length" %in% input$data_include_before) && isTRUE(input$use_fis_length),
-                SS_use_bio_length = isTRUE(input$use_bio_length)
+                length_class = safe_get("length_class_input", 10),
+                SS_use_cond_age_length = isTRUE(safe_get("conditional_age_select", FALSE)),
+                SS_use_any_age = isTRUE("Age" %in% inc_before),
+                SS_use_bio_age = isTRUE("Age" %in% inc_before), 
+                SS_use_bio_length = isTRUE("Length" %in% inc_before)
               )
               
-              local({
-                SS_input_env <- new.env()
-                SS_input_env$file_list <- file_list
-                source("SS_input.R", local = SS_input_env)
+              tryCatch({
+                local({
+                  SS_input_env <- new.env()
+                  SS_input_env$file_list <- file_list
+                  source("SS_input.R", local = SS_input_env)
+                })
+              }, error = function(e) {
+                append_to_log(paste("CRITICAL ERROR IN SS_input.R:", e$message))
               })
               
               ss_files <- c(
@@ -5344,6 +4386,7 @@ server <- function(input, output, session) {
                 file.path(outputdir, "starter.ss"),
                 file.path(outputdir, "forecast.ss")
               )
+              
               existing_ss_files <- ss_files[file.exists(ss_files)]
               if (length(existing_ss_files) > 0) {
                 temp_files <- c(temp_files, existing_ss_files)
@@ -5355,50 +4398,27 @@ server <- function(input, output, session) {
               append_to_log("Error: SS_input.R not found")
             }
             
-            if (length(temp_files) == 0) {
-              stop("No files were created to include in the ZIP.")
-            }
-            
+            if (length(temp_files) == 0) stop("No files were created to include in the ZIP.")
             valid_temp_files <- temp_files[file.exists(temp_files)]
-            if (length(valid_temp_files) == 0) {
-              stop("No valid files available to include in the ZIP.")
-            }
-            if (length(valid_temp_files) < length(temp_files)) {
-              missing_files <- setdiff(temp_files, valid_temp_files)
-              append_to_log(paste("Warning: Some files could not be found for zipping:", paste(missing_files, collapse = ", ")))
-            }
+            if (length(valid_temp_files) == 0) stop("No valid files available to include in the ZIP.")
             
             zips_dir <- file.path(getwd(), "zips")
             dir.create(zips_dir, showWarnings = FALSE)
-            selected_data <- data_include()
-            data_codes <- c("Catch" = "C", "Effort" = "I", "Length" = "L", "Age" = "A")
-            data_string_base <- paste(na.omit(data_codes[selected_data]), collapse = "")
-            conditional_age_checked <- isTRUE(input$conditional_age_select)
-            data_string <- if (conditional_age_checked) {
-              paste0(data_string_base, "CndA")
-            } else {
-              data_string_base
-            }
-            if (data_string == "") data_string <- "None"
-            species <- gsub(" ", "_", input$species_select)
+            
+            data_string <- "Data"
             date_str <- format(Sys.Date(), "%Y-%m-%d")
-            zip_filename <- paste0(species, "_SS-", data_string, "_", date_str, ".zip")
+            zip_filename <- paste0(species_name, "_SS-", data_string, "_", date_str, ".zip")
             persistent_zip <- file.path(zips_dir, zip_filename)
             
-            tryCatch({
-              zip::zipr(persistent_zip, valid_temp_files)
-              file.copy(persistent_zip, file, overwrite = TRUE)
-              downloaded_zip_path(persistent_zip)
-              append_to_log(paste("ZIP file created and stored in zips/ as:", zip_filename))
-            }, error = function(e) {
-              append_to_log(paste("Error creating ZIP file:", e$message))
-              stop(paste("Failed to create ZIP file:", e$message))
-            })
+            zip::zipr(persistent_zip, valid_temp_files)
+            file.copy(persistent_zip, file, overwrite = TRUE)
+            downloaded_zip_path(persistent_zip)
+            append_to_log(paste("ZIP file created and stored in zips/ as:", zip_filename))
             
-            unlink(valid_temp_files[!valid_temp_files %in% ss_files])
-            
+            tryCatch(unlink(valid_temp_files[!valid_temp_files %in% ss_files]), condition = function(c) NULL)
             download_success(TRUE)
             append_to_log("Download completed successfully")
+            
           }, error = function(e) {
             download_success(FALSE)
             append_to_log(paste("Download failed:", e$message))
@@ -5406,7 +4426,6 @@ server <- function(input, output, session) {
         },
         contentType = "application/zip"
       )
-      
       
       
       # Helper function to extract ZIP and validate SS3 files
