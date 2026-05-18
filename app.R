@@ -1334,6 +1334,13 @@ server <- function(input, output, session) {
       all_new_species <- unique(Merged_Kim_Pilb$SpeciesName)
       updatePickerInput(session, "species_select", choices = sort(all_new_species))
       
+      # Print file modified date to console
+      file_stats <- file.info("interim_data/Compiled_App_Data.RData")
+      if (!is.na(file_stats$mtime)) {
+        formatted_date <- format(file_stats$mtime, "%Y-%m-%d %H:%M:%S")
+        append_to_log(paste("Successfully loaded Compiled_App_Data.RData (File Date:", formatted_date, ")"))
+      }
+      
       removeModal()
       showNotification("Data loaded successfully!", type = "message")
       
