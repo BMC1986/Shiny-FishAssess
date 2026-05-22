@@ -3409,6 +3409,70 @@ server <- function(input, output, session) {
       
       
       # Function to generate catch plot
+      # render_catch_plot <- function(data) {
+      #   if (nrow(data) == 0) {
+      #     return(ggplot() + annotate("text", x = 0, y = 0, label = "No catch data available") + theme_void())
+      #   }
+      #   if (ncol(data) <= 2) {
+      #     return(ggplot() + annotate("text", x = 0, y = 0, label = "No non-zero catch sectors available for selected species") + theme_void())
+      #   }
+      #   catch_long <- data %>%
+      #     pivot_longer(cols = -c(Specstock, year), names_to = "Sector", values_to = "Catch", values_drop_na = TRUE) %>%
+      #     filter(Catch > 0)
+      #   if (nrow(catch_long) == 0) {
+      #     return(ggplot() + annotate("text", x = 0, y = 0, label = "No catch data available") + theme_void())
+      #   }
+      #   
+      #   dpird_dark_blue <- "#003F51"
+      #   dpird_mid_blue <- "#42797F"
+      #   dpird_light_blue <- "#BFD7DF"
+      #   
+      #   sector_colors <- c(
+      #     "Charter" = dpird_mid_blue,
+      #     "Commercial" = dpird_dark_blue,
+      #     "Commercial.Trap" = "#94B237",
+      #     "Commercial.Line" = "#568B8E",
+      #     "Foreign.Trawl" = "#8E5F7E",
+      #     "Foreign.Line" = "#D9B852",
+      #     "Recreational" = dpird_light_blue,
+      #     "Foreign.Trawl.Japan" = "#B1894D",
+      #     "Foreign.Trawl.Russia" = "#7F7F7F",
+      #     "CSIRO.Research.Trawl" = "#6B5045",
+      #     "Foreign.Trawl.Taiwan" = "#CC9950",
+      #     "Foreign.Trawl.China" = "#4A3F3F",
+      #     "Commonwealth" = "#3F7C4E",
+      #     "Foreign" = "#B97C52",
+      #     "Commercial.Monthly" = "#F2CC8F",
+      #     "Commercial.daily" = "#E0B384",
+      #     "Commercial.GillNet" = "#E6D7AD",
+      #     "Commercial.OpenAccess" = "#6A8C7F",
+      #     "Commercial.Estuarine" = "#A0C4B8",
+      #     "Commercial.Trawl" = "#7D9D9C",
+      #     "Commercial.Line_a" = "#568B8E",
+      #     "Commercial.Line_b" = "#568B8E",
+      #     "Commercial.Other" = "#E6D7AD"
+      #   )
+      #   
+      #   desired_levels <- c(
+      #     "Commercial", "Commercial.Trap", "Commercial.Line", "Recreational", "Charter",
+      #     "Foreign", "Foreign.Trawl", "Foreign.Line", "Foreign.Trawl.Japan", "Foreign.Trawl.Russia", 
+      #     "Foreign.Trawl.Taiwan", "Foreign.Trawl.China", "Commonwealth", "CSIRO.Research.Trawl",
+      #     "Commercial.Monthly", "Commercial.daily","Commercial.GillNet","Commercial.OpenAccess",
+      #     "Commercial.Estuarine","Commercial.Trawl","Commercial.Line_a","Commercial.Line_b","Commercial.Other"
+      #   )
+      #   catch_long$Sector <- factor(catch_long$Sector, levels = desired_levels)
+      #   ggplot(catch_long, aes(x = year, y = Catch, fill = Sector)) +
+      #     geom_bar(stat = "identity", position = "stack") +
+      #     labs(x = "Year", y = "Catch (tonnes)",
+      #          title = paste("Catch by Sector for",
+      #                        if(length(unique(data$Specstock)) > 1) "Multiple Species" else unique(data$Specstock))) +
+      #     theme_minimal(base_family = "Arial") +
+      #     theme(legend.position = "bottom", legend.title = element_blank(), legend.key.width = unit(0.5, "cm")) +
+      #     scale_fill_manual(values = sector_colors) +
+      #     guides(fill = guide_legend(ncol = 3))
+      # }
+      
+      # Function to generate catch plot
       render_catch_plot <- function(data) {
         if (nrow(data) == 0) {
           return(ggplot() + annotate("text", x = 0, y = 0, label = "No catch data available") + theme_void())
@@ -3460,7 +3524,34 @@ server <- function(input, output, session) {
           "Commercial.Monthly", "Commercial.daily","Commercial.GillNet","Commercial.OpenAccess",
           "Commercial.Estuarine","Commercial.Trawl","Commercial.Line_a","Commercial.Line_b","Commercial.Other"
         )
-        catch_long$Sector <- factor(catch_long$Sector, levels = desired_levels)
+        
+        # --- NEW LOGIC FOR DYNAMIC COLOURS ---
+        # Fallback colours for any sectors not in the hardcoded list
+        fallback_colors <- c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00", 
+                             "#FFFF33", "#A65628", "#F781BF", "#999999")
+        
+        current_sectors <- unique(catch_long$Sector)
+        combined_colors <- character(0)
+        color_idx <- 1
+        
+        for (sector_name in current_sectors) {
+          if (sector_name %in% names(sector_colors)) {
+            combined_colors[sector_name] <- sector_colors[sector_name]
+          } else {
+            combined_colors[sector_name] <- fallback_colors[color_idx]
+            color_idx <- color_idx + 1
+            # Reset index if we run out of fallback colours
+            if (color_idx > length(fallback_colors)) color_idx <- 1
+          }
+        }
+        
+        # Ensure the unmapped sectors are appended to the factor levels
+        missing_levels <- setdiff(current_sectors, desired_levels)
+        all_levels <- c(desired_levels, missing_levels)
+        
+        catch_long$Sector <- factor(catch_long$Sector, levels = all_levels)
+        # ------------------------------------
+        
         ggplot(catch_long, aes(x = year, y = Catch, fill = Sector)) +
           geom_bar(stat = "identity", position = "stack") +
           labs(x = "Year", y = "Catch (tonnes)",
@@ -3468,10 +3559,9 @@ server <- function(input, output, session) {
                              if(length(unique(data$Specstock)) > 1) "Multiple Species" else unique(data$Specstock))) +
           theme_minimal(base_family = "Arial") +
           theme(legend.position = "bottom", legend.title = element_blank(), legend.key.width = unit(0.5, "cm")) +
-          scale_fill_manual(values = sector_colors) +
+          scale_fill_manual(values = combined_colors) + # Make sure to pass the new combined_colors vector here
           guides(fill = guide_legend(ncol = 3))
       }
-      
       
       render_effort_plot <- function(data) {
         if (is.null(data) || nrow(data) == 0) {
