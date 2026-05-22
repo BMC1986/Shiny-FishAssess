@@ -2406,6 +2406,122 @@ cat("colnames fixedsiteonly",colnames(fixedsiteonly),"\n")
 cat("Start of SS_format_length_data\n")
 
 
+# SS_format_length_data <- function(length_data, max_length = SS_max_size, 
+#                                   month = 1, 
+#                                   length_bins = seq(0, max_length, by = SS_length_binwidth), 
+#                                   Lbin_lo = -1, Lbin_hi = -1) {
+#   
+#   # Helper function to pad vectors to the required length for SS3
+#   pad_vector <- function(vec, target_length = length(length_bins) * 2) {
+#     if (length(vec) < target_length) {
+#       vec <- c(vec, rep(0, target_length - length(vec)))
+#     }
+#     return(vec[1:target_length])
+#   }
+#   
+#   # Initial checks for valid input data
+#   if (!"fleet" %in% colnames(length_data)) {
+#     warning("No 'fleet' column found in length_data. Assigning default fleet = 1.")
+#     length_data$fleet <- 1
+#   }
+#   if (any(is.na(length_data$fleet) | length_data$fleet <= 0)) {
+#     warning("Invalid fleet values (NA or <= 0) found and replaced with fleet = 1.")
+#     length_data$fleet[is.na(length_data$fleet) | length_data$fleet <= 0] <- 1
+#   }
+#   
+#   # Convert length from mm to cm for processing
+#   length_data <- length_data %>%
+#     mutate(LengthClass_cm = LengthClass / 10)
+#   
+#   fleets <- unique(length_data$fleet)
+#   
+#   # Initialise an empty data frame to store the results
+#   result <- data.frame(
+#     yr = integer(), month = integer(), fleet = integer(), sex = integer(),
+#     part = integer(), Lbin_lo = integer(), Lbin_hi = integer(),
+#     Nsamp = integer(), datavector = I(vector("list", 0))
+#   )
+#   
+#   # Process the data for each fleet, year, and discard status
+#   for (f in fleets) {
+#     fleet_data <- length_data %>% filter(fleet == f)
+#     for (y in unique(fleet_data$year)) {
+#       year_data <- fleet_data %>% filter(year == y)
+#       for (discard_status in c("Yes", "No")) {
+#         discard_data <- year_data %>% filter(Discarded. == discard_status)
+#         
+#         if (nrow(discard_data) == 0) next
+#         
+#         part_value <- ifelse(discard_status == "Yes", 1, 2) # 1=discard, 2=retained
+#         
+#         has_males <- any(discard_data$Sex == "M", na.rm = TRUE)
+#         has_females <- any(discard_data$Sex == "F", na.rm = TRUE)
+#         
+#         # If data contains both males and females, process it as sex-specific (sex=3)
+#         if (has_males && has_females) {
+#           sex_code <- 3
+#           sexed_subset <- discard_data %>% filter(Sex %in% c("M", "F"))
+#           
+#           female_counts <- sexed_subset %>% 
+#             filter(Sex == "F") %>%
+#             group_by(LengthClass_cm) %>%
+#             summarise(count = n(), .groups = 'drop') %>%
+#             complete(LengthClass_cm = length_bins, fill = list(count = 0)) %>%
+#             arrange(LengthClass_cm)
+#           
+#           male_counts <- sexed_subset %>% 
+#             filter(Sex == "M") %>%
+#             group_by(LengthClass_cm) %>%
+#             summarise(count = n(), .groups = 'drop') %>%
+#             complete(LengthClass_cm = length_bins, fill = list(count = 0)) %>%
+#             arrange(LengthClass_cm)
+#           
+#           combined_vector <- pad_vector(c(female_counts$count, male_counts$count))
+#         } else {
+#           # Otherwise, treat the entire sample as unsexed (sex=0)
+#           sex_code <- 0
+#           
+#           unsexed_counts <- discard_data %>% 
+#             group_by(LengthClass_cm) %>%
+#             summarise(count = n(), .groups = 'drop') %>%
+#             complete(LengthClass_cm = length_bins, fill = list(count = 0)) %>%
+#             arrange(LengthClass_cm)
+#           
+#           # Unsexed data goes in the first half of the vector (female portion)
+#           combined_vector <- pad_vector(c(unsexed_counts$count, rep(0, length(length_bins))))
+#         }
+#         
+#         # Finalise the row for the datafile
+#         # new_nsamp <- sum(combined_vector)
+#         new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
+#         if (new_nsamp > 0) {
+#           new_row <- data.frame(
+#             yr = y, month = month, fleet = f, sex = sex_code, part = part_value,
+#             Lbin_lo = Lbin_lo, Lbin_hi = Lbin_hi, Nsamp = new_nsamp,
+#             datavector = I(list(combined_vector))
+#           )
+#           result <- rbind(result, new_row)
+#         }
+#       }
+#     }
+#   }
+#   
+#   # Add the required terminator row at the end of the data block
+#   terminal_row <- data.frame(
+#     yr = -9999, month = 0, fleet = 0, sex = 0, part = 0, Lbin_lo = 0,
+#     Lbin_hi = 0, Nsamp = 0, datavector = I(list(pad_vector(rep(0, length(length_bins) * 2))))
+#   )
+#   
+#   if (nrow(result) > 0) {
+#     result <- result[order(result$part, result$fleet, result$yr), ]
+#     result <- rbind(result, terminal_row)
+#   } else {
+#     result <- terminal_row
+#   }
+#   
+#   return(result)
+# }
+
 SS_format_length_data <- function(length_data, max_length = SS_max_size, 
                                   month = 1, 
                                   length_bins = seq(0, max_length, by = SS_length_binwidth), 
@@ -2454,14 +2570,13 @@ SS_format_length_data <- function(length_data, max_length = SS_max_size,
         
         part_value <- ifelse(discard_status == "Yes", 1, 2) # 1=discard, 2=retained
         
-        has_males <- any(discard_data$Sex == "M", na.rm = TRUE)
-        has_females <- any(discard_data$Sex == "F", na.rm = TRUE)
+        # --- UPDATED LOGIC START ---
+        # Split data into sexed (M/F) and unsexed (NA or blanks)
+        sexed_subset <- discard_data %>% filter(Sex %in% c("M", "F"))
+        unsexed_subset <- discard_data %>% filter(is.na(Sex) | !(Sex %in% c("M", "F")))
         
-        # If data contains both males and females, process it as sex-specific (sex=3)
-        if (has_males && has_females) {
-          sex_code <- 3
-          sexed_subset <- discard_data %>% filter(Sex %in% c("M", "F"))
-          
+        # 1. Process the SEXED subset (sex_code = 3)
+        if (nrow(sexed_subset) > 0 && any(sexed_subset$Sex == "M") && any(sexed_subset$Sex == "F")) {
           female_counts <- sexed_subset %>% 
             filter(Sex == "F") %>%
             group_by(LengthClass_cm) %>%
@@ -2477,36 +2592,42 @@ SS_format_length_data <- function(length_data, max_length = SS_max_size,
             arrange(LengthClass_cm)
           
           combined_vector <- pad_vector(c(female_counts$count, male_counts$count))
-        } else {
-          # Otherwise, treat the entire sample as unsexed (sex=0)
-          sex_code <- 0
+          new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
           
-          unsexed_counts <- discard_data %>% 
+          if (new_nsamp > 0) {
+            result <- rbind(result, data.frame(
+              yr = y, month = month, fleet = f, sex = 3, part = part_value,
+              Lbin_lo = Lbin_lo, Lbin_hi = Lbin_hi, Nsamp = new_nsamp,
+              datavector = I(list(combined_vector))
+            ))
+          }
+        }
+        
+        # 2. Process the UNSEXED subset (sex_code = 0)
+        if (nrow(unsexed_subset) > 0) {
+          unsexed_counts <- unsexed_subset %>% 
             group_by(LengthClass_cm) %>%
             summarise(count = n(), .groups = 'drop') %>%
             complete(LengthClass_cm = length_bins, fill = list(count = 0)) %>%
             arrange(LengthClass_cm)
           
-          # Unsexed data goes in the first half of the vector (female portion)
           combined_vector <- pad_vector(c(unsexed_counts$count, rep(0, length(length_bins))))
+          new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
+          
+          if (new_nsamp > 0) {
+            result <- rbind(result, data.frame(
+              yr = y, month = month, fleet = f, sex = 0, part = part_value,
+              Lbin_lo = Lbin_lo, Lbin_hi = Lbin_hi, Nsamp = new_nsamp,
+              datavector = I(list(combined_vector))
+            ))
+          }
         }
-        
-        # Finalise the row for the datafile
-        # new_nsamp <- sum(combined_vector)
-        new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
-        if (new_nsamp > 0) {
-          new_row <- data.frame(
-            yr = y, month = month, fleet = f, sex = sex_code, part = part_value,
-            Lbin_lo = Lbin_lo, Lbin_hi = Lbin_hi, Nsamp = new_nsamp,
-            datavector = I(list(combined_vector))
-          )
-          result <- rbind(result, new_row)
-        }
+        # --- UPDATED LOGIC END ---
       }
     }
   }
   
-  # Add the required terminator row at the end of the data block
+  # Add the required terminator row
   terminal_row <- data.frame(
     yr = -9999, month = 0, fleet = 0, sex = 0, part = 0, Lbin_lo = 0,
     Lbin_hi = 0, Nsamp = 0, datavector = I(list(pad_vector(rep(0, length(length_bins) * 2))))
