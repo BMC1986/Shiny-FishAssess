@@ -2349,7 +2349,14 @@ if(SS_use_bio_length){
   # Reformat merged_kim_pilb to match fixedsiteonly 
   
 
-  merged_kim_pilb$Discarded. <- "No"  # Add the 'Discarded.' column to merged_kim_pilb and fill with NA
+  # merged_kim_pilb$Discarded. <- "No"  # Add the 'Discarded.' column to merged_kim_pilb and fill with NA
+  
+  if (!"Discarded." %in% colnames(merged_kim_pilb)) {
+    merged_kim_pilb$Discarded. <- "No"
+  } else {
+    # Ensure any missing/NA values are treated as retained ("No") so they aren't dropped
+    merged_kim_pilb$Discarded.[is.na(merged_kim_pilb$Discarded.) | merged_kim_pilb$Discarded. == ""] <- "No"
+  }
   
 
   # Select and reorder the columns in merged_kim_pilb to match fixedsiteonly
