@@ -6,6 +6,7 @@ cat("--- Background Bias & Tuning Script Initiated ---\n")
 suppressPackageStartupMessages(library(ggplot2))
 
 # --- Helper Function: Generate Custom DPIRD Plots ---
+
 # generate_DPIRD_plots <- function(replist, output_dir) {
 #   
 #   # 1. Setup Directory
@@ -17,6 +18,34 @@ suppressPackageStartupMessages(library(ggplot2))
 #   
 #   # Retrieve the model end year to distinguish history from forecast
 #   end_year <- replist$endyr
+#   
+#   # =========================================================================
+#   # CUSTOM THEME: Mimic base R style and improve text legibility
+#   # =========================================================================
+#   target_theme <- theme_bw(base_family = "Arial") +
+#     theme(
+#       plot.title = element_text(face = "bold", hjust = 0.5, size = 18),
+#       plot.subtitle = element_text(hjust = 0.5, size = 14),
+#       axis.title = element_text(face = "bold", size = 16),
+#       axis.text = element_text(size = 14, colour = "black"),
+#       
+#       # Inward pointing ticks
+#       axis.ticks.length = unit(-0.2, "cm"),
+#       
+#       # Add margin so inward ticks don't overlap with the text
+#       axis.text.x = element_text(margin = margin(t = 10)),
+#       axis.text.y = element_text(margin = margin(r = 10), hjust = 1),
+#       
+#       # Bounding box
+#       panel.border = element_rect(colour = "black", fill = NA, linewidth = 1),
+#       
+#       # Match dotted horizontal gridlines from the target chart
+#       panel.grid.major.y = element_line(colour = "grey70", linetype = "dotted", linewidth = 0.5),
+#       panel.grid.major.x = element_blank(),
+#       panel.grid.minor = element_blank(),
+#       
+#       plot.margin = margin(15, 15, 15, 15)
+#     )
 #   
 #   # =========================================================================
 #   # PLOT 1: FRACTION OF UNFISHED SPAWNING BIOMASS (Depletion)
@@ -39,45 +68,37 @@ suppressPackageStartupMessages(library(ggplot2))
 #     df$hi_60 <- df$Value + z_60 * df$StdDev
 #     
 #     # Split into Historical and Forecast data frames
-#     # Overlapping at end_year ensures the lines connect
 #     df_hist <- df[df$Year <= end_year, ]
 #     df_fore <- df[df$Year >= end_year, ]
 #     
 #     p_dep <- ggplot(data = df, aes(x = Year, y = Value)) +
-#       # Reference Lines
-#       geom_hline(yintercept = 0.4, linetype = "dashed", color = "darkgreen", linewidth = 0.7) + 
-#       annotate("text", x = min(df$Year), y = 0.4, label = "Target (0.4)", hjust = 0, vjust = -0.5, color = "darkgreen", size = 3.5, fontface = "bold") +
-#       geom_hline(yintercept = 0.3, linetype = "dashed", color = "orange", linewidth = 0.7) + 
-#       annotate("text", x = min(df$Year), y = 0.3, label = "Threshold (0.3)", hjust = 0, vjust = -0.5, color = "orange", size = 3.5, fontface = "bold") +
-#       geom_hline(yintercept = 0.2, linetype = "dashed", color = "red", linewidth = 0.7) + 
-#       annotate("text", x = min(df$Year), y = 0.2, label = "Limit (0.2)", hjust = 0, vjust = -0.5, color = "red", size = 3.5, fontface = "bold") +
+#       # Reference Lines with increased text size (4.5) and adjusted vjust
+#       geom_hline(yintercept = 0.4, linetype = "dashed", colour = "darkgreen", linewidth = 0.7) + 
+#       annotate("text", x = min(df$Year), y = 0.4, label = "Target (0.4)", hjust = 0, vjust = -0.8, colour = "darkgreen", size = 4.5, fontface = "bold") +
+#       geom_hline(yintercept = 0.3, linetype = "dashed", colour = "orange", linewidth = 0.7) + 
+#       annotate("text", x = min(df$Year), y = 0.3, label = "Threshold (0.3)", hjust = 0, vjust = -0.8, colour = "orange", size = 4.5, fontface = "bold") +
+#       geom_hline(yintercept = 0.2, linetype = "dashed", colour = "red", linewidth = 0.7) + 
+#       annotate("text", x = min(df$Year), y = 0.2, label = "Limit (0.2)", hjust = 0, vjust = -0.8, colour = "red", size = 4.5, fontface = "bold") +
 #       
-#       # Historical Ribbons (Darker/Standard)
+#       # Historical Ribbons
 #       geom_ribbon(data = df_hist, aes(ymin = lo_95, ymax = hi_95), fill = "grey80", alpha = 0.6) +
 #       geom_ribbon(data = df_hist, aes(ymin = lo_60, ymax = hi_60), fill = "grey60", alpha = 0.6) +
 #       
-#       # Forecast Ribbons (Lighter/Different to distinguish)
+#       # Forecast Ribbons
 #       geom_ribbon(data = df_fore, aes(ymin = lo_95, ymax = hi_95), fill = "grey95", alpha = 0.6) +
 #       geom_ribbon(data = df_fore, aes(ymin = lo_60, ymax = hi_60), fill = "grey85", alpha = 0.6) +
 #       
-#       # Historical Line (Solid)
-#       geom_line(data = df_hist, linewidth = 1.2, color = "black", linetype = "solid") +
+#       # Historical Line
+#       geom_line(data = df_hist, linewidth = 1.2, colour = "black", linetype = "solid") +
 #       
-#       # Forecast Line (Dotted)
-#       geom_line(data = df_fore, linewidth = 1.2, color = "black", linetype = "dotted") +
+#       # Forecast Line
+#       geom_line(data = df_fore, linewidth = 1.2, colour = "black", linetype = "dotted") +
 #       
-#       # Formatting
-#       scale_y_continuous(expand = expansion(mult = c(0, 0.05)), limits = c(0, NA)) +
-#       scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
-#       # labs(title = "Fraction of Unfished Spawning Biomass", 
-#       #      subtitle = "Solid: Historical | Dotted: Forecast (lighter shading)", 
-#       #      y = "Fraction of Unfished", x = "Year") +
-#       labs(y = "Fraction of unfished spwaning biomass", x = "Year") +
-#       theme_classic(base_family = "Arial") +
-#       theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 16),
-#             plot.subtitle = element_text(hjust = 0.5, size = 12),
-#             axis.title = element_text(face = "bold", size = 12),
-#             panel.grid.major.y = element_line(color = "grey95"))
+#       # Formatting: added sec.axis for top and right ticks
+#       scale_y_continuous(expand = expansion(mult = c(0, 0.05)), limits = c(0, NA), sec.axis = dup_axis(labels = NULL, name = NULL)) +
+#       scale_x_continuous(breaks = scales::pretty_breaks(n = 10), sec.axis = dup_axis(labels = NULL, name = NULL)) +
+#       labs(y = "Fraction of unfished spawning biomass", x = "Year") +
+#       target_theme
 #     
 #     ggsave(filename = file.path(dpird_dir, "Depletion_DPIRD_with_intervals.png"), plot = p_dep, width = 9, height = 6, dpi = 300)
 #   } else {
@@ -88,7 +109,6 @@ suppressPackageStartupMessages(library(ggplot2))
 #   # PLOT 2: FISHING MORTALITY (F)
 #   # =========================================================================
 #   
-#   # 1. Extract F Data (rows like "F_2023")
 #   f_rows <- grep("^F_\\d+$", rownames(dq))
 #   
 #   if (length(f_rows) > 0) {
@@ -124,50 +144,33 @@ suppressPackageStartupMessages(library(ggplot2))
 #       F_lim <- 1.5 * NatM
 #       
 #       p_f <- p_f +
-#         # Target (2/3 M) - Green
-#         geom_hline(yintercept = F_targ, linetype = "dashed", color = "darkgreen", linewidth = 0.7) + 
+#         geom_hline(yintercept = F_targ, linetype = "dashed", colour = "darkgreen", linewidth = 0.7) + 
 #         annotate("text", x = min(df_f$Year), y = F_targ, label = paste0("Target (", round(F_targ, 3), ")"), 
-#                  hjust = 0, vjust = -0.5, color = "darkgreen", size = 3.5, fontface = "bold") +
-#         # Threshold (M) - Orange
-#         geom_hline(yintercept = F_thresh, linetype = "dashed", color = "orange", linewidth = 0.7) + 
+#                  hjust = 0, vjust = -0.8, colour = "darkgreen", size = 4.5, fontface = "bold") +
+#         geom_hline(yintercept = F_thresh, linetype = "dashed", colour = "orange", linewidth = 0.7) + 
 #         annotate("text", x = min(df_f$Year), y = F_thresh, label = paste0("Threshold (", round(F_thresh, 3), ")"), 
-#                  hjust = 0, vjust = -0.5, color = "orange", size = 3.5, fontface = "bold") +
-#         # Limit (1.5 M) - Red
-#         geom_hline(yintercept = F_lim, linetype = "dashed", color = "red", linewidth = 0.7) + 
+#                  hjust = 0, vjust = -0.8, colour = "orange", size = 4.5, fontface = "bold") +
+#         geom_hline(yintercept = F_lim, linetype = "dashed", colour = "red", linewidth = 0.7) + 
 #         annotate("text", x = min(df_f$Year), y = F_lim, label = paste0("Limit (", round(F_lim, 3), ")"), 
-#                  hjust = 0, vjust = -0.5, color = "red", size = 3.5, fontface = "bold")
+#                  hjust = 0, vjust = -0.8, colour = "red", size = 4.5, fontface = "bold")
 #     } else {
 #       warning("DPIRD Plot: Could not find Natural Mortality parameter to calculate F reference points.")
 #     }
 #     
 #     # Add Ribbons and Lines
 #     p_f <- p_f +
-#       # Historical Ribbons
 #       geom_ribbon(data = df_f_hist, aes(ymin = lo_95, ymax = hi_95), fill = "grey80", alpha = 0.6) +
 #       geom_ribbon(data = df_f_hist, aes(ymin = lo_60, ymax = hi_60), fill = "grey60", alpha = 0.6) +
-#       
-#       # Forecast Ribbons (Lighter)
 #       geom_ribbon(data = df_f_fore, aes(ymin = lo_95, ymax = hi_95), fill = "grey95", alpha = 0.6) +
 #       geom_ribbon(data = df_f_fore, aes(ymin = lo_60, ymax = hi_60), fill = "grey85", alpha = 0.6) +
+#       geom_line(data = df_f_hist, linewidth = 1.2, colour = "black", linetype = "solid") +
+#       geom_line(data = df_f_fore, linewidth = 1.2, colour = "black", linetype = "dotted") +
 #       
-#       # Historical Line (Solid)
-#       geom_line(data = df_f_hist, linewidth = 1.2, color = "black", linetype = "solid") +
-#       
-#       # Forecast Line (Dotted)
-#       geom_line(data = df_f_fore, linewidth = 1.2, color = "black", linetype = "dotted") +
-#       
-#       # Formatting
-#       scale_y_continuous(expand = expansion(mult = c(0, 0.05)), limits = c(0, NA)) +
-#       scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
-#       # labs(title = "Fishing Mortality (F)", 
-#       #      subtitle = "Solid: Historical | Dotted: Forecast (lighter shading)", 
-#       #      y = "Fishing Mortality (F)", x = "Year") +
+#       # Formatting: added sec.axis for top and right ticks
+#       scale_y_continuous(expand = expansion(mult = c(0, 0.05)), limits = c(0, NA), sec.axis = dup_axis(labels = NULL, name = NULL)) +
+#       scale_x_continuous(breaks = scales::pretty_breaks(n = 10), sec.axis = dup_axis(labels = NULL, name = NULL)) +
 #       labs(y = "Summary Fishing mortality", x = "Year") +
-#       theme_classic(base_family = "Arial") +
-#       theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 16),
-#             plot.subtitle = element_text(hjust = 0.5, size = 12),
-#             axis.title = element_text(face = "bold", size = 12),
-#             panel.grid.major.y = element_line(color = "grey95"))
+#       target_theme
 #     
 #     ggsave(filename = file.path(dpird_dir, "F_value_DPIRD_with_intervals.png"), plot = p_f, width = 9, height = 6, dpi = 300)
 #     message(paste("DPIRD Plots generated in:", dpird_dir))
@@ -179,47 +182,30 @@ suppressPackageStartupMessages(library(ggplot2))
 
 generate_DPIRD_plots <- function(replist, output_dir) {
   
-  # 1. Setup Directory
   dpird_dir <- file.path(output_dir, "DPIRD_plots")
   if (!dir.exists(dpird_dir)) dir.create(dpird_dir, recursive = TRUE, showWarnings = FALSE)
   
-  # Load ggplot2 if not already loaded
   if (!"package:ggplot2" %in% search()) suppressPackageStartupMessages(library(ggplot2))
   
-  # Retrieve the model end year to distinguish history from forecast
   end_year <- replist$endyr
   
-  # =========================================================================
-  # CUSTOM THEME: Mimic base R style and improve text legibility
-  # =========================================================================
   target_theme <- theme_bw(base_family = "Arial") +
     theme(
-      plot.title = element_text(face = "bold", hjust = 0.5, size = 18),
-      plot.subtitle = element_text(hjust = 0.5, size = 14),
-      axis.title = element_text(face = "bold", size = 16),
-      axis.text = element_text(size = 14, colour = "black"),
-      
-      # Inward pointing ticks
+      plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
+      plot.subtitle = element_text(hjust = 0.5, size = 16),
+      axis.title = element_text(face = "bold", size = 18),
+      axis.text = element_text(size = 16, colour = "black"),
+      legend.title = element_text(face = "bold", size = 18),
+      legend.text = element_text(size = 16),
       axis.ticks.length = unit(-0.2, "cm"),
-      
-      # Add margin so inward ticks don't overlap with the text
       axis.text.x = element_text(margin = margin(t = 10)),
       axis.text.y = element_text(margin = margin(r = 10), hjust = 1),
-      
-      # Bounding box
       panel.border = element_rect(colour = "black", fill = NA, linewidth = 1),
-      
-      # Match dotted horizontal gridlines from the target chart
       panel.grid.major.y = element_line(colour = "grey70", linetype = "dotted", linewidth = 0.5),
       panel.grid.major.x = element_blank(),
       panel.grid.minor = element_blank(),
-      
       plot.margin = margin(15, 15, 15, 15)
     )
-  
-  # =========================================================================
-  # PLOT 1: FRACTION OF UNFISHED SPAWNING BIOMASS (Depletion)
-  # =========================================================================
   
   dq <- replist$derived_quants
   bratio_rows <- grep("^Bratio_\\d+$", rownames(dq))
@@ -230,41 +216,32 @@ generate_DPIRD_plots <- function(replist, output_dir) {
     df$Year <- as.numeric(sub("Bratio_", "", df$Label))
     df <- df[order(df$Year), ]
     
-    # Calculate Intervals
     df$lo_95 <- pmax(0, df$Value - 1.96 * df$StdDev)
     df$hi_95 <- df$Value + 1.96 * df$StdDev
     z_60 <- qnorm(0.8) 
     df$lo_60 <- pmax(0, df$Value - z_60 * df$StdDev)
     df$hi_60 <- df$Value + z_60 * df$StdDev
     
-    # Split into Historical and Forecast data frames
     df_hist <- df[df$Year <= end_year, ]
     df_fore <- df[df$Year >= end_year, ]
     
     p_dep <- ggplot(data = df, aes(x = Year, y = Value)) +
-      # Reference Lines with increased text size (4.5) and adjusted vjust
       geom_hline(yintercept = 0.4, linetype = "dashed", colour = "darkgreen", linewidth = 0.7) + 
-      annotate("text", x = min(df$Year), y = 0.4, label = "Target (0.4)", hjust = 0, vjust = -0.8, colour = "darkgreen", size = 4.5, fontface = "bold") +
+      annotate("text", x = min(df$Year), y = 0.4, label = "Target (0.4)", hjust = 0, vjust = -0.8, colour = "darkgreen", size = 6, fontface = "bold") +
       geom_hline(yintercept = 0.3, linetype = "dashed", colour = "orange", linewidth = 0.7) + 
-      annotate("text", x = min(df$Year), y = 0.3, label = "Threshold (0.3)", hjust = 0, vjust = -0.8, colour = "orange", size = 4.5, fontface = "bold") +
+      annotate("text", x = min(df$Year), y = 0.3, label = "Threshold (0.3)", hjust = 0, vjust = -0.8, colour = "orange", size = 6, fontface = "bold") +
       geom_hline(yintercept = 0.2, linetype = "dashed", colour = "red", linewidth = 0.7) + 
-      annotate("text", x = min(df$Year), y = 0.2, label = "Limit (0.2)", hjust = 0, vjust = -0.8, colour = "red", size = 4.5, fontface = "bold") +
+      annotate("text", x = min(df$Year), y = 0.2, label = "Limit (0.2)", hjust = 0, vjust = -0.8, colour = "red", size = 6, fontface = "bold") +
       
-      # Historical Ribbons
       geom_ribbon(data = df_hist, aes(ymin = lo_95, ymax = hi_95), fill = "grey80", alpha = 0.6) +
       geom_ribbon(data = df_hist, aes(ymin = lo_60, ymax = hi_60), fill = "grey60", alpha = 0.6) +
       
-      # Forecast Ribbons
       geom_ribbon(data = df_fore, aes(ymin = lo_95, ymax = hi_95), fill = "grey95", alpha = 0.6) +
       geom_ribbon(data = df_fore, aes(ymin = lo_60, ymax = hi_60), fill = "grey85", alpha = 0.6) +
       
-      # Historical Line
       geom_line(data = df_hist, linewidth = 1.2, colour = "black", linetype = "solid") +
+      geom_point(data = df_fore, colour = "black", size = 2) +
       
-      # Forecast Line
-      geom_line(data = df_fore, linewidth = 1.2, colour = "black", linetype = "dotted") +
-      
-      # Formatting: added sec.axis for top and right ticks
       scale_y_continuous(expand = expansion(mult = c(0, 0.05)), limits = c(0, NA), sec.axis = dup_axis(labels = NULL, name = NULL)) +
       scale_x_continuous(breaks = scales::pretty_breaks(n = 10), sec.axis = dup_axis(labels = NULL, name = NULL)) +
       labs(y = "Fraction of unfished spawning biomass", x = "Year") +
@@ -275,10 +252,6 @@ generate_DPIRD_plots <- function(replist, output_dir) {
     warning("DPIRD Plot: No Bratio_YEAR derived quantities found.")
   }
   
-  # =========================================================================
-  # PLOT 2: FISHING MORTALITY (F)
-  # =========================================================================
-  
   f_rows <- grep("^F_\\d+$", rownames(dq))
   
   if (length(f_rows) > 0) {
@@ -287,18 +260,15 @@ generate_DPIRD_plots <- function(replist, output_dir) {
     df_f$Year <- as.numeric(sub("F_", "", df_f$Label))
     df_f <- df_f[order(df_f$Year), ]
     
-    # 2. Intervals
     df_f$lo_95 <- pmax(0, df_f$Value - 1.96 * df_f$StdDev)
     df_f$hi_95 <- df_f$Value + 1.96 * df_f$StdDev
     z_60 <- qnorm(0.8) 
     df_f$lo_60 <- pmax(0, df_f$Value - z_60 * df_f$StdDev)
     df_f$hi_60 <- df_f$Value + z_60 * df_f$StdDev
     
-    # Split into Historical and Forecast data frames
     df_f_hist <- df_f[df_f$Year <= end_year, ]
     df_f_fore <- df_f[df_f$Year >= end_year, ]
     
-    # 3. Calculate Reference Points based on Natural Mortality (M)
     NatM <- NA
     m_match <- grep("NatM", replist$parameters$Label)
     if (length(m_match) > 0) {
@@ -307,7 +277,6 @@ generate_DPIRD_plots <- function(replist, output_dir) {
     
     p_f <- ggplot(data = df_f, aes(x = Year, y = Value))
     
-    # Add Reference Lines if M was found
     if (!is.na(NatM)) {
       F_targ <- (2/3) * NatM
       F_thresh <- NatM
@@ -316,27 +285,26 @@ generate_DPIRD_plots <- function(replist, output_dir) {
       p_f <- p_f +
         geom_hline(yintercept = F_targ, linetype = "dashed", colour = "darkgreen", linewidth = 0.7) + 
         annotate("text", x = min(df_f$Year), y = F_targ, label = paste0("Target (", round(F_targ, 3), ")"), 
-                 hjust = 0, vjust = -0.8, colour = "darkgreen", size = 4.5, fontface = "bold") +
+                 hjust = 0, vjust = -0.8, colour = "darkgreen", size = 6, fontface = "bold") +
         geom_hline(yintercept = F_thresh, linetype = "dashed", colour = "orange", linewidth = 0.7) + 
         annotate("text", x = min(df_f$Year), y = F_thresh, label = paste0("Threshold (", round(F_thresh, 3), ")"), 
-                 hjust = 0, vjust = -0.8, colour = "orange", size = 4.5, fontface = "bold") +
+                 hjust = 0, vjust = -0.8, colour = "orange", size = 6, fontface = "bold") +
         geom_hline(yintercept = F_lim, linetype = "dashed", colour = "red", linewidth = 0.7) + 
         annotate("text", x = min(df_f$Year), y = F_lim, label = paste0("Limit (", round(F_lim, 3), ")"), 
-                 hjust = 0, vjust = -0.8, colour = "red", size = 4.5, fontface = "bold")
+                 hjust = 0, vjust = -0.8, colour = "red", size = 6, fontface = "bold")
     } else {
       warning("DPIRD Plot: Could not find Natural Mortality parameter to calculate F reference points.")
     }
     
-    # Add Ribbons and Lines
     p_f <- p_f +
       geom_ribbon(data = df_f_hist, aes(ymin = lo_95, ymax = hi_95), fill = "grey80", alpha = 0.6) +
       geom_ribbon(data = df_f_hist, aes(ymin = lo_60, ymax = hi_60), fill = "grey60", alpha = 0.6) +
       geom_ribbon(data = df_f_fore, aes(ymin = lo_95, ymax = hi_95), fill = "grey95", alpha = 0.6) +
       geom_ribbon(data = df_f_fore, aes(ymin = lo_60, ymax = hi_60), fill = "grey85", alpha = 0.6) +
       geom_line(data = df_f_hist, linewidth = 1.2, colour = "black", linetype = "solid") +
-      geom_line(data = df_f_fore, linewidth = 1.2, colour = "black", linetype = "dotted") +
       
-      # Formatting: added sec.axis for top and right ticks
+      geom_point(data = df_f_fore, colour = "black", size = 2) +
+      
       scale_y_continuous(expand = expansion(mult = c(0, 0.05)), limits = c(0, NA), sec.axis = dup_axis(labels = NULL, name = NULL)) +
       scale_x_continuous(breaks = scales::pretty_breaks(n = 10), sec.axis = dup_axis(labels = NULL, name = NULL)) +
       labs(y = "Summary Fishing mortality", x = "Year") +
@@ -348,6 +316,172 @@ generate_DPIRD_plots <- function(replist, output_dir) {
   } else {
     warning("DPIRD Plot: No F_YEAR derived quantities found.")
   }
+}
+
+# =========================================================================
+# CUSTOM RAR PLOTS: Replot data availability, comp, and residual plots
+# =========================================================================
+generate_custom_RAR_plots <- function(replist, output_dir) {
+  
+  # All custom plots will go into this single subfolder
+  custom_dir <- file.path(output_dir, "custom_plots")
+  dir.create(custom_dir, showWarnings = FALSE, recursive = TRUE)
+  
+  # 1. Data Availability Plot
+  tryCatch({
+    r4ss::SS_plots(replist,
+                   plot = 24,
+                   dir = output_dir, 
+                   printfolder = "custom_plots",
+                   png = TRUE,
+                   html = FALSE,
+                   pwidth = 6.5,
+                   pheight = 4,
+                   SSplotDatMargin = 12,
+                   verbose = FALSE)
+  }, error = function(e) {
+    warning(paste("Error generating data availability plot:", e$message))
+  })
+  
+  # 2. Composition Plots Function
+  plot_standardised_comps <- function(replist, comp_type, out_dir) {
+    if (comp_type == "len") { dbase <- replist$lendbase; kind_str <- "LEN" }
+    else if (comp_type == "age") { dbase <- replist$agedbase; kind_str <- "AGE" }
+    else if (comp_type == "gstage") { dbase <- replist$ghostagedbase; kind_str <- "GSTAGE" }
+    else return(NULL)
+    
+    if (is.null(dbase) || nrow(dbase) == 0) return(NULL)
+    
+    fleet_parts <- unique(dbase[, c("Fleet", "Part")])
+    panel_width <- 3.5; panel_height <- 2.3; margin_width <- 1.2; margin_height <- 1.2
+    
+    for (i in 1:nrow(fleet_parts)) {
+      f <- fleet_parts$Fleet[i]
+      p <- fleet_parts$Part[i]
+      
+      fleet_data <- dbase[dbase$Fleet == f & dbase$Part == p, ]
+      years <- unique(fleet_data$Yr)
+      n_panels <- length(years)
+      
+      if (n_panels == 0) next
+      
+      temp_replist <- replist
+      if (comp_type == "len") temp_replist$lendbase <- fleet_data
+      else if (comp_type == "age") temp_replist$agedbase <- fleet_data
+      else if (comp_type == "gstage") temp_replist$ghostagedbase <- fleet_data
+      
+      max_cols <- 2
+      ncols <- min(n_panels, max_cols)
+      nrows <- ceiling(n_panels / ncols)
+      
+      plot_width <- margin_width + (ncols * panel_width)
+      plot_height <- margin_height + (nrows * panel_height)
+      
+      max_dim <- max(nrows, ncols)
+      if (max_dim >= 3) {
+        cex_reduction <- 0.66
+      } else if (max_dim == 2) {
+        cex_reduction <- 0.83
+      } else {
+        cex_reduction <- 1.0
+      }
+      dynamic_pointsize <- 12 / cex_reduction
+      
+      filename <- file.path(out_dir, paste0("comp_", comp_type, "fit_flt", f, "mkt", p, ".png"))
+      png(filename, width = plot_width, height = plot_height, units = "in", res = 300, pointsize = dynamic_pointsize)
+      # tryCatch({
+      #   r4ss::SSplotComps(temp_replist, subplots = c(1), kind = kind_str, fleets = f,
+      #                     nrows = nrows, ncols = ncols, maxrows = nrows, maxcols = ncols,
+      #                     legendcex = 0.8, mainTitle = FALSE, print = FALSE)
+      # }, finally = { dev.off() })
+      tryCatch({
+        r4ss::SSplotComps(temp_replist, subplots = c(1), kind = kind_str, fleets = f,
+                          maxrows = nrows, maxcols = ncols,
+                          mainTitle = FALSE, print = FALSE)
+      }, finally = { dev.off() })
+    }
+  }
+  
+  # 3. Pearson Residuals Function
+  plot_standardised_resids <- function(replist, comp_type, out_dir) {
+    if (comp_type == "len") { dbase <- replist$lendbase; kind_str <- "LEN" }
+    else if (comp_type == "age") { dbase <- replist$agedbase; kind_str <- "AGE" }
+    else if (comp_type == "cond") { dbase <- replist$condbase; kind_str <- "cond" }
+    else if (comp_type == "gstage") { dbase <- replist$ghostagedbase; kind_str <- "GSTAGE" }
+    else return(NULL)
+    
+    if (is.null(dbase) || nrow(dbase) == 0) return(NULL)
+    
+    fleet_parts <- unique(dbase[, c("Fleet", "Part")])
+    panel_width <- 3.0; panel_height <- 2.8; margin_width <- 1.5; margin_height <- 1.5
+    
+    for (i in 1:nrow(fleet_parts)) {
+      f <- fleet_parts$Fleet[i]
+      p <- fleet_parts$Part[i]
+      
+      fleet_data <- dbase[dbase$Fleet == f & dbase$Part == p, ]
+      if (nrow(fleet_data) == 0) next
+      
+      if (comp_type == "cond") {
+        group_cols <- intersect(names(fleet_data), c("Yr", "Seas", "Sex", "Gender", "gender", "sex"))
+      } else {
+        group_cols <- intersect(names(fleet_data), c("Yr", "Seas"))
+      }
+      
+      n_panels <- nrow(unique(fleet_data[, group_cols, drop = FALSE]))
+      if (n_panels == 0) next
+      
+      temp_replist <- replist
+      if (comp_type == "len") temp_replist$lendbase <- fleet_data
+      else if (comp_type == "age") temp_replist$agedbase <- fleet_data
+      else if (comp_type == "cond") temp_replist$condbase <- fleet_data
+      else if (comp_type == "gstage") temp_replist$ghostagedbase <- fleet_data
+      
+      max_cols <- 3
+      ncols <- min(n_panels, max_cols)
+      nrows <- ceiling(n_panels / ncols)
+      
+      plot_width <- margin_width + (ncols * panel_width)
+      plot_height <- margin_height + (nrows * panel_height)
+      
+      max_dim <- max(nrows, ncols)
+      if (max_dim >= 3) {
+        cex_reduction <- 0.66
+      } else if (max_dim == 2) {
+        cex_reduction <- 0.83
+      } else {
+        cex_reduction <- 1.0
+      }
+      dynamic_pointsize <- 12 / cex_reduction
+      
+      filename <- file.path(out_dir, paste0("resid_", comp_type, "_flt", f, "mkt", p, ".png"))
+      png(filename, width = plot_width, height = plot_height, units = "in", res = 300, pointsize = dynamic_pointsize)
+      # tryCatch({
+      #   par(mar = c(2.0, 2.5, 1.5, 1.0) + 0.1, oma = c(2.0, 2.0, 1.0, 1.0),
+      #       cex = 1.0, cex.axis = 0.9, cex.lab = 1.1)
+      #   
+      #   r4ss::SSplotComps(temp_replist, subplots = c(3), kind = kind_str, fleets = f,
+      #                     nrows = nrows, ncols = ncols, maxrows = nrows, maxcols = ncols,
+      #                     maxrows2 = nrows, maxcols2 = ncols, legendcex = 0.8,
+      #                     mainTitle = FALSE, print = FALSE)
+      # }, finally = { dev.off() })
+      tryCatch({
+        par(mar = c(2.0, 2.5, 1.5, 1.0) + 0.1, oma = c(2.0, 2.0, 1.0, 1.0),
+            cex = 1.0, cex.axis = 0.9, cex.lab = 1.1)
+        
+        r4ss::SSplotComps(temp_replist, subplots = c(3), kind = kind_str, fleets = f,
+                          maxrows = nrows, maxcols = ncols,
+                          maxrows2 = nrows, maxcols2 = ncols,
+                          mainTitle = FALSE, print = FALSE)
+      }, finally = { dev.off() })
+    }
+  }
+  
+  # Execute plotting commands, catching errors to avoid stopping the whole pipeline
+  tryCatch(plot_standardised_comps(replist, "len", custom_dir), error=function(e) NULL)
+  tryCatch(plot_standardised_comps(replist, "age", custom_dir), error=function(e) NULL)
+  tryCatch(plot_standardised_comps(replist, "gstage", custom_dir), error=function(e) NULL)
+  tryCatch(plot_standardised_resids(replist, "cond", custom_dir), error=function(e) NULL)
 }
 
 # --- Option Extraction and Validation ---
@@ -511,6 +645,16 @@ tryCatch({
       generate_DPIRD_plots(replist_after_bias_adj, file.path(tuning_dir, output_dir_name))
     }, error = function(e) {
       cat(paste("Error generating DPIRD plots:", e$message, "\n"))
+    })
+    
+
+    #Custom RAR plots
+    tryCatch({
+      cat("Generating custom RAR plots for Final Tuned Model...\n")
+      generate_custom_RAR_plots(replist_final, final_model_dir)
+      cat("Custom RAR plots generated successfully.\n")
+    }, error = function(e) {
+      cat(paste("Error generating custom RAR plots:", e$message, "\n"))
     })
     
   } else if (run_step == "full_sequence") {
@@ -718,12 +862,21 @@ tryCatch({
     
     cat("-> r4ss plots generated in the 'r4ss' subfolder.\n")
     
-    ## DPIRD plots
+    # DPIRD plots
     tryCatch({
       cat("Generating custom DPIRD plots for Final Tuned Model...\n")
       generate_DPIRD_plots(replist_final, final_model_dir)
     }, error = function(e) {
       cat(paste("Error generating DPIRD plots:", e$message, "\n"))
+    })
+    
+    #Custom RAR plots
+    tryCatch({
+      append_to_log("Generating custom RAR plots...")
+      generate_custom_RAR_plots(replist, output_dir)
+      append_to_log("Custom RAR plots generated successfully.")
+    }, error = function(e) {
+      append_to_log(paste("Error generating custom RAR plots:", e$message))
     })
     
     # --- CLEANUP STEP ---
