@@ -1352,6 +1352,292 @@ generate_DPIRD_plots <- function(replist, output_dir) {
 }
 
 # CUSTOM RAR PLOTS: Replot data availability, comp, and residual plots
+# generate_custom_RAR_plots <- function(replist, output_dir) {
+#   
+#   # All custom plots will go into this single subfolder
+#   custom_dir <- file.path(output_dir, "custom_plots")
+#   dir.create(custom_dir, showWarnings = FALSE, recursive = TRUE)
+#   
+#   # 1. Data Availability Plot
+#   tryCatch({
+#     r4ss::SS_plots(replist,
+#                    plot = 24,
+#                    dir = output_dir, 
+#                    printfolder = "custom_plots",
+#                    png = TRUE,
+#                    html = FALSE,
+#                    pwidth = 6.5,
+#                    pheight = 4,
+#                    SSplotDatMargin = 12,
+#                    verbose = FALSE)
+#   }, error = function(e) {
+#     warning(paste("Error generating data availability plot:", e$message))
+#   })
+#   
+#   # 2. Composition Plots Function
+#   plot_standardised_comps <- function(replist, comp_type, out_dir) {
+#     if (comp_type == "len") { dbase <- replist$lendbase; kind_str <- "LEN" }
+#     else if (comp_type == "age") { dbase <- replist$agedbase; kind_str <- "AGE" }
+#     else if (comp_type == "gstage") { dbase <- replist$ghostagedbase; kind_str <- "GSTAGE" }
+#     else return(NULL)
+#     
+#     if (is.null(dbase) || nrow(dbase) == 0) return(NULL)
+#     
+#     fleet_parts <- unique(dbase[, c("Fleet", "Part")])
+#     panel_width <- 3.5; panel_height <- 2.3; margin_width <- 1.2; margin_height <- 1.2
+#     
+#     for (i in 1:nrow(fleet_parts)) {
+#       f <- fleet_parts$Fleet[i]
+#       p <- fleet_parts$Part[i]
+#       
+#       fleet_data <- dbase[dbase$Fleet == f & dbase$Part == p, ]
+#       years <- unique(fleet_data$Yr)
+#       n_panels <- length(years)
+#       
+#       if (n_panels == 0) next
+#       
+#       temp_replist <- replist
+#       if (comp_type == "len") temp_replist$lendbase <- fleet_data
+#       else if (comp_type == "age") temp_replist$agedbase <- fleet_data
+#       else if (comp_type == "gstage") temp_replist$ghostagedbase <- fleet_data
+#       
+#       max_cols <- 2
+#       ncols <- min(n_panels, max_cols)
+#       nrows <- ceiling(n_panels / ncols)
+#       
+#       plot_width <- margin_width + (ncols * panel_width)
+#       plot_height <- margin_height + (nrows * panel_height)
+#       
+#       max_dim <- max(nrows, ncols)
+#       if (max_dim >= 3) {
+#         cex_reduction <- 0.66
+#       } else if (max_dim == 2) {
+#         cex_reduction <- 0.83
+#       } else {
+#         cex_reduction <- 1.0
+#       }
+#       dynamic_pointsize <- 12 / cex_reduction
+#       
+#       filename <- file.path(out_dir, paste0("comp_", comp_type, "fit_flt", f, "mkt", p, ".png"))
+#       png(filename, width = plot_width, height = plot_height, units = "in", res = 300, pointsize = dynamic_pointsize)
+#       # tryCatch({
+#       #   r4ss::SSplotComps(temp_replist, subplots = c(1), kind = kind_str, fleets = f,
+#       #                     nrows = nrows, ncols = ncols, maxrows = nrows, maxcols = ncols,
+#       #                     legendcex = 0.8, mainTitle = FALSE, print = FALSE)
+#       # }, finally = { dev.off() })
+#       tryCatch({
+#         r4ss::SSplotComps(temp_replist, subplots = c(1), kind = kind_str, fleets = f,
+#                           maxrows = nrows, maxcols = ncols,
+#                           mainTitle = FALSE, print = FALSE)
+#       }, finally = { dev.off() })
+#     }
+#   }
+#   
+#   # 3. Pearson Residuals Function
+#   plot_standardised_resids <- function(replist, comp_type, out_dir) {
+#     if (comp_type == "len") { dbase <- replist$lendbase; kind_str <- "LEN" }
+#     else if (comp_type == "age") { dbase <- replist$agedbase; kind_str <- "AGE" }
+#     else if (comp_type == "cond") { dbase <- replist$condbase; kind_str <- "cond" }
+#     else if (comp_type == "gstage") { dbase <- replist$ghostagedbase; kind_str <- "GSTAGE" }
+#     else return(NULL)
+#     
+#     if (is.null(dbase) || nrow(dbase) == 0) return(NULL)
+#     
+#     fleet_parts <- unique(dbase[, c("Fleet", "Part")])
+#     panel_width <- 3.0; panel_height <- 2.8; margin_width <- 1.5; margin_height <- 1.5
+#     
+#     for (i in 1:nrow(fleet_parts)) {
+#       f <- fleet_parts$Fleet[i]
+#       p <- fleet_parts$Part[i]
+#       
+#       fleet_data <- dbase[dbase$Fleet == f & dbase$Part == p, ]
+#       if (nrow(fleet_data) == 0) next
+#       
+#       if (comp_type == "cond") {
+#         group_cols <- intersect(names(fleet_data), c("Yr", "Seas", "Sex", "Gender", "gender", "sex"))
+#       } else {
+#         group_cols <- intersect(names(fleet_data), c("Yr", "Seas"))
+#       }
+#       
+#       n_panels <- nrow(unique(fleet_data[, group_cols, drop = FALSE]))
+#       if (n_panels == 0) next
+#       
+#       temp_replist <- replist
+#       if (comp_type == "len") temp_replist$lendbase <- fleet_data
+#       else if (comp_type == "age") temp_replist$agedbase <- fleet_data
+#       else if (comp_type == "cond") temp_replist$condbase <- fleet_data
+#       else if (comp_type == "gstage") temp_replist$ghostagedbase <- fleet_data
+#       
+#       max_cols <- 3
+#       ncols <- min(n_panels, max_cols)
+#       nrows <- ceiling(n_panels / ncols)
+#       
+#       plot_width <- margin_width + (ncols * panel_width)
+#       plot_height <- margin_height + (nrows * panel_height)
+#       
+#       max_dim <- max(nrows, ncols)
+#       if (max_dim >= 3) {
+#         cex_reduction <- 0.66
+#       } else if (max_dim == 2) {
+#         cex_reduction <- 0.83
+#       } else {
+#         cex_reduction <- 1.0
+#       }
+#       dynamic_pointsize <- 12 / cex_reduction
+#       
+#       filename <- file.path(out_dir, paste0("resid_", comp_type, "_flt", f, "mkt", p, ".png"))
+#       png(filename, width = plot_width, height = plot_height, units = "in", res = 300, pointsize = dynamic_pointsize)
+#       # tryCatch({
+#       #   par(mar = c(2.0, 2.5, 1.5, 1.0) + 0.1, oma = c(2.0, 2.0, 1.0, 1.0),
+#       #       cex = 1.0, cex.axis = 0.9, cex.lab = 1.1)
+#       #   
+#       #   r4ss::SSplotComps(temp_replist, subplots = c(3), kind = kind_str, fleets = f,
+#       #                     nrows = nrows, ncols = ncols, maxrows = nrows, maxcols = ncols,
+#       #                     maxrows2 = nrows, maxcols2 = ncols, legendcex = 0.8,
+#       #                     mainTitle = FALSE, print = FALSE)
+#       # }, finally = { dev.off() })
+#       tryCatch({
+#         par(mar = c(2.0, 2.5, 1.5, 1.0) + 0.1, oma = c(2.0, 2.0, 1.0, 1.0),
+#             cex = 1.0, cex.axis = 0.9, cex.lab = 1.1)
+#         
+#         r4ss::SSplotComps(temp_replist, subplots = c(3), kind = kind_str, fleets = f,
+#                           maxrows = nrows, maxcols = ncols,
+#                           maxrows2 = nrows, maxcols2 = ncols,
+#                           mainTitle = FALSE, print = FALSE)
+#       }, finally = { dev.off() })
+#     }
+#   }
+#   
+#   # 4. Conditional Age-at-Length with Growth Overlay Function
+#   plot_caal_growth_overlay <- function(replist, out_dir) {
+#     if (!"package:ggplot2" %in% search()) suppressPackageStartupMessages(library(ggplot2))
+#     if (!"package:dplyr" %in% search()) suppressPackageStartupMessages(library(dplyr))
+#     
+#     condbase <- replist$condbase
+#     growth <- replist$endgrowth
+#     
+#     if (is.null(condbase) || nrow(condbase) == 0 || is.null(growth) || nrow(growth) == 0) {
+#       return(NULL)
+#     }
+#     
+#     # Dynamically find column names
+#     age_col_cond <- if ("Bin" %in% names(condbase)) "Bin" else if ("Age" %in% names(condbase)) "Age" else "Bin"
+#     len_col_cond <- if ("Lbin_lo" %in% names(condbase)) "Lbin_lo" else if ("Lbin_mid" %in% names(condbase)) "Lbin_mid" else "Lbin_lo"
+#     
+#     age_col_gro <- if ("Age_Beg" %in% names(growth)) "Age_Beg" else if ("Age" %in% names(growth)) "Age" else "Age_Beg"
+#     len_col_gro <- if ("Len_Beg" %in% names(growth)) "Len_Beg" else if ("Len_Mid" %in% names(growth)) "Len_Mid" else "Len_Beg"
+#     
+#     # 1. Kill the Ghost Grid
+#     # Filter out SS3's mathematical dummy values (addtocomp is 0.001, so filter > 0.002)
+#     caal_obs <- condbase[!is.na(condbase$Obs) & condbase$Obs > 0.002, ]
+#     
+#     # Strictly drop unsampled ghost bins
+#     n_col <- if("Nsamp_adj" %in% names(caal_obs)) "Nsamp_adj" else if("N" %in% names(caal_obs)) "N" else NULL
+#     if(!is.null(n_col)) {
+#       caal_obs <- caal_obs[!is.na(caal_obs[[n_col]]) & caal_obs[[n_col]] > 0, ]
+#     }
+#     if (nrow(caal_obs) == 0) return(NULL)
+#     
+#     # 2. Assign Base Sex (Explicitly avoiding 'Sexes' flag column)
+#     sex_col_cond <- if ("Gender" %in% names(caal_obs)) "Gender" else if ("Sex" %in% names(caal_obs)) "Sex" else "Sex"
+#     caal_obs$BaseGender <- as.character(caal_obs[[sex_col_cond]])
+#     
+#     caal_obs$PlotGender <- "Unsexed"
+#     caal_obs$PlotGender[caal_obs$BaseGender %in% c("1", "F", "Female", "female")] <- "Female"
+#     caal_obs$PlotGender[caal_obs$BaseGender %in% c("2", "M", "Male", "male")] <- "Male"
+#     
+#     # Override with Pick_gender if it explicitly marks Joint (3) or Unsexed (0)
+#     if ("Pick_gender" %in% names(caal_obs)) {
+#       pg <- as.character(caal_obs$Pick_gender)
+#       caal_obs$PlotGender[pg %in% c("0", "3")] <- "Unsexed"
+#     }
+#     
+#     # 3. Detect Mathematically Split Joint-Sex Records (The Failsafe)
+#     caal_obs <- caal_obs %>%
+#       dplyr::group_by(Yr, Fleet, dplyr::across(dplyr::all_of(c(age_col_cond, len_col_cond)))) %>%
+#       dplyr::mutate(
+#         has_F = any(PlotGender == "Female"),
+#         has_M = any(PlotGender == "Male"),
+#         is_split = dplyr::n() >= 2 & has_F & has_M
+#       ) %>%
+#       dplyr::ungroup()
+#     
+#     # Re-tag mathematically split records back to Unsexed
+#     caal_obs$PlotGender[caal_obs$is_split] <- "Unsexed"
+#     caal_obs$PlotGender <- factor(caal_obs$PlotGender, levels = c("Female", "Male", "Unsexed"))
+#     
+#     # 4. Recombine and Sum Proportions for Clean Plotting
+#     caal_obs <- caal_obs %>%
+#       dplyr::group_by(Yr, Fleet, PlotGender, dplyr::across(dplyr::all_of(c(age_col_cond, len_col_cond)))) %>%
+#       dplyr::summarise(Obs = sum(Obs, na.rm = TRUE), .groups = "drop")
+#     
+#     # 5. Format Growth Curve Sexes
+#     growth_curve <- growth[growth$Seas == 1, ]
+#     sex_col_gro <- if ("Sex" %in% names(growth_curve)) "Sex" else if ("Gender" %in% names(growth_curve)) "Gender" else "Sex"
+#     gro_sex <- as.character(growth_curve[[sex_col_gro]])
+#     
+#     growth_curve$PlotGender <- "Unsexed"
+#     growth_curve$PlotGender[gro_sex %in% c("1", "F", "Female", "female")] <- "Female"
+#     growth_curve$PlotGender[gro_sex %in% c("2", "M", "Male", "male")] <- "Male"
+#     growth_curve$PlotGender <- factor(growth_curve$PlotGender, levels = c("Female", "Male", "Unsexed"))
+#     
+#     # 6. Explicitly define and lock the colours
+#     sex_colors <- c("Female" = "#F8766D", "Male" = "#00BFC4", "Unsexed" = "#999999")
+#     
+#     fleets <- unique(caal_obs$Fleet)
+#     
+#     for (f in fleets) {
+#       fleet_data <- caal_obs[caal_obs$Fleet == f, ]
+#       if (nrow(fleet_data) == 0) next
+#       
+#       years <- unique(fleet_data$Yr)
+#       n_years <- length(years)
+#       if (n_years == 0) next
+#       
+#       ncols <- min(n_years, 3)
+#       nrows <- ceiling(n_years / ncols)
+#       plot_width <- max(6, 1.5 + (ncols * 3.0))
+#       plot_height <- max(4, 1.5 + (nrows * 2.8))
+#       
+#       plt <- ggplot() +
+#         geom_point(data = fleet_data, aes(x = .data[[age_col_cond]], y = .data[[len_col_cond]], size = Obs, colour = PlotGender), alpha = 0.8, stroke = 0) +
+#         geom_line(data = growth_curve, aes(x = .data[[age_col_gro]], y = .data[[len_col_gro]], colour = PlotGender), linewidth = 1.2) +
+#         facet_wrap(~ Yr, ncol = ncols) +
+#         scale_colour_manual(values = sex_colors, drop = FALSE) +
+#         scale_size_area(max_size = 10) + 
+#         guides(
+#           colour = guide_legend(override.aes = list(size = 5, alpha = 1)),
+#           size = guide_legend()
+#         ) +
+#         labs(
+#           title = paste0("Fleet ", f, " Conditional Age-at-Length"),
+#           x = "Age (years)",
+#           y = "Length (mm)",
+#           size = "Observed Prop.",
+#           colour = "Sex"
+#         ) +
+#         theme_bw(base_family = "Arial") +
+#         theme(
+#           legend.position = "bottom",
+#           plot.title = element_text(face = "bold", hjust = 0.5),
+#           strip.text = element_text(face = "bold"),
+#           panel.grid.minor = element_blank()
+#         )
+#       
+#       filename <- file.path(out_dir, paste0("caal_growth_overlay_flt", f, "_combined.png"))
+#       ggsave(filename, plot = plt, width = plot_width, height = plot_height, dpi = 300, bg = "white")
+#     }
+#   }
+#   
+#   # Execute plotting commands, catching errors to avoid stopping the whole pipeline
+#   tryCatch(plot_standardised_comps(replist, "len", custom_dir), error=function(e) NULL)
+#   tryCatch(plot_standardised_comps(replist, "age", custom_dir), error=function(e) NULL)
+#   tryCatch(plot_standardised_comps(replist, "gstage", custom_dir), error=function(e) NULL)
+#   tryCatch(plot_standardised_resids(replist, "cond", custom_dir), error=function(e) NULL)
+#   tryCatch(plot_caal_growth_overlay(replist, custom_dir), error=function(e) NULL)
+# }
+
+# CUSTOM RAR PLOTS: Replot data availability, comp, and residual plots
 generate_custom_RAR_plots <- function(replist, output_dir) {
   
   # All custom plots will go into this single subfolder
@@ -1420,11 +1706,7 @@ generate_custom_RAR_plots <- function(replist, output_dir) {
       
       filename <- file.path(out_dir, paste0("comp_", comp_type, "fit_flt", f, "mkt", p, ".png"))
       png(filename, width = plot_width, height = plot_height, units = "in", res = 300, pointsize = dynamic_pointsize)
-      # tryCatch({
-      #   r4ss::SSplotComps(temp_replist, subplots = c(1), kind = kind_str, fleets = f,
-      #                     nrows = nrows, ncols = ncols, maxrows = nrows, maxcols = ncols,
-      #                     legendcex = 0.8, mainTitle = FALSE, print = FALSE)
-      # }, finally = { dev.off() })
+      
       tryCatch({
         r4ss::SSplotComps(temp_replist, subplots = c(1), kind = kind_str, fleets = f,
                           maxrows = nrows, maxcols = ncols,
@@ -1487,15 +1769,7 @@ generate_custom_RAR_plots <- function(replist, output_dir) {
       
       filename <- file.path(out_dir, paste0("resid_", comp_type, "_flt", f, "mkt", p, ".png"))
       png(filename, width = plot_width, height = plot_height, units = "in", res = 300, pointsize = dynamic_pointsize)
-      # tryCatch({
-      #   par(mar = c(2.0, 2.5, 1.5, 1.0) + 0.1, oma = c(2.0, 2.0, 1.0, 1.0),
-      #       cex = 1.0, cex.axis = 0.9, cex.lab = 1.1)
-      #   
-      #   r4ss::SSplotComps(temp_replist, subplots = c(3), kind = kind_str, fleets = f,
-      #                     nrows = nrows, ncols = ncols, maxrows = nrows, maxcols = ncols,
-      #                     maxrows2 = nrows, maxcols2 = ncols, legendcex = 0.8,
-      #                     mainTitle = FALSE, print = FALSE)
-      # }, finally = { dev.off() })
+      
       tryCatch({
         par(mar = c(2.0, 2.5, 1.5, 1.0) + 0.1, oma = c(2.0, 2.0, 1.0, 1.0),
             cex = 1.0, cex.axis = 0.9, cex.lab = 1.1)
@@ -1528,7 +1802,6 @@ generate_custom_RAR_plots <- function(replist, output_dir) {
     len_col_gro <- if ("Len_Beg" %in% names(growth)) "Len_Beg" else if ("Len_Mid" %in% names(growth)) "Len_Mid" else "Len_Beg"
     
     # 1. Kill the Ghost Grid
-    # Filter out SS3's mathematical dummy values (addtocomp is 0.001, so filter > 0.002)
     caal_obs <- condbase[!is.na(condbase$Obs) & condbase$Obs > 0.002, ]
     
     # Strictly drop unsampled ghost bins
@@ -1538,7 +1811,7 @@ generate_custom_RAR_plots <- function(replist, output_dir) {
     }
     if (nrow(caal_obs) == 0) return(NULL)
     
-    # 2. Assign Base Sex (Explicitly avoiding 'Sexes' flag column)
+    # 2. Assign Base Sex
     sex_col_cond <- if ("Gender" %in% names(caal_obs)) "Gender" else if ("Sex" %in% names(caal_obs)) "Sex" else "Sex"
     caal_obs$BaseGender <- as.character(caal_obs[[sex_col_cond]])
     
@@ -1552,7 +1825,7 @@ generate_custom_RAR_plots <- function(replist, output_dir) {
       caal_obs$PlotGender[pg %in% c("0", "3")] <- "Unsexed"
     }
     
-    # 3. Detect Mathematically Split Joint-Sex Records (The Failsafe)
+    # 3. Detect Mathematically Split Joint-Sex Records
     caal_obs <- caal_obs %>%
       dplyr::group_by(Yr, Fleet, dplyr::across(dplyr::all_of(c(age_col_cond, len_col_cond)))) %>%
       dplyr::mutate(
@@ -1571,7 +1844,7 @@ generate_custom_RAR_plots <- function(replist, output_dir) {
       dplyr::group_by(Yr, Fleet, PlotGender, dplyr::across(dplyr::all_of(c(age_col_cond, len_col_cond)))) %>%
       dplyr::summarise(Obs = sum(Obs, na.rm = TRUE), .groups = "drop")
     
-    # 5. Format Growth Curve Sexes
+    # 5. Format Growth Curve Sexes and Patterns
     growth_curve <- growth[growth$Seas == 1, ]
     sex_col_gro <- if ("Sex" %in% names(growth_curve)) "Sex" else if ("Gender" %in% names(growth_curve)) "Gender" else "Sex"
     gro_sex <- as.character(growth_curve[[sex_col_gro]])
@@ -1580,6 +1853,14 @@ generate_custom_RAR_plots <- function(replist, output_dir) {
     growth_curve$PlotGender[gro_sex %in% c("1", "F", "Female", "female")] <- "Female"
     growth_curve$PlotGender[gro_sex %in% c("2", "M", "Male", "male")] <- "Male"
     growth_curve$PlotGender <- factor(growth_curve$PlotGender, levels = c("Female", "Male", "Unsexed"))
+    
+    # Extract pattern to handle multi-pattern models properly
+    pattern_col_gro <- if ("Pattern" %in% names(growth_curve)) "Pattern" else if ("Morph" %in% names(growth_curve)) "Morph" else NULL
+    if (!is.null(pattern_col_gro)) {
+      growth_curve$GrowthPattern <- as.factor(growth_curve[[pattern_col_gro]])
+    } else {
+      growth_curve$GrowthPattern <- as.factor("1")
+    }
     
     # 6. Explicitly define and lock the colours
     sex_colors <- c("Female" = "#F8766D", "Male" = "#00BFC4", "Unsexed" = "#999999")
@@ -1601,13 +1882,15 @@ generate_custom_RAR_plots <- function(replist, output_dir) {
       
       plt <- ggplot() +
         geom_point(data = fleet_data, aes(x = .data[[age_col_cond]], y = .data[[len_col_cond]], size = Obs, colour = PlotGender), alpha = 0.8, stroke = 0) +
-        geom_line(data = growth_curve, aes(x = .data[[age_col_gro]], y = .data[[len_col_gro]], colour = PlotGender), linewidth = 1.2) +
+        # Note the added linetype and group aesthetics to prevent zigzagging lines
+        geom_line(data = growth_curve, aes(x = .data[[age_col_gro]], y = .data[[len_col_gro]], colour = PlotGender, linetype = GrowthPattern, group = interaction(PlotGender, GrowthPattern)), linewidth = 1.2) +
         facet_wrap(~ Yr, ncol = ncols) +
         scale_colour_manual(values = sex_colors, drop = FALSE) +
         scale_size_area(max_size = 10) + 
         guides(
           colour = guide_legend(override.aes = list(size = 5, alpha = 1)),
-          size = guide_legend()
+          size = guide_legend(),
+          linetype = guide_legend(title = "Growth Pattern")
         ) +
         labs(
           title = paste0("Fleet ", f, " Conditional Age-at-Length"),
@@ -5466,7 +5749,13 @@ server <- function(input, output, session) {
             log_output <- c(log_output, paste("Worker", i, "finished r4ss::run."))
             
             replist <- r4ss::SS_output(dir = input_dir, verbose = FALSE, printstats = FALSE, covar = TRUE)
-            r4ss::tune_comps(replist = replist, dir = input_dir, option = "Francis",plot = FALSE)
+            # r4ss::tune_comps(replist = replist, dir = input_dir, option = "Francis",plot = FALSE)
+            
+            tryCatch({
+              r4ss::tune_comps(replist = replist, dir = input_dir, option = "Francis",plot = FALSE)
+            }, error = function(e) {
+              log_output <- c(log_output, paste("Worker", i, "Warning: tune_comps failed:", e$message))
+            })
             
             all_ss3_files_to_copy <- list.files(input_dir, full.names = TRUE, recursive = TRUE, all.files = TRUE)
             if (length(all_ss3_files_to_copy) > 0) {
@@ -5476,8 +5765,30 @@ server <- function(input, output, session) {
             
             # r4ss::SS_plots(replist, dir = output_dir, png = TRUE, html = TRUE, printfolder = "r4ss")
             
-            r4ss::SS_plots(
+            # r4ss::SS_plots(
+            #   replist,
+            #   pdf = FALSE,
+            #   png = TRUE,
+            #   html = TRUE,
+            #   printfolder = "r4ss",
+            #   dir = output_dir,
+            #   pwidth = 6.5,
+            #   pheight = 4,
+            #   minbthresh = 0.2,
+            #   fitrange = FALSE,
+            #   forecastplot = TRUE
+            # )
+            
+            # Dynamically determine plot groups to avoid empirical WAA hang
+            plots_to_run <- 1:26
+            if (isTRUE(as.logical(replist$wtatage_switch))) {
+              plots_to_run <- 2:26
+              append_to_log("Empirical weight-at-age detected. Skipping r4ss biology plots (Group 1) to prevent hanging.")
+            }
+            
+            SS_plots(
               replist,
+              plot = plots_to_run,
               pdf = FALSE,
               png = TRUE,
               html = TRUE,
@@ -5666,10 +5977,19 @@ server <- function(input, output, session) {
             covar = TRUE
           )
           
-          tune_comps(replist=replist,
-                     dir = input_dir,
-                     option = "Francis",
-                     plot = FALSE)
+          # tune_comps(replist=replist,
+          #            dir = input_dir,
+          #            option = "Francis",
+          #            plot = FALSE)
+          
+          tryCatch({
+            tune_comps(replist=replist,
+                       dir = input_dir,
+                       option = "Francis",
+                       plot = FALSE)
+          }, error = function(e) {
+            append_to_log(paste("Warning: tune_comps (Francis weighting) failed:", e$message))
+          })
           
           tuning_file_path <- file.path(input_dir, "suggested_tuning.ss")
           if (file.exists(tuning_file_path)) {
@@ -5683,7 +6003,8 @@ server <- function(input, output, session) {
             append_to_log(paste("File not found after tune_comps:", tuning_file_path))
           }
           
-          ss3_files_to_copy <- list.files(input_dir, pattern = "\\.(sso|par|rep|html|log|warning|echo|std|cor|psv|cov|dep|hes|hst|key|pva|r0|rdat|sen|ss_output|ss3|ss)$", full.names = TRUE, ignore.case = TRUE)
+          # ss3_files_to_copy <- list.files(input_dir, pattern = "\\.(sso|par|rep|html|log|warning|echo|std|cor|psv|cov|dep|hes|hst|key|pva|r0|rdat|sen|ss_output|ss3|ss)$", full.names = TRUE, ignore.case = TRUE)
+          ss3_files_to_copy <- list.files(input_dir, pattern = "\\.(sso|par|rep|html|log|warning|echo|std|cor|psv|cov|dep|hes|hst|key|pva|r0|rdat|sen|ss_output|ss3|ss|ss_new)$", full.names = TRUE, ignore.case = TRUE)
           if (length(ss3_files_to_copy) > 0) {
             file.copy(ss3_files_to_copy, output_dir, overwrite = TRUE)
             append_to_log(paste("Copied SS3 output files to:", output_dir))
@@ -5691,8 +6012,30 @@ server <- function(input, output, session) {
             append_to_log("Warning: No SS3 output files found in input_dir to copy.")
           }
           
-          SS_plots(
+          # SS_plots(
+          #   replist,
+          #   pdf = FALSE,
+          #   png = TRUE,
+          #   html = TRUE,
+          #   printfolder = "r4ss",
+          #   dir = output_dir,
+          #   pwidth = 6.5,
+          #   pheight = 4,
+          #   minbthresh = 0.2,
+          #   fitrange = FALSE,
+          #   forecastplot = TRUE
+          # )
+          
+          # Dynamically determine plot groups to avoid empirical WAA hang
+          plots_to_run <- 1:26
+          if (isTRUE(as.logical(replist$wtatage_switch))) {
+            plots_to_run <- 2:26
+            log_output <- c(log_output, paste("Worker", i, "Skipping r4ss biology plots (Group 1) for empirical WAA model."))
+          }
+          
+          r4ss::SS_plots(
             replist,
+            plot = plots_to_run,
             pdf = FALSE,
             png = TRUE,
             html = TRUE,
