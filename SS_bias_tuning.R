@@ -931,10 +931,19 @@ tryCatch({
     })
     
 
+    # #Custom RAR plots
+    # tryCatch({
+    #   cat("Generating custom RAR plots for Final Tuned Model...\n")
+    #   generate_custom_RAR_plots(replist_final, final_model_dir)
+    #   cat("Custom RAR plots generated successfully.\n")
+    # }, error = function(e) {
+    #   cat(paste("Error generating custom RAR plots:", e$message, "\n"))
+    # })
+    
     #Custom RAR plots
     tryCatch({
-      cat("Generating custom RAR plots for Final Tuned Model...\n")
-      generate_custom_RAR_plots(replist_final, final_model_dir)
+      cat("Generating custom RAR plots for Bias Ramp run...\n")
+      generate_custom_RAR_plots(replist_after_bias_adj, file.path(tuning_dir, output_dir_name))
       cat("Custom RAR plots generated successfully.\n")
     }, error = function(e) {
       cat(paste("Error generating custom RAR plots:", e$message, "\n"))
@@ -1153,13 +1162,22 @@ tryCatch({
       cat(paste("Error generating DPIRD plots:", e$message, "\n"))
     })
     
+    # #Custom RAR plots
+    # tryCatch({
+    #   append_to_log("Generating custom RAR plots...")
+    #   generate_custom_RAR_plots(replist, output_dir)
+    #   append_to_log("Custom RAR plots generated successfully.")
+    # }, error = function(e) {
+    #   append_to_log(paste("Error generating custom RAR plots:", e$message))
+    # })
+    
     #Custom RAR plots
     tryCatch({
-      append_to_log("Generating custom RAR plots...")
-      generate_custom_RAR_plots(replist, output_dir)
-      append_to_log("Custom RAR plots generated successfully.")
+      cat("Generating custom RAR plots for Final Tuned Model...\n")
+      generate_custom_RAR_plots(replist_final, final_model_dir)
+      cat("Custom RAR plots generated successfully.\n")
     }, error = function(e) {
-      append_to_log(paste("Error generating custom RAR plots:", e$message))
+      cat(paste("Error generating custom RAR plots:", e$message, "\n"))
     })
     
     # --- CLEANUP STEP ---
