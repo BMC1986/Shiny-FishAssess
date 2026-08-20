@@ -210,6 +210,7 @@ if(sensitivity_options$jitter) {
     processx::run(
       command = file.path(run_dir, ss_exe_name),
       # args = c("-nohess", "-nox"),
+      args = if (sensitivity_options$nohess) c("-nohess", "-nox") else c("-nox"),
       wd = run_dir, # Critical: set the working directory for the process
       error_on_status = FALSE # Don't stop the R script if a model fails
     )
@@ -1647,165 +1648,9 @@ if (length(params_to_run) > 0) {
       SS_writestarter(starter, dir = run_dir, overwrite = TRUE, verbose = FALSE)
     }
     
-    # ## EXECUTE MODEL RUNS IN PARALLEL ----
-    # 
-    # message("Executing profile runs in parallel...")
-    # 
-    # start_time <- Sys.time()
-    # message(paste("Parallel execution started:", start_time))
-    # 
-    # # Set up the parallel cluster
-    # my_cluster <- parallel::makeCluster(n_cores)
-    # doParallel::registerDoParallel(my_cluster)
-    # 
-    # # Use foreach to run the model in each subdirectory
-    # foreach(
-    #   run_dir = prof_run_dirs,
-    #   .packages = 'r4ss'
-    # ) %dopar% {
-    #   r4ss::run(dir = run_dir, exe = "ss")
-    # }
-    # 
-    # # It's crucial to stop the cluster after the parallel loop
-    # parallel::stopCluster(my_cluster)
-    # message("Finished parallel execution.")
-    # 
-    # end_time <- Sys.time()
-    # duration_paralell.likelihood <- end_time - start_time
-    # message(paste("Likelihood Parallel execution took:", round(duration_paralell.likelihood, 2), units(duration_paralell.likelihood)))
-    # 
-    # # ------------------------------------------------------------------
-    # # NEW RETRY LOGIC: CHECK REPORT.SSO FOR GRADIENT AND LIKELIHOOD (PARALLEL)
-    # # ------------------------------------------------------------------
-    # if (param == "SR_LN(R0)") {
-    #   message("\nChecking R0 runs for high gradients or logL spikes to retry...")
-    #   
-    #   get_run_stats <- function(d) {
-    #     rep_file <- file.path(d, "Report.sso")
-    #     if (!file.exists(rep_file)) return(c(grad = NA, logL = NA))
-    #     lines <- readLines(rep_file, n = 200)
-    #     g_line <- grep("Convergence_Level", lines, value = TRUE)
-    #     l_line <- grep("total_LogL", lines, value = TRUE)
-    #     grad <- if (length(g_line) > 0) as.numeric(strsplit(trimws(g_line[1]), "\\s+")[[1]][2]) else NA
-    #     logL <- if (length(l_line) > 0) as.numeric(strsplit(trimws(l_line[1]), "\\s+")[[1]][2]) else NA
-    #     return(c(grad = grad, logL = logL))
-    #   }
-    #   
-    #   stats_matrix <- t(sapply(prof_run_dirs, get_run_stats))
-    #   run_status <- data.frame(
-    #     run_idx = 1:length(prof_run_dirs),
-    #     dir = prof_run_dirs,
-    #     grad = stats_matrix[, "grad"],
-    #     logL = stats_matrix[, "logL"],
-    #     stringsAsFactors = FALSE
-    #   )
-    #   
-    #   min_logL <- min(run_status$logL, na.rm = TRUE)
-    #   grad_threshold <- 10000        
-    #   logL_spike_threshold <- min_logL + 200 
-    #   
-    #   run_status$success <- !is.na(run_status$grad) &
-    #     !is.na(run_status$logL) &
-    #     run_status$grad < grad_threshold &
-    #     run_status$logL < logL_spike_threshold
-    #   
-    #   failed_runs <- run_status[!run_status$success, ]
-    #   successful_runs <- run_status[run_status$success, ]
-    #   
-    #   if (nrow(failed_runs) > 0 && nrow(successful_runs) > 0) {
-    #     
-    #     # Exclude the base run from being a donor
-    #     base_run_idx <- 5 
-    #     valid_donors <- successful_runs[successful_runs$run_idx != base_run_idx, ]
-    #     
-    #     if (nrow(valid_donors) == 0) {
-    #       valid_donors <- successful_runs
-    #     }
-    #     
-    #     message(paste("Found", nrow(failed_runs), "bad R0 runs. Preparing directories for parallel retry..."))
-    #     retry_dirs_to_run <- character(nrow(failed_runs))
-    #     
-    #     # Step A: Prepare directories sequentially
-    #     for (i in 1:nrow(failed_runs)) {
-    #       fail_idx <- failed_runs$run_idx[i]
-    #       fail_dir <- failed_runs$dir[i]
-    #       
-    #       succ_idx <- valid_donors$run_idx
-    #       nearest_idx <- succ_idx[which.min(abs(succ_idx - fail_idx))]
-    #       nearest_dir <- valid_donors$dir[which.min(abs(succ_idx - fail_idx))]
-    #       
-    #       new_run_dir <- file.path(dirname(fail_dir), paste0("run_", fail_idx, "_ss3par_from_run", nearest_idx))
-    #       message(paste("Preparing retry run_", fail_idx, " -> ", basename(new_run_dir), sep=""))
-    #       
-    #       dir.create(new_run_dir, showWarnings = FALSE, recursive = TRUE)
-    #       file.copy(list.files(fail_dir, full.names = TRUE), new_run_dir, overwrite = TRUE)
-    #       
-    #       par_file_path <- file.path(new_run_dir, "ss3.par")
-    #       file.copy(file.path(nearest_dir, "ss3.par"), par_file_path, overwrite = TRUE)
-    #       
-    #       target_val <- vec[fail_idx] 
-    #       
-    #       lines <- readLines(par_file_path)
-    #       lines <- gsub("SRparm", "SR_parm", lines)
-    #       writeLines(lines, par_file_path)
-    #       
-    #       par_obj <- r4ss::SS_readpar_3.30(parfile = par_file_path, 
-    #                                        datsource = file.path(new_run_dir, "datafile.dat"),
-    #                                        ctlsource = file.path(new_run_dir, "control_modified.ss"),
-    #                                        verbose = FALSE)
-    #       
-    #       par_obj$SR_parms["SR_LN(R0)", "INIT"] <- target_val
-    #       par_obj$SR_parms["SR_LN(R0)", "ESTIM"] <- target_val
-    #       r4ss::SS_writepar_3.30(par_obj, outfile = par_file_path, overwrite = TRUE)
-    #       
-    #       starter_file <- file.path(new_run_dir, "starter.ss")
-    #       if (file.exists(starter_file)) {
-    #         starter <- r4ss::SS_readstarter(starter_file, verbose = FALSE)
-    #         starter[["init_values_src"]] <- 1
-    #         r4ss::SS_writestarter(starter, dir = new_run_dir, overwrite = TRUE, verbose = FALSE)
-    #       }
-    #       
-    #       retry_dirs_to_run[i] <- new_run_dir
-    #     }
-    #     
-    #     # Step B: Execute the retries in parallel
-    #     cores_to_use <- min(length(retry_dirs_to_run), n_cores)
-    #     message(paste("Executing", length(retry_dirs_to_run), "retry runs in parallel using", cores_to_use, "cores..."))
-    #     
-    #     retry_cluster <- parallel::makeCluster(cores_to_use)
-    #     doParallel::registerDoParallel(retry_cluster)
-    #     
-    #     foreach(dir = retry_dirs_to_run, .packages = 'r4ss') %dopar% {
-    #       r4ss::run(dir = dir, exe = "ss", extras = "-nox", skipfinished = FALSE, verbose = FALSE)
-    #     }
-    #     
-    #     parallel::stopCluster(retry_cluster)
-    #     message("Finished parallel execution of retries.")
-    #     
-    #     # Step C: Re-evaluate
-    #     for (i in 1:nrow(failed_runs)) {
-    #       fail_idx <- failed_runs$run_idx[i]
-    #       new_run_dir <- retry_dirs_to_run[i]
-    #       
-    #       new_stats <- get_run_stats(new_run_dir)
-    #       if (!is.na(new_stats["grad"]) && new_stats["grad"] < grad_threshold && new_stats["logL"] < logL_spike_threshold) {
-    #         message(paste("  -> Retry successful! (Grad:", new_stats["grad"], "LogL:", new_stats["logL"], ")", sep=""))
-    #         prof_run_dirs[fail_idx] <- new_run_dir 
-    #       } else {
-    #         message(paste("  -> Retry still failed. (Grad:", new_stats["grad"], "LogL:", new_stats["logL"], ")", sep=""))
-    #       }
-    #     }
-    #     
-    #   } else if (nrow(failed_runs) > 0 && nrow(successful_runs) == 0) {
-    #     message("All R0 runs failed criteria. Cannot borrow par files.")
-    #   } else {
-    #     message("All R0 runs passed gradient and logL criteria. No retries needed.")
-    #   }
-    # }
-    # # ------------------------------------------------------------------
     # # <<< START: NEW CODE TO FILTER FAILED RUNS >>>
 
-    ## EXECUTE MODEL RUNS IN PARALLEL ----
+    ### EXECUTE MODEL RUNS IN PARALLEL ----
     
     message("Executing profile runs in parallel...")
     
@@ -1821,7 +1666,12 @@ if (length(params_to_run) > 0) {
       run_dir = prof_run_dirs,
       .packages = 'r4ss'
     ) %dopar% {
-      r4ss::run(dir = run_dir, exe = "ss")
+      # r4ss::run(dir = run_dir, exe = "ss")
+      r4ss::run(
+        dir = run_dir, 
+        exe = "ss",
+        extras = if (sensitivity_options$nohess) "-nohess -nox" else "-nox"
+      )
     }
     
     # It's crucial to stop the cluster after the parallel loop
@@ -1862,7 +1712,7 @@ if (length(params_to_run) > 0) {
       
       min_logL <- min(run_status$logL, na.rm = TRUE)
       grad_threshold <- 10000        
-      logL_spike_threshold <- min_logL + 200 
+      logL_spike_threshold <- min_logL + 40 #200
       
       run_status$success <- !is.na(run_status$grad) &
         !is.na(run_status$logL) &
@@ -1947,7 +1797,12 @@ if (length(params_to_run) > 0) {
         doParallel::registerDoParallel(retry_cluster)
         
         foreach(dir = retry_dirs_to_run, .packages = 'r4ss') %dopar% {
-          r4ss::run(dir = dir, exe = "ss", extras = "-nox", skipfinished = FALSE, verbose = FALSE)
+          # r4ss::run(dir = dir, exe = "ss", extras = "-nox", skipfinished = FALSE, verbose = FALSE)
+          r4ss::run(
+            dir = dir, 
+            exe = "ss",
+            extras = if (sensitivity_options$nohess) "-nohess -nox" else "-nox"
+          )
         }
         
         parallel::stopCluster(retry_cluster)

@@ -601,6 +601,7 @@ ui <- function(request) {
                                  # hr(),
                                  actionButton("run_sensitivities_btn", "Run Sensitivities", class = "btn-primary"),
                                  checkboxInput("cleanup_sens_files", "Clean up leftover model files after running", value = TRUE),
+                                 checkboxInput("fast_mode_sens", "Fast Mode (disable Hessian)", value = TRUE), # Add this line
 
                                  hr(),
                                  h5("Jitter Analysis"),
@@ -2341,6 +2342,7 @@ server <- function(input, output, session) {
     list(
       model_folder = if (length(path) > 0) path else NULL,
       cleanup_files = input$cleanup_sens_files,
+      nohess = input$fast_mode_sens,
       jitter = input$jitter_checkbox,
       njitters = input$njitters,
       jitter_fraction = input$jitter_fraction,
