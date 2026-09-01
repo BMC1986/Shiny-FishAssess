@@ -1659,7 +1659,7 @@ generate_control_ss <- function(datafile = "data.ss", comment = "control comment
     
     fleet_lines <- character(SS_n_fleets)
     for (i in 1:SS_n_fleets) {
-      fleet_lines[i] <- paste0("    0    0    0    0 #_fleet:", i, "_", SS_fleetnames[i])
+      fleet_lines[i] <- paste0("    10    0    0    0 #_fleet:", i, "_", SS_fleetnames[i])
     }
     return(fleet_lines)
   }

@@ -1922,6 +1922,58 @@ generate_custom_RAR_plots <- function(replist, output_dir) {
 }
 
 # CUSTOM REP PLOTS: Generate comparisons on a single model
+# generate_single_REP_plots <- function(replist, output_dir, model_name) {
+#   
+#   # Source the script locally so parallel workers can access it
+#   source("SSplotComparisonsREP.R", local = TRUE)
+#   
+#   # Place the replist in a named list
+#   models_list <- list(replist)
+#   names(models_list) <- model_name
+#   
+#   # Summarise the single-model list
+#   mod.sum <- r4ss::SSsummarize(models_list)
+#   
+#   # Safely extract Natural Mortality matching the DPIRD plots logic
+#   NatM <- NA
+#   m_match <- grep("NatM", replist$parameters$Label)
+#   if (length(m_match) > 0) {
+#     NatM <- replist$parameters$Value[m_match[1]]
+#   } else {
+#     warning("Could not find Natural Mortality parameter; defaulting to 0.1 for REP plots.")
+#     NatM <- 0.1 
+#   }
+#   
+#   # Calculate reference points
+#   Ftarg_val <- (2/3) * NatM
+#   Fthresh_val <- NatM
+#   Flim_val <- (3/2) * NatM
+#   
+#   # Define your target directory
+#   target_plotdir <- file.path(output_dir, "REP")
+#   if (!dir.exists(target_plotdir)) {
+#     dir.create(target_plotdir, recursive = TRUE)
+#   }
+#   
+#   # Run the plotting function
+#   SSplotComparisons_REP(
+#     summaryoutput = mod.sum,
+#     endyrvec = replist$endyr,      # Dynamically extracts the model's end year
+#     plot = FALSE,                   
+#     print = TRUE,                  
+#     plotdir = target_plotdir,
+#     btarg = 0.4,
+#     minbthresh = 0.2,
+#     filenameprefix = "",           # Blank prefix as requested
+#     legend = TRUE,
+#     Ftarg = Ftarg_val,
+#     Fthresh = Fthresh_val,
+#     Flim = Flim_val,
+#     legendlabels = c(model_name),
+#     png = TRUE
+#   )
+# }
+
 generate_single_REP_plots <- function(replist, output_dir, model_name) {
   
   # Source the script locally so parallel workers can access it
@@ -1955,22 +2007,27 @@ generate_single_REP_plots <- function(replist, output_dir, model_name) {
     dir.create(target_plotdir, recursive = TRUE)
   }
   
-  # Run the plotting function
+  # Run the plotting function with explicitly defined r4ss defaults
   SSplotComparisons_REP(
     summaryoutput = mod.sum,
-    endyrvec = replist$endyr,      # Dynamically extracts the model's end year
-    plot = FALSE,                   
+    endyrvec = replist$endyr,
+    plot = FALSE,
     print = TRUE,                  
     plotdir = target_plotdir,
     btarg = 0.4,
     minbthresh = 0.2,
-    filenameprefix = "",           # Blank prefix as requested
+    filenameprefix = "",
     legend = TRUE,
     Ftarg = Ftarg_val,
     Fthresh = Fthresh_val,
     Flim = Flim_val,
     legendlabels = c(model_name),
-    png = TRUE
+    png = TRUE,
+    pwidth = 6.5,          # Matches standard SS_plots width
+    pheight = 4,         # Matches standard SS_plots height
+    punits = "in",       # Standard units
+    res = 300,           # Standard resolution
+    ptsize = 10          # Matches standard SS_plots font scaling
   )
 }
 
