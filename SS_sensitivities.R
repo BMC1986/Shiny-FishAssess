@@ -2411,6 +2411,10 @@ if(any(sensitivity_options$fixed_param_scenarios,
   # --- Define Scenarios for M, h, SigmaR if selected ---
   if(isTRUE(sensitivity_options$fixed_param_scenarios)) {
     
+    shift_m <- if(!is.null(sensitivity_options$fixed_m_shift)) sensitivity_options$fixed_m_shift else 0.02
+    shift_h <- if(!is.null(sensitivity_options$fixed_h_shift)) sensitivity_options$fixed_h_shift else 0.1
+    shift_sigmar <- if(!is.null(sensitivity_options$fixed_sigmar_shift)) sensitivity_options$fixed_sigmar_shift else 0.1
+    
     # Helper function to safely retrieve parameter value
     get_param_from_replist_parameters_df <- function(replist_obj, param_label) {
       value <- replist_obj$parameters[replist_obj$parameters$Label == param_label, "Value"]
@@ -2497,10 +2501,9 @@ if(any(sensitivity_options$fixed_param_scenarios,
     
     # 1. Steepness
     if (!is.null(h_base_val)) {
-      param_scenarios <- list(
-        "h_plus_0.1" = list(type = "param_change", param = "SR_BH_steep", value = h_base_val + 0.1, label = "h + 0.1"),
-        "h_minus_0.1" = list(type = "param_change", param = "SR_BH_steep", value = h_base_val - 0.1, label = "h - 0.1")
-      )
+      param_scenarios <- list()
+      param_scenarios[[paste0("h_plus_", shift_h)]] <- list(type = "param_change", param = "SR_BH_steep", value = h_base_val + shift_h, label = paste0("h + ", shift_h))
+      param_scenarios[[paste0("h_minus_", shift_h)]] <- list(type = "param_change", param = "SR_BH_steep", value = h_base_val - shift_h, label = paste0("h - ", shift_h))
     } else {
       param_scenarios <- list()
     }
@@ -2508,26 +2511,26 @@ if(any(sensitivity_options$fixed_param_scenarios,
     # 2. Natural Mortality
     if (use_M_vector_strategy) {
       # VECTOR M STRATEGY
-      message("Adding NatM Vector scenarios (M vector +/- 0.02).")
-      param_scenarios[["M_plus_0.02"]] <- list(type = "natm_vector_offset", value = 0.02, label = "M vector + 0.02")
-      param_scenarios[["M_minus_0.02"]] <- list(type = "natm_vector_offset", value = -0.02, label = "M vector - 0.02")
+      message(paste0("Adding NatM Vector scenarios (M vector +/- ", shift_m, ")."))
+      param_scenarios[[paste0("M_plus_", shift_m)]] <- list(type = "natm_vector_offset", value = shift_m, label = paste0("M vector + ", shift_m))
+      param_scenarios[[paste0("M_minus_", shift_m)]] <- list(type = "natm_vector_offset", value = -shift_m, label = paste0("M vector - ", shift_m))
       
     } else {
       # SINGLE PARAMETER STRATEGY
       if (is_one_sex_model) {
-        param_scenarios[["M_plus_0.02"]] <- list(type = "param_change", param = M_fem_name_ctl, value = M_fem_base_val + 0.02, label = "M + 0.02")
-        param_scenarios[["M_minus_0.02"]] <- list(type = "param_change", param = M_fem_name_ctl, value = M_fem_base_val - 0.02, label = "M - 0.02")
+        param_scenarios[[paste0("M_plus_", shift_m)]] <- list(type = "param_change", param = M_fem_name_ctl, value = M_fem_base_val + shift_m, label = paste0("M + ", shift_m))
+        param_scenarios[[paste0("M_minus_", shift_m)]] <- list(type = "param_change", param = M_fem_name_ctl, value = M_fem_base_val - shift_m, label = paste0("M - ", shift_m))
       } else {
         # Two-sex: Modify both
-        param_scenarios[["M_plus_0.02"]] <- list(type = "param_change", param = c(M_fem_name_ctl, M_mal_name_ctl), value = c(M_fem_base_val + 0.02, M_mal_base_val + 0.02), label = "M + 0.02")
-        param_scenarios[["M_minus_0.02"]] <- list(type = "param_change", param = c(M_fem_name_ctl, M_mal_name_ctl), value = c(M_fem_base_val - 0.02, M_mal_base_val - 0.02), label = "M - 0.02")
+        param_scenarios[[paste0("M_plus_", shift_m)]] <- list(type = "param_change", param = c(M_fem_name_ctl, M_mal_name_ctl), value = c(M_fem_base_val + shift_m, M_mal_base_val + shift_m), label = paste0("M + ", shift_m))
+        param_scenarios[[paste0("M_minus_", shift_m)]] <- list(type = "param_change", param = c(M_fem_name_ctl, M_mal_name_ctl), value = c(M_fem_base_val - shift_m, M_mal_base_val - shift_m), label = paste0("M - ", shift_m))
       }
     }
     
     # 3. SigmaR
     if(!is.null(SigmaR_base_val)){
-      param_scenarios[["SigmaR_plus_0.1"]] <- list(type = "param_change", param = "SR_sigmaR", value = SigmaR_base_val + 0.1, label = "SigmaR + 0.1")
-      param_scenarios[["SigmaR_minus_0.1"]] <- list(type = "param_change", param = "SR_sigmaR", value = SigmaR_base_val - 0.1, label = "SigmaR - 0.1")
+      param_scenarios[[paste0("SigmaR_plus_", shift_sigmar)]] <- list(type = "param_change", param = "SR_sigmaR", value = SigmaR_base_val + shift_sigmar, label = paste0("SigmaR + ", shift_sigmar))
+      param_scenarios[[paste0("SigmaR_minus_", shift_sigmar)]] <- list(type = "param_change", param = "SR_sigmaR", value = SigmaR_base_val - shift_sigmar, label = paste0("SigmaR - ", shift_sigmar))
     }
     
     scenarios <- c(scenarios, param_scenarios)
@@ -2717,15 +2720,29 @@ if(any(sensitivity_options$fixed_param_scenarios,
     # --- NEW: Generate Sorted Summary CSV Table ---
     message("Generating sorted summary CSV table...")
     
-    # Define desired order
+    # # Define desired order
+    # desired_order <- c(
+    #   "Base_Model",
+    #   "M_minus_0.02",
+    #   "M_plus_0.02",
+    #   "h_minus_0.1",
+    #   "h_plus_0.1",
+    #   "SigmaR_minus_0.1",
+    #   "SigmaR_plus_0.1",
+    #   "index_x0.5",
+    #   "index_x2",
+    #   "comp_x0.5",
+    #   "comp_x2"
+    # )
+    
     desired_order <- c(
       "Base_Model",
-      "M_minus_0.02",
-      "M_plus_0.02",
-      "h_minus_0.1",
-      "h_plus_0.1",
-      "SigmaR_minus_0.1",
-      "SigmaR_plus_0.1",
+      paste0("M_minus_", shift_m),
+      paste0("M_plus_", shift_m),
+      paste0("h_minus_", shift_h),
+      paste0("h_plus_", shift_h),
+      paste0("SigmaR_minus_", shift_sigmar),
+      paste0("SigmaR_plus_", shift_sigmar),
       "index_x0.5",
       "index_x2",
       "comp_x0.5",

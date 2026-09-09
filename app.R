@@ -638,8 +638,18 @@ ui <- function(request) {
                                  checkboxInput("final_depletion_profile", "Final Depletion", value = FALSE),
                                  checkboxInput("current_spawning_biomass_profile", "Current spawning biomass", value = FALSE),
                                  # hr(), # Added horizontal rule
-                                 h5("Fixed Parameter Scenarios"), # Added new heading
+                                 # h5("Fixed Parameter Scenarios"), # Added new heading
+                                 # checkboxInput("fixed_param_scenarios", "$M$, $h$, $\\sigma_R$", value = FALSE),
+                                 h5("Fixed Parameter Scenarios"), 
                                  checkboxInput("fixed_param_scenarios", "$M$, $h$, $\\sigma_R$", value = FALSE),
+                                 conditionalPanel(
+                                   condition = "input.fixed_param_scenarios == true",
+                                   div(style = "padding-left: 30px;",
+                                       numericInput("fixed_m_shift", "Change in $M$ (+/-):", value = 0.02, min = 0, step = 0.01),
+                                       numericInput("fixed_h_shift", "Change in $h$ (+/-):", value = 0.1, min = 0, step = 0.01),
+                                       numericInput("fixed_sigmar_shift", "Change in $\\sigma_R$ (+/-):", value = 0.1, min = 0, step = 0.01)
+                                   )
+                                 ),
                                  # Add these two lines immediately after:
                                  checkboxInput("comp_weight_scenarios", "Compostion data weighting (double, halve)", value = FALSE),
                                  checkboxInput("index_weight_scenarios", "Index data weighting (double, halve)", value = FALSE),
@@ -2416,6 +2426,9 @@ server <- function(input, output, session) {
       retrospective = input$retro_checkbox,
       retro_nyears = input$nyears,
       fixed_param_scenarios = input$fixed_param_scenarios,
+      fixed_m_shift = input$fixed_m_shift,
+      fixed_h_shift = input$fixed_h_shift,
+      fixed_sigmar_shift = input$fixed_sigmar_shift,
       comp_weight_scenario = input$comp_weight_scenarios,
       index_weight_scenario = input$index_weight_scenarios
     )
