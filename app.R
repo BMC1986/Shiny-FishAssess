@@ -1851,8 +1851,11 @@ generate_custom_RAR_plots <- function(replist, output_dir) {
     caal_obs$PlotGender <- factor(caal_obs$PlotGender, levels = c("Female", "Male", "Unsexed"))
     
     # 4. Recombine and Sum Proportions for Clean Plotting
+    # caal_obs <- caal_obs %>%
+    #   dplyr::group_by(Yr, Fleet, PlotGender, dplyr::across(dplyr::all_of(c(age_col_cond, len_col_cond)))) %>%
+    #   dplyr::summarise(Obs = sum(Obs, na.rm = TRUE), .groups = "drop")
     caal_obs <- caal_obs %>%
-      dplyr::group_by(Yr, Fleet, PlotGender, dplyr::across(dplyr::all_of(c(age_col_cond, len_col_cond)))) %>%
+      dplyr::group_by(Yr, Fleet, PlotGender, .data[[age_col_cond]], .data[[len_col_cond]]) %>%
       dplyr::summarise(Obs = sum(Obs, na.rm = TRUE), .groups = "drop")
     
     # 5. Format Growth Curve Sexes and Patterns
@@ -1923,12 +1926,18 @@ generate_custom_RAR_plots <- function(replist, output_dir) {
     }
   }
   
-  # Execute plotting commands, catching errors to avoid stopping the whole pipeline
-  tryCatch(plot_standardised_comps(replist, "len", custom_dir), error=function(e) NULL)
-  tryCatch(plot_standardised_comps(replist, "age", custom_dir), error=function(e) NULL)
-  tryCatch(plot_standardised_comps(replist, "gstage", custom_dir), error=function(e) NULL)
-  tryCatch(plot_standardised_resids(replist, "cond", custom_dir), error=function(e) NULL)
-  tryCatch(plot_caal_growth_overlay(replist, custom_dir), error=function(e) NULL)
+  # # Execute plotting commands, catching errors to avoid stopping the whole pipeline
+  # tryCatch(plot_standardised_comps(replist, "len", custom_dir), error=function(e) NULL)
+  # tryCatch(plot_standardised_comps(replist, "age", custom_dir), error=function(e) NULL)
+  # tryCatch(plot_standardised_comps(replist, "gstage", custom_dir), error=function(e) NULL)
+  # tryCatch(plot_standardised_resids(replist, "cond", custom_dir), error=function(e) NULL)
+  # tryCatch(plot_caal_growth_overlay(replist, custom_dir), error=function(e) NULL)
+  # Execute plotting commands, printing errors to console to aid debugging
+  tryCatch(plot_standardised_comps(replist, "len", custom_dir), error=function(e) print(paste("Len Comp Error:", e$message)))
+  tryCatch(plot_standardised_comps(replist, "age", custom_dir), error=function(e) print(paste("Age Comp Error:", e$message)))
+  tryCatch(plot_standardised_comps(replist, "gstage", custom_dir), error=function(e) print(paste("Ghost Age Error:", e$message)))
+  tryCatch(plot_standardised_resids(replist, "cond", custom_dir), error=function(e) print(paste("Resid Error:", e$message)))
+  tryCatch(plot_caal_growth_overlay(replist, custom_dir), error=function(e) print(paste("CAAL Overlay Error:", e$message)))
 }
 
 # CUSTOM REP PLOTS: Generate comparisons on a single model
