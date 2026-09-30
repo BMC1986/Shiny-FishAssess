@@ -15,5 +15,8 @@ old_datasets/
 # Added Jan 6, ignore all interim_data to avoid sharing of sensitive DPIRD data
 interim_data/
 SandySpratdev/
+WA_dhufish/
+Bluespot/
+Rankin/
 import_DPIRD_data.R
 .positai
