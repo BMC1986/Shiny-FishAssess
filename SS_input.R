@@ -147,50 +147,7 @@ if (exists("file_list")) {
     SS_use_age <- FALSE
   }
   
-  # # Load FIS age data if requested and file exists
-  # if (isTRUE(file_list$SS_use_fis_age) && !is.null(file_list$fis_age_data) && file.exists(file_list$fis_age_data)) {
-  #   fis_age_data <- read.csv(file_list$fis_age_data)
-  #   # Ensure fleet column exists (should be added in app.R)
-  #   if (!"fleet" %in% names(fis_age_data)) {
-  #     fis_age_data$fleet <- "FIS" # Fallback if missing
-  #     cat("Warning: 'fleet' column missing in fis_age_data, added default 'FIS'\n")
-  #   }
-  #   cat("Loaded FIS age data with", nrow(fis_age_data), "rows\n")
-  # } else {
-  #   cat("No FIS age data detected or age composition not selected\n")
-  # }
-  # 
-  # # Load Biological age data if requested and file exists
-  # if (isTRUE(file_list$SS_use_bio_age) && !is.null(file_list$bio_age_data) && file.exists(file_list$bio_age_data)) {
-  #   bio_age_data <- read.csv(file_list$bio_age_data)
-  #   cat("'fleet' column missing in bio_age_data contains:", unique(bio_age_data$fleet),"\n")
-  #   # Ensure fleet column exists (should be added in app.R)
-  #   if (!"fleet" %in% names(bio_age_data)) {
-  #     bio_age_data$fleet <- "Commercial" # Fallback if missing
-  #     cat("Warning: 'fleet' column missing in bio_age_data, added default 'Commercial'\n")
-  #   }
-  #   cat("Loaded Biological age data with", nrow(bio_age_data), "rows\n")
-  # } else {
-  #   cat("No Biological age data detected or age composition not selected\n")
-  # }
-  # 
-  # # Combine the data if applicable
-  # if (!is.null(fis_age_data) && !is.null(bio_age_data)) {
-  #   # Ensure columns match before binding (handle potential missing columns if necessary)
-  #   common_cols <- intersect(names(fis_age_data), names(bio_age_data))
-  #   combined_age_data <- rbind(fis_age_data[, common_cols], bio_age_data[, common_cols])
-  #   cat("Combined FIS and Biological age data. Total rows:", nrow(combined_age_data), "\n")
-  # } else if (!is.null(fis_age_data)) {
-  #   combined_age_data <- fis_age_data
-  #   cat("Using only FIS age data.\n")
-  # } else if (!is.null(bio_age_data)) {
-  #   combined_age_data <- bio_age_data
-  #   cat("Using only Biological age data.\n")
-  # } else {
-  #   # cat("No age data available to format.\n")
-  #   # Assign SS_use_age to FALSE if no combined data, might simplify downstream logic
-  #   SS_use_age <- FALSE
-  # }
+
   
   # Access additional parameters
   species <- file_list$species_name %||% "Unknown"
@@ -207,6 +164,12 @@ if (exists("file_list")) {
   
   SS_use_bio_length <- file_list$SS_use_bio_length %||% FALSE
   cat("Use length comp from biol databases:", SS_use_bio_length, "\n")
+  
+  size_comp_fleets <- file_list$size_comp_fleets %||% character(0)
+  size_class_input <- file_list$size_class_input %||% 20
+  SS_size_binwidth <- size_class_input / 10 # convert to cm
+  cat("Fleets for Size Comps:", paste(size_comp_fleets, collapse = ", "), "\n")
+  cat("Size comp bin (cm):", SS_size_binwidth, "\n")
   
   # --- NEW: Force ALL composition data to combined sex if selected ---
   # Note: The UI variable is 'use_combined_sex_length_comps', but it now applies to ALL comps.
@@ -292,207 +255,7 @@ get_non_zero_data_columns <- function(df) {
   return(non_zero_col_names)
 }
 
-# SS_n_fleets <- count_non_zero_data_columns(catch_data)
-# SS_fleetnames <- get_non_zero_data_columns(catch_data)
 
-# # 1. Extract fleets from Catch
-# catch_fleetnames <- get_non_zero_data_columns(catch_data)
-# 
-# # 2. Extract fleets from Biological Length data
-# length_fleetnames <- character(0)
-# if (exists("merged_kim_pilb") && !is.null(merged_kim_pilb) && "fleet" %in% colnames(merged_kim_pilb)) {
-#   length_fleetnames <- unique(merged_kim_pilb$fleet)
-# }
-# 
-# # 3. Extract fleets from Age data
-# age_fleetnames <- character(0)
-# if (exists("combined_age_data") && !is.null(combined_age_data) && "fleet" %in% colnames(combined_age_data)) {
-#   age_fleetnames <- unique(combined_age_data$fleet)
-# }
-# 
-# # Combine all unique fleets (excluding FIS/Survey which is appended later)
-# SS_fleetnames <- unique(c(catch_fleetnames, length_fleetnames, age_fleetnames))
-# SS_fleetnames <- SS_fleetnames[!is.na(SS_fleetnames) & SS_fleetnames != "" & SS_fleetnames != "FIS"]
-# 
-# # Ensure all identified fleets exist as columns in catch_data
-# # This prevents pivot_longer errors later on and ensures SS3 registers them
-# for (flt in SS_fleetnames) {
-#   if (!(flt %in% colnames(catch_data))) {
-#     catch_data[[flt]] <- 0
-#   }
-# }
-# 
-# SS_n_fleets <- length(SS_fleetnames)
-# 
-# ### HAVE TO ADD SOMETHING HERE TO HANDLE FLEETS TALKED ABOUT IN INDICES
-# 
-# cat("Fleetnames from all sources: \n")
-# print(SS_fleetnames)
-# cat("\n")
-# 
-# 
-# SS_fleetnames_INDICES <- unique(effort_data$fleet)
-# 
-# # cat("\n")
-# # print(SS_fleetnames_INDICES)
-# # cat("\n")
-# # 
-# # cat("\n")
-# # print(c(SS_fleetnames_INDICES, SS_fleetnames) )
-# # cat("\n")
-# 
-# ## Make sure always a FIS fleet
-# 
-# SS_fleetnames_INDICES <- c(SS_fleetnames_INDICES,"FIS")
-# 
-# 
-# 
-# ## Sort fleetnames by largest catch.
-# # Filter to only include names that exist in catch_data
-# valid_fleetnames <- SS_fleetnames[SS_fleetnames %in% colnames(catch_data)]
-# 
-# # Calculate total catch for each valid fleet
-# fleet_totals <- colSums(catch_data[, valid_fleetnames, drop = FALSE], na.rm = TRUE)
-# 
-# # Sort fleet names by total catch in descending order
-# SS_fleetnames <- names(sort(fleet_totals, decreasing = TRUE))
-# 
-# # cat("SS_fleetnames:",SS_fleetnames,"\n")
-# # Commercial.Monthly Commercial.daily Foreign.Trawl Commercial.Line Recreational Charter Foreign.Line
-# 
-# # ## Default value for 2 sex model 
-# # SS_Age_Post_Settlement <- 2
-# # SS_CV_Growth_Pattern <- 1
-# 
-# SS_Est_Retention <- TRUE
-# SS_Est_Selex_From_Fleets_with_Comps <- FALSE
-# SS_Mirror_Discards_from_FIS <- TRUE
-# 
-# # if(species == "Lutjanus sebae") {
-# #   cat("DEBUG: Manually ordering fleetnames to match Lutjanus sebae Rubie model\n")
-# # 
-# #   SS_fleetnames <- c("Foreign.Trawl","Foreign.Line","Commercial.Monthly","Commercial.daily","Commercial.Line","Recreational","Charter")
-# # 
-# #   cat("SS_fleetnames:",SS_fleetnames,"\n")
-# # }
-# 
-# if(species == "Pristipomoides multidens") {
-#   cat("DEBUG: Manually ordering fleetnames to match Pristipomoides multidens Rubie model\n")
-#   
-#   SS_fleetnames <- c("Foreign.Trawl","Foreign.Line","Commercial.Monthly","Commercial.daily","Commercial.Line","Recreational","Charter")
-#   
-#   cat("SS_fleetnames:",SS_fleetnames,"\n")
-#   
-#   
-#   
-#   # cat("DEBUG: Manually removing Sex info to match Rubie Pristipomoides multidens model\n")
-#   # combined_age_data$Sex <- NA
-#   
-#   
-#   # SS_Age_Post_Settlement <- 3
-#   # SS_CV_Growth_Pattern <- 0
-#   
-#   SS_Est_Retention <- FALSE
-#   SS_Mirror_Discards_from_FIS = FALSE
-#   SS_Est_Selex_From_Fleets_with_Comps <- TRUE
-# }
-# 
-# cat("hello: \n")
-# 
-# if(fishery_parameters$use_1_sex_model){
-#   combined_age_data$Sex <- NA
-#   cat("Sex in fis_age_data:",unique(combined_age_data$Sex),"\n")
-# }
-# 
-# if(species == "Epinephelus rankini") {
-#   cat("DEBUG: Manually renaming fleets in combined_age_data for Epinephelus rankini to match catch data\n")
-#   
-#   # SS_fleetnames <- c("Commercial")
-#   
-#   # combined_age_data$fleet <- "Commercial"
-#   # fixedsiteonly$fleet <- "Commercial"
-#   
-#   # cat("SS_fleetnames:",SS_fleetnames,"\n")
-# }
-# 
-# 
-# ## Conditionally add FIS fleets.
-# ### $$$ !!!! This needs to be moved to the Shiny App
-# # SurveyFleet = T
-# # if(SurveyFleet) {
-# #   SS_n_fleets <- SS_n_fleets+1
-# #   # SS_fleetnames <- c(SS_fleetnames,"FIS")
-# #   SS_TEMP_FIS_FLEETS <- "FIS"
-# #   SS_fleetnames <- c(SS_TEMP_FIS_FLEETS, SS_fleetnames) # Here is where order is fixed
-# #   
-# #   SS_fleet_details = data.frame(fleet_type = c(3,rep(1,SS_n_fleets-1)), # Make the FIS a fleet type =3 "SURVEY"
-# #                                 fishery_timing = c(1,rep(-1,SS_n_fleets-1)), #_sample_timing: -1 for fishing fleet to use season-long catch-at-age for observations, or 1 to use observation month;  (always 1 for surveys)
-# #                                 area = rep(1,SS_n_fleets), 
-# #                                 catch_units = rep(1,SS_n_fleets), 
-# #                                 need_catch_mult = rep(0,SS_n_fleets), 
-# #                                 fleetname = SS_fleetnames)
-# #   
-# #   # # Make CPUE data the survey fleet
-# #   # SS_cpue_data$fleet <- SS_n_fleets
-# #   
-# #   # Add a dummy field of zero catch to survey fleet
-# #   catch_data$FIS <- 0 
-# #   
-# # } else {
-# #   SS_fleet_details = data.frame(fleet_type = rep(1,SS_n_fleets), 
-# #                                 fishery_timing = rep(-1,SS_n_fleets), 
-# #                                 area = rep(1,SS_n_fleets), 
-# #                                 catch_units = rep(1,SS_n_fleets), 
-# #                                 need_catch_mult = rep(0,SS_n_fleets), 
-# #                                 fleetname = SS_fleetnames)
-# #   
-# # }
-# 
-# cat("before survey fleet logic: \n")
-# 
-# # Fleet objects v2, handle FIS fleets dynamically
-# SurveyFleet = T
-# if(SurveyFleet) {
-#   
-#   ## NEW LINES
-#   # Check for duplicates between SS_fleetnames_INDICES and SS_fleetnames
-#   common_names <- intersect(SS_fleetnames_INDICES, SS_fleetnames)
-#   if(length(common_names) > 0) {
-#     warning("Duplicate fleet names found between SS_fleetnames_INDICES and SS_fleetnames: ", 
-#             paste(common_names, collapse = ", "), ". Removing duplicates from SS_fleetnames_INDICES.")
-#     SS_fleetnames_INDICES <- setdiff(SS_fleetnames_INDICES, common_names)
-#   }
-#   
-#   # Number of survey fleets after removing duplicates
-#   n_survey_fleets <- length(SS_fleetnames_INDICES)
-#   SS_n_fleets <- SS_n_fleets + n_survey_fleets
-#   SS_fleetnames <- c(SS_fleetnames_INDICES, SS_fleetnames) # Add all FIS fleets to fleetnames
-#   
-#   # Create fleet details dynamically
-#   SS_fleet_details = data.frame(
-#     fleet_type = c(rep(3, n_survey_fleets), rep(1, SS_n_fleets - n_survey_fleets)), # SURVEY type for FIS fleets, 1 for others
-#     fishery_timing = c(rep(1, n_survey_fleets), rep(-1, SS_n_fleets - n_survey_fleets)), # 1 for surveys, -1 for fishing fleets
-#     area = rep(1, SS_n_fleets), 
-#     catch_units = rep(1, SS_n_fleets), 
-#     need_catch_mult = rep(0, SS_n_fleets), 
-#     fleetname = SS_fleetnames
-#   )
-#   
-#   # Add dummy catch fields (zeros) for each survey fleet
-#   for(fis in SS_fleetnames_INDICES) {
-#     catch_data[[fis]] <- 0
-#   }
-#   
-# } else {
-#   SS_fleet_details = data.frame(
-#     fleet_type = rep(1, SS_n_fleets), 
-#     fishery_timing = rep(-1, SS_n_fleets), 
-#     area = rep(1, SS_n_fleets), 
-#     catch_units = rep(1, SS_n_fleets), 
-#     need_catch_mult = rep(0, SS_n_fleets), 
-#     fleetname = SS_fleetnames
-#   )
-# }
 
 # Combine all unique fleets from basic data
 catch_fleetnames <- get_non_zero_data_columns(catch_data)
@@ -533,9 +296,45 @@ if (length(valid_catch_fleets) > 0) {
 }
 
 # General model behavior setups
-SS_Est_Retention <- TRUE
+# SS_Est_Retention <- TRUE
+# SS_Est_Selex_From_Fleets_with_Comps <- FALSE
+# SS_Mirror_Discards_from_FIS <- TRUE
+
+# General model behavior setups
+# General model behavior setups
 SS_Est_Selex_From_Fleets_with_Comps <- FALSE
 SS_Mirror_Discards_from_FIS <- TRUE
+
+# --- ADD THIS: Parse Dynamic Selectivity and Retention ---
+custom_selex_list <- list()
+custom_mirror_list <- list()
+custom_retention_list <- list()
+
+if (!is.null(fishery_parameters$custom_selex_types) && fishery_parameters$custom_selex_types != "") {
+  selex_pairs <- strsplit(as.character(fishery_parameters$custom_selex_types), ";")[[1]]
+  for (pair in selex_pairs) {
+    kv <- strsplit(pair, "=")[[1]]
+    if(length(kv) == 2) custom_selex_list[[kv[1]]] <- as.numeric(kv[2])
+  }
+}
+
+if (!is.null(fishery_parameters$custom_mirror_fleets) && fishery_parameters$custom_mirror_fleets != "") {
+  mir_pairs <- strsplit(as.character(fishery_parameters$custom_mirror_fleets), ";")[[1]]
+  for (pair in mir_pairs) {
+    kv <- strsplit(pair, "=")[[1]]
+    if(length(kv) == 2) custom_mirror_list[[kv[1]]] <- kv[2]
+  }
+}
+
+if (!is.null(fishery_parameters$custom_retentions) && fishery_parameters$custom_retentions != "") {
+  ret_pairs <- strsplit(as.character(fishery_parameters$custom_retentions), ";")[[1]]
+  for (pair in ret_pairs) {
+    kv <- strsplit(pair, "=")[[1]]
+    if(length(kv) == 2) custom_retention_list[[kv[1]]] <- as.logical(kv[2])
+  }
+}
+
+# ---------------------------------------------------------
 
 # Apply manual species overrides to catching fleets if necessary
 if(species == "Pristipomoides multidens") {
@@ -550,19 +349,59 @@ cat("Surveys fleets:\n")
 print(survey_fleets)
 cat("\n")
 
-# 4. Push Survey Fleets to the top, followed by Catch Fleets
-SS_fleetnames <- c(survey_fleets, catch_fleets)
-SS_n_fleets <- length(SS_fleetnames)
-n_survey_fleets <- length(survey_fleets)
+# # 4. Push Survey Fleets to the top, followed by Catch Fleets
+# SS_fleetnames <- c(survey_fleets, catch_fleets)
+# SS_n_fleets <- length(SS_fleetnames)
+# n_survey_fleets <- length(survey_fleets)
+# 
+# cat("Fleetnames ordered (Surveys first, then Catch):\n")
+# print(SS_fleetnames)
+# cat("\n")
+# 
+# # 5. Create SS_fleet_details dynamically
+# SS_fleet_details = data.frame(
+#   fleet_type = c(rep(3, n_survey_fleets), rep(1, SS_n_fleets - n_survey_fleets)), 
+#   fishery_timing = c(rep(1, n_survey_fleets), rep(-1, SS_n_fleets - n_survey_fleets)), 
+#   area = rep(1, SS_n_fleets), 
+#   catch_units = rep(1, SS_n_fleets), 
+#   need_catch_mult = rep(0, SS_n_fleets), 
+#   fleetname = SS_fleetnames,
+#   stringsAsFactors = FALSE
+# )
 
-cat("Fleetnames ordered (Surveys first, then Catch):\n")
+# 4. Push Survey Fleets to the top, followed by Catch Fleets (Default)
+SS_fleetnames <- c(survey_fleets, catch_fleets)
+
+# --- OVERRIDE WITH CUSTOM FLEET ORDER IF ENABLED ---
+if (isTRUE(fishery_parameters$use_custom_fleet_order) && 
+    !is.null(fishery_parameters$custom_fleet_order) && 
+    fishery_parameters$custom_fleet_order != "") {
+  
+  custom_order <- trimws(unlist(strsplit(as.character(fishery_parameters$custom_fleet_order), ",")))
+  
+  # Only keep fleets that actually exist in the compiled SS_fleetnames
+  valid_custom_order <- custom_order[custom_order %in% SS_fleetnames]
+  
+  # Append any missing fleets to the end (in case the UI missed one caught by the backend)
+  missing_fleets <- setdiff(SS_fleetnames, valid_custom_order)
+  SS_fleetnames <- c(valid_custom_order, missing_fleets)
+  
+  cat("User specified custom fleet order applied:\n")
+} else {
+  cat("Fleetnames ordered (Surveys first, then Catch):\n")
+}
+
+SS_n_fleets <- length(SS_fleetnames)
 print(SS_fleetnames)
 cat("\n")
 
-# 5. Create SS_fleet_details dynamically
+# 5. Create SS_fleet_details dynamically (ORDER-INDEPENDENT)
+# Dynamically evaluate if each sorted fleet is a survey based on its name
+is_surv_ordered <- grepl("FIS", SS_fleetnames, ignore.case = TRUE)
+
 SS_fleet_details = data.frame(
-  fleet_type = c(rep(3, n_survey_fleets), rep(1, SS_n_fleets - n_survey_fleets)), 
-  fishery_timing = c(rep(1, n_survey_fleets), rep(-1, SS_n_fleets - n_survey_fleets)), 
+  fleet_type = ifelse(is_surv_ordered, 3, 1),
+  fishery_timing = ifelse(is_surv_ordered, 1, -1),
   area = rep(1, SS_n_fleets), 
   catch_units = rep(1, SS_n_fleets), 
   need_catch_mult = rep(0, SS_n_fleets), 
@@ -601,6 +440,12 @@ if(species == "Chrysophrys auratus") {
 # Set Nsamp multiplier, defaulting to 1 if missing
 SS_nsamp_multiplier <- fishery_parameters$nsamp_multiplier
 if (is.null(SS_nsamp_multiplier)) SS_nsamp_multiplier <- 1.0
+
+# --- NEW: Retrieve the dbase separation toggle ---
+SS_keep_dbase_separate <- if (!is.null(fishery_parameters$keep_dbase_separate)) {
+  isTRUE(as.logical(fishery_parameters$keep_dbase_separate))
+} else { TRUE }
+# -------------------------------------------------
 
 use_custom_M <- fishery_parameters$use_custom_M
 use_custom_h <- fishery_parameters$use_custom_h
@@ -1253,7 +1098,8 @@ if (has_discard_info) {
   # If FIS not being used then get the SS_size_selex_L50 from Biol data
   if(is.na(SS_size_selex_L50)){
     cat("Using Biol length data to get SS_size_selex_L50\n")
-    SS_size_selex_L50 <- median(Merged_Kim_Pilb$FL_mm, na.rm = TRUE)
+    # SS_size_selex_L50 <- median(Merged_Kim_Pilb$FL_mm, na.rm = TRUE)
+    SS_size_selex_L50 <- median(merged_kim_pilb$Fork.Length, na.rm = TRUE)
     
   }
   
@@ -1669,58 +1515,39 @@ generate_control_ss <- function(datafile = "data.ss", comment = "control comment
   SS_fleets_with_comps <- unique(merged_kim_pilb$fleet)
     
   # A single, unified function to handle all options
-  generate_size_selex_patterns_lines <- function(SS_n_fleets,
-                                                 SS_fleetnames,
-                                                 Mirror_Discards_from_FIS=SS_Mirror_Discards_from_FIS ,
-                                                 Est_Selex_From_Fleets_with_Comps=SS_Est_Selex_From_Fleets_with_Comps,
-                                                 fleets_with_comps=SS_fleets_with_comps) { # Pass the fleets with comps as an argument
+  generate_size_selex_patterns_lines <- function(SS_n_fleets, SS_fleetnames) {
     
-    if (SS_n_fleets != length(SS_fleetnames)) {
-      stop("SS_n_fleets and SS_fleetnames length must match")
-    }
+    if (SS_n_fleets != length(SS_fleetnames)) stop("SS_n_fleets and SS_fleetnames length must match")
     
     fleet_lines <- character(SS_n_fleets)
     for (i in 1:SS_n_fleets) {
+      flt_name <- SS_fleetnames[i]
       
-      # --- Logic for Fleet 1 (always a special case) ---
-      if (i == 1) {
-        # Your code had conflicting definitions for fleet 1.
-        # If estimating selex, your second block set parameter 2 to 0. We'll honour that.
-        # Otherwise, it was 1.
-        p1 <- 1
-        p2 <- if (Mirror_Discards_from_FIS) { 1 } else { 0 } # Assumes fleet 1 is also mirrored
-        p3 <- 0
-        p4 <- 0
-        
-        # --- Logic for Other Fleets (i > 1) ---
+      user_selex <- if (!is.null(custom_selex_list[[flt_name]])) custom_selex_list[[flt_name]] else 15
+      if (i == 1 && is.null(custom_selex_list[[flt_name]])) user_selex <- 1 # Failsafe for Fleet 1
+      
+      is_retention_est <- if (!is.null(custom_retention_list[[flt_name]])) isTRUE(custom_retention_list[[flt_name]]) else FALSE
+      
+      p1 <- user_selex
+      p2 <- if (is_retention_est) 2 else 0
+      p3 <- 0
+      
+      if (user_selex == 15) {
+        # Find mirror target
+        target_fleet_name <- custom_mirror_list[[flt_name]]
+        target_idx <- which(SS_fleetnames == target_fleet_name)
+        p4 <- if (length(target_idx) > 0) target_idx[1] else 0
+      } else if (user_selex == 27) {
+        p4 <- 6 # Spline nodes
       } else {
-        is_commercial_fleet <- grepl("Commercial\\.Monthly|Commercial\\.daily", SS_fleetnames[i])
-        
-        # Note: Corrected `==` to `%in%` for checking against multiple fleets
-        has_comps_fleet <- i %in% fleets_with_comps 
-        
-        # Determine parameter 1 (Selex type: 1 for estimated, 15 for fixed/default)
-        # This is based on the logic from your second code block
-        p1 <- if (Est_Selex_From_Fleets_with_Comps && has_comps_fleet) { 1 } else { 15 }
-        
-        # Determine parameter 2 (Mirroring: -1 for mirrored, 0 otherwise)
-        # This is based on the logic from your first code block
-        p2 <- if (Mirror_Discards_from_FIS && is_commercial_fleet) { -1 } else { 0 }
-        
-        p3 <- 0
-        # p4 <- 1
-        p4 <- if (Est_Selex_From_Fleets_with_Comps && has_comps_fleet) { 0 } else { 1 }
+        p4 <- 0
       }
       
-      # Assemble the final line with clean formatting
       line_text <- sprintf("    %-4d %-4d %-4d %-4d", p1, p2, p3, p4)
-      fleet_lines[i] <- paste0(line_text, " #_fleet:", i, "_", SS_fleetnames[i])
+      fleet_lines[i] <- paste0(line_text, " #_fleet:", i, "_", flt_name)
     }
     return(fleet_lines)
   }
-  
-  # unique(merged_kim_pilb$fleet)
-  # SS_Est_Selex_From_Fleets_with_Comps
   
   fleet_size_selex_lines <- generate_size_selex_patterns_lines(SS_n_fleets, SS_fleetnames)
   
@@ -2079,46 +1906,188 @@ generate_control_ss <- function(datafile = "data.ss", comment = "control comment
              # "      12      1    0       0 # 1 FISHERY1", # duplicate for each fishery, make 15 to mirror
              fleet_age_selex_lines,
              "",
-             "#_          LO       HI     INIT    PRIOR    PR_SD  PR_type      PHASE    env-var    use_dev   dev_mnyr   dev_mxyr     dev_PH      Block    Blk_Fxn  #  parm_name",
-             paste0("         0.01       ", SS_size_selex_L50_HI ,"       ",SS_size_selex_L50,"       1     0.01        0            3          0          0          0          0          0          ",SS_sel_Block,"          ",          SS_sel_Blk_Fxn,"  #  Age_inflection_Type12_age_logistic_FISHERY1(1)"),
-             paste0("         0.01       20        ",SS_size_selex_slope,"         1     0.01        0            3          0          0          0          0          0          ",SS_sel_Block,"          ",          SS_sel_Blk_Fxn,"  #  Age_95%width_Type12_age_logistic_FISHERY1(1)"))
+  #            "#_          LO       HI     INIT    PRIOR    PR_SD  PR_type      PHASE    env-var    use_dev   dev_mnyr   dev_mxyr     dev_PH      Block    Blk_Fxn  #  parm_name",
+  #            paste0("         0.01       ", SS_size_selex_L50_HI ,"       ",SS_size_selex_L50,"       1     0.01        0            3          0          0          0          0          0          ",SS_sel_Block,"          ",          SS_sel_Blk_Fxn,"  #  Age_inflection_Type12_age_logistic_FISHERY1(1)"),
+  #            paste0("         0.01       20        ",SS_size_selex_slope,"         1     0.01        0            3          0          0          0          0          0          ",SS_sel_Block,"          ",          SS_sel_Blk_Fxn,"  #  Age_95%width_Type12_age_logistic_FISHERY1(1)"))
+  # 
+  # if(SS_Est_Selex_From_Fleets_with_Comps){
+  #   
+  #   
+  #   if(length(SS_fleets_with_comps) == 1){
+  #   lines <- c(lines, 
+  #              paste0("         0.01       ", SS_size_selex_L50_HI ,"       ",SS_size_selex_L50,"       1     0.01        0            3          0          0          0          0          0          ",SS_sel_Block,"          ",          SS_sel_Blk_Fxn,"  #  Age_inflection_Type12_age_logistic_FISHERY1(1)"),
+  #              paste0("         0.01       20        ",SS_size_selex_slope,"         1     0.01        0            3          0          0          0          0          0          ",SS_sel_Block,"          ",          SS_sel_Blk_Fxn,"  #  Age_95%width_Type12_age_logistic_FISHERY1(1)"))
+  #   }
+  #   
+  #   if(length(SS_fleets_with_comps) == 2){
+  #     lines <- c(lines, 
+  #                paste0("         0.01       ", SS_size_selex_L50_HI ,"       ",SS_size_selex_L50,"       1     0.01        0            3          0          0          0          0          0          ",SS_sel_Block,"          ",          SS_sel_Blk_Fxn,"  #  Age_inflection_Type12_age_logistic_FISHERY1(1)"),
+  #                paste0("         0.01       20        ",SS_size_selex_slope,"         1     0.01        0            3          0          0          0          0          0          ",SS_sel_Block,"          ",          SS_sel_Blk_Fxn,"  #  Age_95%width_Type12_age_logistic_FISHERY1(1)"), 
+  #                paste0("         0.01       ", SS_size_selex_L50_HI ,"       ",SS_size_selex_L50,"       1     0.01        0            3          0          0          0          0          0          ",SS_sel_Block,"          ",          SS_sel_Blk_Fxn,"  #  Age_inflection_Type12_age_logistic_FISHERY1(1)"),
+  #                paste0("         0.01       20        ",SS_size_selex_slope,"         1     0.01        0            3          0          0          0          0          0          ",SS_sel_Block,"          ",          SS_sel_Blk_Fxn,"  #  Age_95%width_Type12_age_logistic_FISHERY1(1)"))
+  #   }
+  #   
+  #   if(length(SS_fleets_with_comps) > 1){
+  #     stop("ERROR: TOO MANY FLEETS WITH COMPS, CHECK WHERE SELECTIVITY PATTERNS DEFINED")
+  #     }
+  # }
+  # 
+  # 
+  # lines <- c(lines,             
+  #            "# retention - age based")
+  # 
+  # if(SS_Est_Retention){
+  # lines <- c(lines,
+  #            # "         0.01       50        38       1     0.01        0           3          0          0          0          0          0          0          0  #  Retention_p1_A50_FISHERY1(1)",
+  #            # "         0.01       20        1        1     0.01        0           3          0          0          0          0          0          0          0  #  Retention_p2_width_FISHERY1(1)",
+  #            paste0("         0.01       50        38       1     0.01        0           3          0          0          0          0          0          ",SS_ret_Block,"          ",SS_ret_Blk_Fxn,"  #  Retention_p1_A50_FISHERY1(1)"),
+  #            paste0("         0.01       20        1        1     0.01        0           3          0          0          0          0          0          ",SS_ret_Block,"          ",SS_ret_Blk_Fxn,"  #  Retention_p2_width_FISHERY1(1)"),
+  #            "          -10     1000      999        1     0.01        0           -3          0          0          0          0          0          0          0  #  Retention_p3_asymptote_FISHERY1(1)",
+  #            "          -10       10        0        1     0.01        0           -3          0          0          0          0          0          0          0  #  Retention_p4_maleoffset_FISHERY1(1)",
+  #            "")
+  # }
   
-  if(SS_Est_Selex_From_Fleets_with_Comps){
+  
+  
+  "#_          LO       HI     INIT    PRIOR    PR_SD  PR_type      PHASE    env-var    use_dev   dev_mnyr   dev_mxyr     dev_PH      Block    Blk_Fxn  #  parm_name")
+  # 
+  # # Dynamic Selectivity Parameters
+  # for (i in 1:SS_n_fleets) {
+  #   flt_name <- SS_fleetnames[i]
+  #   
+  #   user_selex <- if (!is.null(custom_selex_list[[flt_name]])) custom_selex_list[[flt_name]] else 15
+  #   if (i == 1 && is.null(custom_selex_list[[flt_name]])) user_selex <- 1
+  #   
+  #   # If the user explicitly set a pattern other than 15 (Mirror), generate parameters
+  #   if (user_selex != 15) {
+  #     if (user_selex == 1) {
+  #       lines <- c(lines,
+  #                  sprintf("         0.01      %g      %g       1     0.01        0            3          0          0          0          0          0          %s          %s  #  SizeSel_P_1_%s(%d)", SS_size_selex_L50_HI, SS_size_selex_L50, SS_sel_Block, SS_sel_Blk_Fxn, flt_name, i),
+  #                  sprintf("         0.01      20       %g       1     0.01        0            3          0          0          0          0          0          %s          %s  #  SizeSel_P_2_%s(%d)", SS_size_selex_slope, SS_sel_Block, SS_sel_Blk_Fxn, flt_name, i)
+  #       )
+  #     } else if (user_selex == 24) {
+  #       lines <- c(lines,
+  #                  sprintf("           10     100      %g       1     0.01        0            3          0          0          0          0          0          %s          %s  #  SizeSel_P_1_%s(%d)", SS_size_selex_L50, SS_sel_Block, SS_sel_Blk_Fxn, flt_name, i),
+  #                  sprintf("           -7       7      -1       1     0.01        0            3          0          0          0          0          0          0          0  #  SizeSel_P_2_%s(%d)", flt_name, i),
+  #                  sprintf("           -5      10     5.3       1     0.01        0            3          0          0          0          0          0          0          0  #  SizeSel_P_3_%s(%d)", flt_name, i),
+  #                  sprintf("           -5      10     1.6       1     0.01        0            3          0          0          0          0          0          0          0  #  SizeSel_P_4_%s(%d)", flt_name, i),
+  #                  sprintf("         -999      15    -999       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_P_5_%s(%d)", flt_name, i),
+  #                  sprintf("         -999      15    0.75       1     0.01        0            4          0          0          0          0          0          0          0  #  SizeSel_P_6_%s(%d)", flt_name, i)
+  #       )
+  #     } else if (user_selex == 27) {
+  #       lines <- c(lines,
+  #                  sprintf("            0       2       0       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_Code_%s(%d)", flt_name, i),
+  #                  sprintf("       -0.001      10     0.2       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_GradLo_%s(%d)", flt_name, i),
+  #                  sprintf("          -10    0.01       0       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_GradHi_%s(%d)", flt_name, i),
+  #                  sprintf("            1      70       2       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_Knot_1_%s(%d)", flt_name, i),
+  #                  sprintf("            1      70      15       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_Knot_2_%s(%d)", flt_name, i),
+  #                  sprintf("            1      70      40       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_Knot_3_%s(%d)", flt_name, i),
+  #                  sprintf("            1      70      50       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_Knot_4_%s(%d)", flt_name, i),
+  #                  sprintf("            1      70      55       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_Knot_5_%s(%d)", flt_name, i),
+  #                  sprintf("            1      90      70       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_Knot_6_%s(%d)", flt_name, i),
+  #                  sprintf("           -5       0    -4.9       1     0.01        0           -3          0          0          0          0          0          0          0  #  SizeSel_Spine_Val_1_%s(%d)", flt_name, i),
+  #                  sprintf("           -5       0    -4.6       1     0.01        0           -3          0          0          0          0          0          0          0  #  SizeSel_Spine_Val_2_%s(%d)", flt_name, i),
+  #                  sprintf("           -5       0    -0.9       1     0.01        0            3          0          0          0          0          0          0          0  #  SizeSel_Spine_Val_3_%s(%d)", flt_name, i),
+  #                  sprintf("           -5       5       0       1     0.01        0           -3          0          0          0          0          0          0          0  #  SizeSel_Spine_Val_4_%s(%d)", flt_name, i),
+  #                  sprintf("           -5       0       0       1     0.01        0           -3          0          0          0          0          0          0          0  #  SizeSel_Spine_Val_5_%s(%d)", flt_name, i),
+  #                  sprintf("           -5       0   -0.36       1     0.01        0            3          0          0          0          0          0          0          0  #  SizeSel_Spine_Val_6_%s(%d)", flt_name, i)
+  #       )
+  #     }
+  #   }
+  # }
+  # 
+  # lines <- c(lines, "# retention - size based")
+  # 
+  # # Dynamic Retention & Discard Mortality Parameters
+  # for (i in 1:SS_n_fleets) {
+  #   flt_name <- SS_fleetnames[i]
+  #   is_retention_est <- if (!is.null(custom_retention_list[[flt_name]])) isTRUE(custom_retention_list[[flt_name]]) else FALSE
+  #   
+  #   if (is_retention_est) {
+  #     lines <- c(lines,
+  #                # 4 Retention Parameters
+  #                sprintf("         0.01       50        38       1     0.01        0           3          0          0          0          0          0          %s          %s  #  Retention_p1_A50_%s(%d)", SS_ret_Block, SS_ret_Blk_Fxn, flt_name, i),
+  #                sprintf("         0.01       20         1       1     0.01        0           3          0          0          0          0          0          %s          %s  #  Retention_p2_width_%s(%d)", SS_ret_Block, SS_ret_Blk_Fxn, flt_name, i),
+  #                sprintf("          -10     1000       999       1     0.01        0          -4          0          0          0          0          0          0          0  #  Retention_p3_asymptote_%s(%d)", flt_name, i),
+  #                sprintf("          -10       10         0       1     0.01        0          -4          0          0          0          0          0          0          0  #  Retention_p4_maleoffset_%s(%d)", flt_name, i),
+  #                
+  #                # 4 Discard Mortality Parameters (REQUIRED when Discard/Retention = 2)
+  #                sprintf("          -10       10        -1       1     0.01        0          -4          0          0          0          0          0          0          0  #  DisMort_p1_A50_%s(%d)", flt_name, i),
+  #                sprintf("         0.01       20       0.1       1     0.01        0          -4          0          0          0          0          0          0          0  #  DisMort_p2_width_%s(%d)", flt_name, i),
+  #                sprintf("          -10       10       0.5       1     0.01        0          -4          0          0          0          0          0          0          0  #  DisMort_p3_asymptote_%s(%d)", flt_name, i),
+  #                sprintf("          -10       10         0       1     0.01        0          -4          0          0          0          0          0          0          0  #  DisMort_p4_maleoffset_%s(%d)", flt_name, i)
+  #     )
+  #   }
+  # }
+  # lines <- c(lines, "")
+  
+  # Dynamic Selectivity, Retention, and Discard Mortality Parameters in ONE loop
+  for (i in 1:SS_n_fleets) {
+    flt_name <- SS_fleetnames[i]
     
+    user_selex <- if (!is.null(custom_selex_list[[flt_name]])) custom_selex_list[[flt_name]] else 15
+    if (i == 1 && is.null(custom_selex_list[[flt_name]])) user_selex <- 1
     
-    if(length(SS_fleets_with_comps) == 1){
-    lines <- c(lines, 
-               paste0("         0.01       ", SS_size_selex_L50_HI ,"       ",SS_size_selex_L50,"       1     0.01        0            3          0          0          0          0          0          ",SS_sel_Block,"          ",          SS_sel_Blk_Fxn,"  #  Age_inflection_Type12_age_logistic_FISHERY1(1)"),
-               paste0("         0.01       20        ",SS_size_selex_slope,"         1     0.01        0            3          0          0          0          0          0          ",SS_sel_Block,"          ",          SS_sel_Blk_Fxn,"  #  Age_95%width_Type12_age_logistic_FISHERY1(1)"))
-    }
+    is_retention_est <- if (!is.null(custom_retention_list[[flt_name]])) isTRUE(custom_retention_list[[flt_name]]) else FALSE
     
-    if(length(SS_fleets_with_comps) == 2){
-      lines <- c(lines, 
-                 paste0("         0.01       ", SS_size_selex_L50_HI ,"       ",SS_size_selex_L50,"       1     0.01        0            3          0          0          0          0          0          ",SS_sel_Block,"          ",          SS_sel_Blk_Fxn,"  #  Age_inflection_Type12_age_logistic_FISHERY1(1)"),
-                 paste0("         0.01       20        ",SS_size_selex_slope,"         1     0.01        0            3          0          0          0          0          0          ",SS_sel_Block,"          ",          SS_sel_Blk_Fxn,"  #  Age_95%width_Type12_age_logistic_FISHERY1(1)"), 
-                 paste0("         0.01       ", SS_size_selex_L50_HI ,"       ",SS_size_selex_L50,"       1     0.01        0            3          0          0          0          0          0          ",SS_sel_Block,"          ",          SS_sel_Blk_Fxn,"  #  Age_inflection_Type12_age_logistic_FISHERY1(1)"),
-                 paste0("         0.01       20        ",SS_size_selex_slope,"         1     0.01        0            3          0          0          0          0          0          ",SS_sel_Block,"          ",          SS_sel_Blk_Fxn,"  #  Age_95%width_Type12_age_logistic_FISHERY1(1)"))
-    }
-    
-    if(length(SS_fleets_with_comps) > 1){
-      stop("ERROR: TOO MANY FLEETS WITH COMPS, CHECK WHERE SELECTIVITY PATTERNS DEFINED")
+    # 1. Size Selectivity Parameters (only if not mirroring/Pattern 15)
+    if (user_selex != 15) {
+      if (user_selex == 1) {
+        lines <- c(lines,
+                   sprintf("         0.01      %g      %g       1     0.01        0            3          0          0          0          0          0          %s          %s  #  SizeSel_P_1_%s(%d)", SS_size_selex_L50_HI, SS_size_selex_L50, SS_sel_Block, SS_sel_Blk_Fxn, flt_name, i),
+                   sprintf("         0.01      20       %g       1     0.01        0            3          0          0          0          0          0          %s          %s  #  SizeSel_P_2_%s(%d)", SS_size_selex_slope, SS_sel_Block, SS_sel_Blk_Fxn, flt_name, i)
+        )
+        # sprintf("         0.01      50      20       1     0.01        0            3          0          0          0          0          0          %s          %s  #  SizeSel_P_1_%s(%d)", SS_size_selex_L50_HI, SS_size_selex_L50, SS_sel_Block, SS_sel_Blk_Fxn, flt_name, i),
+        # sprintf("         0.01      20       2       1     0.01        0            3          0          0          0          0          0          %s          %s  #  SizeSel_P_2_%s(%d)", SS_size_selex_slope, SS_sel_Block, SS_sel_Blk_Fxn, flt_name, i)
+        # )
+      } else if (user_selex == 24) {
+        lines <- c(lines,
+                   sprintf("           10     100      %g       1     0.01        0            3          0          0          0          0          0          %s          %s  #  SizeSel_P_1_%s(%d)", SS_size_selex_L50, SS_sel_Block, SS_sel_Blk_Fxn, flt_name, i),
+                   sprintf("           -7       7      -1       1     0.01        0            3          0          0          0          0          0          0          0  #  SizeSel_P_2_%s(%d)", flt_name, i),
+                   sprintf("           -5      10     5.3       1     0.01        0            3          0          0          0          0          0          0          0  #  SizeSel_P_3_%s(%d)", flt_name, i),
+                   sprintf("           -5      10     1.6       1     0.01        0            3          0          0          0          0          0          0          0  #  SizeSel_P_4_%s(%d)", flt_name, i),
+                   sprintf("         -999      15    -999       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_P_5_%s(%d)", flt_name, i),
+                   sprintf("         -999      15    0.75       1     0.01        0            4          0          0          0          0          0          0          0  #  SizeSel_P_6_%s(%d)", flt_name, i)
+        )
+      } else if (user_selex == 27) {
+        lines <- c(lines,
+                   sprintf("            0       2       0       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_Code_%s(%d)", flt_name, i),
+                   sprintf("       -0.001      10     0.2       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_GradLo_%s(%d)", flt_name, i),
+                   sprintf("          -10    0.01       0       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_GradHi_%s(%d)", flt_name, i),
+                   sprintf("            1      70       2       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_Knot_1_%s(%d)", flt_name, i),
+                   sprintf("            1      70      15       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_Knot_2_%s(%d)", flt_name, i),
+                   sprintf("            1      70      40       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_Knot_3_%s(%d)", flt_name, i),
+                   sprintf("            1      70      50       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_Knot_4_%s(%d)", flt_name, i),
+                   sprintf("            1      70      55       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_Knot_5_%s(%d)", flt_name, i),
+                   sprintf("            1      90      70       1     0.01        0           -4          0          0          0          0          0          0          0  #  SizeSel_Spline_Knot_6_%s(%d)", flt_name, i),
+                   sprintf("           -5       0    -4.9       1     0.01        0           -3          0          0          0          0          0          0          0  #  SizeSel_Spine_Val_1_%s(%d)", flt_name, i),
+                   sprintf("           -5       0    -4.6       1     0.01        0           -3          0          0          0          0          0          0          0  #  SizeSel_Spine_Val_2_%s(%d)", flt_name, i),
+                   sprintf("           -5       0    -0.9       1     0.01        0            3          0          0          0          0          0          0          0  #  SizeSel_Spine_Val_3_%s(%d)", flt_name, i),
+                   sprintf("           -5       5       0       1     0.01        0           -3          0          0          0          0          0          0          0  #  SizeSel_Spine_Val_4_%s(%d)", flt_name, i),
+                   sprintf("           -5       0       0       1     0.01        0           -3          0          0          0          0          0          0          0  #  SizeSel_Spine_Val_5_%s(%d)", flt_name, i),
+                   sprintf("           -5       0   -0.36       1     0.01        0            3          0          0          0          0          0          0          0  #  SizeSel_Spine_Val_6_%s(%d)", flt_name, i)
+        )
       }
+    }
+    
+    # 2. Retention & Discard Mortality Parameters (Appended immediately to this fleet)
+    if (is_retention_est) {
+      lines <- c(lines,
+                 # 4 Retention Parameters
+                 sprintf("         0.01       50        38       1     0.01        0           3          0          0          0          0          0          %s          %s  #  Retention_p1_A50_%s(%d)", SS_ret_Block, SS_ret_Blk_Fxn, flt_name, i),
+                 sprintf("         0.01       20         1       1     0.01        0           3          0          0          0          0          0          %s          %s  #  Retention_p2_width_%s(%d)", SS_ret_Block, SS_ret_Blk_Fxn, flt_name, i),
+                 sprintf("          -10     1000       999       1     0.01        0          -4          0          0          0          0          0          0          0  #  Retention_p3_asymptote_%s(%d)", flt_name, i),
+                 sprintf("          -10       10         0       1     0.01        0          -4          0          0          0          0          0          0          0  #  Retention_p4_maleoffset_%s(%d)", flt_name, i),
+                 
+                 # 4 Discard Mortality Parameters (REQUIRED when Discard = 2)
+                 sprintf("          -10       10        -1       1     0.01        0          -4          0          0          0          0          0          0          0  #  DisMort_p1_A50_%s(%d)", flt_name, i),
+                 sprintf("         0.01       20       0.1       1     0.01        0          -4          0          0          0          0          0          0          0  #  DisMort_p2_width_%s(%d)", flt_name, i),
+                 sprintf("          -10       10       0.5       1     0.01        0          -4          0          0          0          0          0          0          0  #  DisMort_p3_asymptote_%s(%d)", flt_name, i),
+                 sprintf("          -10       10         0       1     0.01        0          -4          0          0          0          0          0          0          0  #  DisMort_p4_maleoffset_%s(%d)", flt_name, i)
+      )
+    }
   }
-  
-  
-  lines <- c(lines,             
-             "# retention - age based")
-  
-  if(SS_Est_Retention){
-  lines <- c(lines,
-             # "         0.01       50        38       1     0.01        0           3          0          0          0          0          0          0          0  #  Retention_p1_A50_FISHERY1(1)",
-             # "         0.01       20        1        1     0.01        0           3          0          0          0          0          0          0          0  #  Retention_p2_width_FISHERY1(1)",
-             paste0("         0.01       50        38       1     0.01        0           3          0          0          0          0          0          ",SS_ret_Block,"          ",SS_ret_Blk_Fxn,"  #  Retention_p1_A50_FISHERY1(1)"),
-             paste0("         0.01       20        1        1     0.01        0           3          0          0          0          0          0          ",SS_ret_Block,"          ",SS_ret_Blk_Fxn,"  #  Retention_p2_width_FISHERY1(1)"),
-             "          -10     1000      999        1     0.01        0           -3          0          0          0          0          0          0          0  #  Retention_p3_asymptote_FISHERY1(1)",
-             "          -10       10        0        1     0.01        0           -3          0          0          0          0          0          0          0  #  Retention_p4_maleoffset_FISHERY1(1)",
-             "")
-  }
+  lines <- c(lines, "")
   
   
   lines <- c(lines,
@@ -2359,14 +2328,23 @@ if(SS_use_bio_length){
   }
   
 
+
+
+  # Determine which length column to use based on user selection
+  selected_metric <- file_list$length_metric %||% "FL"
+  target_len_col <- if (selected_metric == "TL" && "TL_mm" %in% colnames(merged_kim_pilb)) "TL_mm" else "FL_mm"
+  
   # Select and reorder the columns in merged_kim_pilb to match fixedsiteonly
-  # merged_kim_pilb <- merged_kim_pilb[, c("SpeciesName", "year", "Location", "Discarded.", "FL_mm", "LengthClass")]
-  merged_kim_pilb <- merged_kim_pilb[, c("SpeciesName", "year", "Location", "Discarded.", "FL_mm", "LengthClass","fleet","Sex")]
+  cols_to_keep <- c("SpeciesName", "year", "Location", "Discarded.", target_len_col, "LengthClass", "fleet", "Sex")
+  if ("dbase" %in% colnames(merged_kim_pilb)) {
+    cols_to_keep <- c(cols_to_keep, "dbase")
+  }
   
-  # Rename the 'FL_mm' column to 'Fork.Length' to match fixedsiteonly
-  colnames(merged_kim_pilb)[colnames(merged_kim_pilb) == "FL_mm"] <- "Fork.Length"
+  merged_kim_pilb <- merged_kim_pilb[, cols_to_keep]
   
-  # cat("colnames(merged_kim_pilb):",colnames(merged_kim_pilb),"\n")
+  # Rename the chosen length column to 'Fork.Length' to match fixedsiteonly
+  colnames(merged_kim_pilb)[colnames(merged_kim_pilb) == target_len_col] <- "Fork.Length"
+  
   cat("Unique fleets in catch data:", unique(SS_fleet_details$fleetname),"\n")
   cat("Unique fleets in length data:", unique(merged_kim_pilb$fleet),"\n")
   
@@ -2374,28 +2352,41 @@ if(SS_use_bio_length){
   current_fleet <- unique(merged_kim_pilb$fleet)
   cat("Unique current fleets:", paste(current_fleet, collapse = ", "), "\n")
   
-  # # Try the match approach
-  # merged_kim_pilb$fleet_index <- match(merged_kim_pilb$fleet, SS_fleet_details$fleetname)
-  # cat("Resulting fleet_index (first few rows):\n")
-  # cat(paste(head(merged_kim_pilb$fleet_index), collapse = ", "), "\n")
-  
   # Try the match approach
   merged_kim_pilb$fleet <- match(merged_kim_pilb$fleet, SS_fleet_details$fleetname)
   cat("Resulting fleet_index (first few rows):\n")
   cat(paste(head(merged_kim_pilb$fleet), collapse = ", "), "\n")
   
-  # Add a blank Sex field in, fixedsiteonly has no sex info? Probably should $$$
-  
-
   # Merge extra lengths in, Only if fixedsiteonly has data
   if(nrow(fixedsiteonly)>0) {
     fixedsiteonly$Sex <- NA
-  fixedsiteonly <- rbind(fixedsiteonly,merged_kim_pilb)
+    # --- FIX: Ensure fixedsiteonly has a dbase column so rbind doesn't crash ---
+    if (!"dbase" %in% colnames(fixedsiteonly)) {
+      fixedsiteonly$dbase <- NA 
+    }
+    # ---------------------------------------------------------------------------
+    fixedsiteonly <- rbind(fixedsiteonly,merged_kim_pilb)
   } else {
     fixedsiteonly <- merged_kim_pilb
   }
   
 }
+
+# --- NEW: Separate Size Comp Data from Length Comp Data ---
+size_comp_fleet_indices <- match(size_comp_fleets, SS_fleet_details$fleetname)
+size_comp_fleet_indices <- size_comp_fleet_indices[!is.na(size_comp_fleet_indices)]
+
+# Extract rows for size comps
+size_comp_raw <- fixedsiteonly[fixedsiteonly$fleet %in% size_comp_fleet_indices, , drop = FALSE]
+
+# Remove size comp rows from the regular length comps
+fixedsiteonly <- fixedsiteonly[!fixedsiteonly$fleet %in% size_comp_fleet_indices, , drop = FALSE]
+
+# Recalculate LengthClass for Size Comps based on their specific binwidth
+if(nrow(size_comp_raw) > 0) {
+  size_comp_raw$LengthClass <- round_any(size_comp_raw$Fork.Length, accuracy = SS_size_binwidth*10, f = floor)
+}
+# ----------------------------------------------------------
 
 cat("colnames merged_kim_pilb",colnames(merged_kim_pilb),"\n")
 cat("colnames fixedsiteonly",colnames(fixedsiteonly),"\n")
@@ -2529,6 +2520,127 @@ cat("Start of SS_format_length_data\n")
 #   return(result)
 # }
 
+# SS_format_length_data <- function(length_data, max_length = SS_max_size, 
+#                                   month = 1, 
+#                                   length_bins = seq(0, max_length, by = SS_length_binwidth), 
+#                                   Lbin_lo = -1, Lbin_hi = -1) {
+#   
+#   # Helper function to pad vectors to the required length for SS3
+#   pad_vector <- function(vec, target_length = length(length_bins) * 2) {
+#     if (length(vec) < target_length) {
+#       vec <- c(vec, rep(0, target_length - length(vec)))
+#     }
+#     return(vec[1:target_length])
+#   }
+#   
+#   # Initial checks for valid input data
+#   if (!"fleet" %in% colnames(length_data)) {
+#     warning("No 'fleet' column found in length_data. Assigning default fleet = 1.")
+#     length_data$fleet <- 1
+#   }
+#   if (any(is.na(length_data$fleet) | length_data$fleet <= 0)) {
+#     warning("Invalid fleet values (NA or <= 0) found and replaced with fleet = 1.")
+#     length_data$fleet[is.na(length_data$fleet) | length_data$fleet <= 0] <- 1
+#   }
+#   
+#   # Convert length from mm to cm for processing
+#   length_data <- length_data %>%
+#     mutate(LengthClass_cm = LengthClass / 10)
+#   
+#   fleets <- unique(length_data$fleet)
+#   
+#   # Initialise an empty data frame to store the results
+#   result <- data.frame(
+#     yr = integer(), month = integer(), fleet = integer(), sex = integer(),
+#     part = integer(), Lbin_lo = integer(), Lbin_hi = integer(),
+#     Nsamp = integer(), datavector = I(vector("list", 0))
+#   )
+#   
+#   # Process the data for each fleet, year, and discard status
+#   for (f in fleets) {
+#     fleet_data <- length_data %>% filter(fleet == f)
+#     for (y in unique(fleet_data$year)) {
+#       year_data <- fleet_data %>% filter(year == y)
+#       for (discard_status in c("Yes", "No")) {
+#         discard_data <- year_data %>% filter(Discarded. == discard_status)
+#         
+#         if (nrow(discard_data) == 0) next
+#         
+#         part_value <- ifelse(discard_status == "Yes", 1, 2) # 1=discard, 2=retained
+#         
+#         # --- UPDATED LOGIC START ---
+#         # Split data into sexed (M/F) and unsexed (NA or blanks)
+#         sexed_subset <- discard_data %>% filter(Sex %in% c("M", "F"))
+#         unsexed_subset <- discard_data %>% filter(is.na(Sex) | !(Sex %in% c("M", "F")))
+#         
+#         # 1. Process the SEXED subset (sex_code = 3)
+#         if (nrow(sexed_subset) > 0 && any(sexed_subset$Sex == "M") && any(sexed_subset$Sex == "F")) {
+#           female_counts <- sexed_subset %>% 
+#             filter(Sex == "F") %>%
+#             group_by(LengthClass_cm) %>%
+#             summarise(count = n(), .groups = 'drop') %>%
+#             complete(LengthClass_cm = length_bins, fill = list(count = 0)) %>%
+#             arrange(LengthClass_cm)
+#           
+#           male_counts <- sexed_subset %>% 
+#             filter(Sex == "M") %>%
+#             group_by(LengthClass_cm) %>%
+#             summarise(count = n(), .groups = 'drop') %>%
+#             complete(LengthClass_cm = length_bins, fill = list(count = 0)) %>%
+#             arrange(LengthClass_cm)
+#           
+#           combined_vector <- pad_vector(c(female_counts$count, male_counts$count))
+#           new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
+#           
+#           if (new_nsamp > 0) {
+#             result <- rbind(result, data.frame(
+#               yr = y, month = month, fleet = f, sex = 3, part = part_value,
+#               Lbin_lo = Lbin_lo, Lbin_hi = Lbin_hi, Nsamp = new_nsamp,
+#               datavector = I(list(combined_vector))
+#             ))
+#           }
+#         }
+#         
+#         # 2. Process the UNSEXED subset (sex_code = 0)
+#         if (nrow(unsexed_subset) > 0) {
+#           unsexed_counts <- unsexed_subset %>% 
+#             group_by(LengthClass_cm) %>%
+#             summarise(count = n(), .groups = 'drop') %>%
+#             complete(LengthClass_cm = length_bins, fill = list(count = 0)) %>%
+#             arrange(LengthClass_cm)
+#           
+#           combined_vector <- pad_vector(c(unsexed_counts$count, rep(0, length(length_bins))))
+#           new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
+#           
+#           if (new_nsamp > 0) {
+#             result <- rbind(result, data.frame(
+#               yr = y, month = month, fleet = f, sex = 0, part = part_value,
+#               Lbin_lo = Lbin_lo, Lbin_hi = Lbin_hi, Nsamp = new_nsamp,
+#               datavector = I(list(combined_vector))
+#             ))
+#           }
+#         }
+#         # --- UPDATED LOGIC END ---
+#       }
+#     }
+#   }
+#   
+#   # Add the required terminator row
+#   terminal_row <- data.frame(
+#     yr = -9999, month = 0, fleet = 0, sex = 0, part = 0, Lbin_lo = 0,
+#     Lbin_hi = 0, Nsamp = 0, datavector = I(list(pad_vector(rep(0, length(length_bins) * 2))))
+#   )
+#   
+#   if (nrow(result) > 0) {
+#     result <- result[order(result$part, result$fleet, result$yr), ]
+#     result <- rbind(result, terminal_row)
+#   } else {
+#     result <- terminal_row
+#   }
+#   
+#   return(result)
+# }
+
 SS_format_length_data <- function(length_data, max_length = SS_max_size, 
                                   month = 1, 
                                   length_bins = seq(0, max_length, by = SS_length_binwidth), 
@@ -2552,8 +2664,13 @@ SS_format_length_data <- function(length_data, max_length = SS_max_size,
     length_data$fleet[is.na(length_data$fleet) | length_data$fleet <= 0] <- 1
   }
   
-  # Convert length from mm to cm for processing
+  # # Convert length from mm to cm for processing
+  # length_data <- length_data %>%
+  #   mutate(LengthClass_cm = LengthClass / 10)
+  # 
+  # Convert length from mm to cm and drop NA lengths so they cannot shift bin columns
   length_data <- length_data %>%
+    filter(!is.na(LengthClass)) %>%
     mutate(LengthClass_cm = LengthClass / 10)
   
   fleets <- unique(length_data$fleet)
@@ -2562,7 +2679,7 @@ SS_format_length_data <- function(length_data, max_length = SS_max_size,
   result <- data.frame(
     yr = integer(), month = integer(), fleet = integer(), sex = integer(),
     part = integer(), Lbin_lo = integer(), Lbin_hi = integer(),
-    Nsamp = integer(), datavector = I(vector("list", 0))
+    Nsamp = numeric(), dbase_comment = character(), datavector = I(vector("list", 0))
   )
   
   # Process the data for each fleet, year, and discard status
@@ -2577,59 +2694,70 @@ SS_format_length_data <- function(length_data, max_length = SS_max_size,
         
         part_value <- ifelse(discard_status == "Yes", 1, 2) # 1=discard, 2=retained
         
-        # --- UPDATED LOGIC START ---
-        # Split data into sexed (M/F) and unsexed (NA or blanks)
-        sexed_subset <- discard_data %>% filter(Sex %in% c("M", "F"))
-        unsexed_subset <- discard_data %>% filter(is.na(Sex) | !(Sex %in% c("M", "F")))
+        # --- NEW LOGIC: Loop over dbases ---
+        dbases <- if (exists("SS_keep_dbase_separate") && SS_keep_dbase_separate && "dbase" %in% colnames(discard_data)) unique(discard_data$dbase[!is.na(discard_data$dbase)]) else "Combined"
+        if (length(dbases) == 0) dbases <- "Combined"
         
-        # 1. Process the SEXED subset (sex_code = 3)
-        if (nrow(sexed_subset) > 0 && any(sexed_subset$Sex == "M") && any(sexed_subset$Sex == "F")) {
-          female_counts <- sexed_subset %>% 
-            filter(Sex == "F") %>%
-            group_by(LengthClass_cm) %>%
-            summarise(count = n(), .groups = 'drop') %>%
-            complete(LengthClass_cm = length_bins, fill = list(count = 0)) %>%
-            arrange(LengthClass_cm)
+        for (db in dbases) {
+          db_subset <- if (db == "Combined") discard_data else discard_data %>% filter(dbase == db)
+          if (nrow(db_subset) == 0) next
           
-          male_counts <- sexed_subset %>% 
-            filter(Sex == "M") %>%
-            group_by(LengthClass_cm) %>%
-            summarise(count = n(), .groups = 'drop') %>%
-            complete(LengthClass_cm = length_bins, fill = list(count = 0)) %>%
-            arrange(LengthClass_cm)
+          comment_str <- if (db == "Combined") "" else paste("dbase:", db)
           
-          combined_vector <- pad_vector(c(female_counts$count, male_counts$count))
-          new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
+          # Split data into sexed (M/F) and unsexed (NA or blanks) using db_subset
+          sexed_subset <- db_subset %>% filter(Sex %in% c("M", "F"))
+          unsexed_subset <- db_subset %>% filter(is.na(Sex) | !(Sex %in% c("M", "F")))
           
-          if (new_nsamp > 0) {
-            result <- rbind(result, data.frame(
-              yr = y, month = month, fleet = f, sex = 3, part = part_value,
-              Lbin_lo = Lbin_lo, Lbin_hi = Lbin_hi, Nsamp = new_nsamp,
-              datavector = I(list(combined_vector))
-            ))
+          # 1. Process the SEXED subset (sex_code = 3)
+          if (nrow(sexed_subset) > 0 && any(sexed_subset$Sex == "M") && any(sexed_subset$Sex == "F")) {
+            female_counts <- sexed_subset %>% 
+              filter(Sex == "F") %>%
+              group_by(LengthClass_cm) %>%
+              summarise(count = n(), .groups = 'drop') %>%
+              complete(LengthClass_cm = length_bins, fill = list(count = 0)) %>%
+              arrange(LengthClass_cm)
+            
+            male_counts <- sexed_subset %>% 
+              filter(Sex == "M") %>%
+              group_by(LengthClass_cm) %>%
+              summarise(count = n(), .groups = 'drop') %>%
+              complete(LengthClass_cm = length_bins, fill = list(count = 0)) %>%
+              arrange(LengthClass_cm)
+            
+            combined_vector <- pad_vector(c(female_counts$count, male_counts$count))
+            new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
+            
+            if (new_nsamp > 0) {
+              result <- rbind(result, data.frame(
+                yr = y, month = month, fleet = f, sex = 3, part = part_value,
+                Lbin_lo = Lbin_lo, Lbin_hi = Lbin_hi, Nsamp = new_nsamp,
+                dbase_comment = comment_str,
+                datavector = I(list(combined_vector))
+              ))
+            }
           }
-        }
-        
-        # 2. Process the UNSEXED subset (sex_code = 0)
-        if (nrow(unsexed_subset) > 0) {
-          unsexed_counts <- unsexed_subset %>% 
-            group_by(LengthClass_cm) %>%
-            summarise(count = n(), .groups = 'drop') %>%
-            complete(LengthClass_cm = length_bins, fill = list(count = 0)) %>%
-            arrange(LengthClass_cm)
           
-          combined_vector <- pad_vector(c(unsexed_counts$count, rep(0, length(length_bins))))
-          new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
-          
-          if (new_nsamp > 0) {
-            result <- rbind(result, data.frame(
-              yr = y, month = month, fleet = f, sex = 0, part = part_value,
-              Lbin_lo = Lbin_lo, Lbin_hi = Lbin_hi, Nsamp = new_nsamp,
-              datavector = I(list(combined_vector))
-            ))
+          # 2. Process the UNSEXED subset (sex_code = 0)
+          if (nrow(unsexed_subset) > 0) {
+            unsexed_counts <- unsexed_subset %>% 
+              group_by(LengthClass_cm) %>%
+              summarise(count = n(), .groups = 'drop') %>%
+              complete(LengthClass_cm = length_bins, fill = list(count = 0)) %>%
+              arrange(LengthClass_cm)
+            
+            combined_vector <- pad_vector(c(unsexed_counts$count, rep(0, length(length_bins))))
+            new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
+            
+            if (new_nsamp > 0) {
+              result <- rbind(result, data.frame(
+                yr = y, month = month, fleet = f, sex = 0, part = part_value,
+                Lbin_lo = Lbin_lo, Lbin_hi = Lbin_hi, Nsamp = new_nsamp,
+                dbase_comment = comment_str,
+                datavector = I(list(combined_vector))
+              ))
+            }
           }
-        }
-        # --- UPDATED LOGIC END ---
+        } # END DB LOOP
       }
     }
   }
@@ -2637,11 +2765,20 @@ SS_format_length_data <- function(length_data, max_length = SS_max_size,
   # Add the required terminator row
   terminal_row <- data.frame(
     yr = -9999, month = 0, fleet = 0, sex = 0, part = 0, Lbin_lo = 0,
-    Lbin_hi = 0, Nsamp = 0, datavector = I(list(pad_vector(rep(0, length(length_bins) * 2))))
+    Lbin_hi = 0, Nsamp = 0, dbase_comment = "", datavector = I(list(pad_vector(rep(0, length(length_bins) * 2))))
   )
   
+  # if (nrow(result) > 0) {
+  #   result <- result[order(result$part, result$fleet, result$yr), ]
+  #   result <- rbind(result, terminal_row)
+  # } else {
+  #   result <- terminal_row
+  # }
+  
   if (nrow(result) > 0) {
-    result <- result[order(result$part, result$fleet, result$yr), ]
+    # --- FIX: Sort by dbase_comment first ---
+    result <- result[order(result$dbase_comment, result$part, result$fleet, result$yr), ]
+    # ----------------------------------------
     result <- rbind(result, terminal_row)
   } else {
     result <- terminal_row
@@ -2666,6 +2803,19 @@ SS_length_data_formatted <- SS_format_length_data(fixedsiteonly,
                                                   max_length = SS_max_size,
                                                   length_bins = seq(0, SS_max_size, by = SS_length_binwidth))
 
+# --- NEW: Format Size Comp Data ---
+SS_size_data_formatted <- NULL
+if (nrow(size_comp_raw) > 0) {
+  SS_size_data_formatted <- SS_format_length_data(size_comp_raw,
+                                                  max_length = SS_max_size,
+                                                  length_bins = seq(0, SS_max_size, by = SS_size_binwidth))
+  
+  # Remove the -9999 terminator row temporarily so it can be pasted cleanly into the dat file later
+  if (nrow(SS_size_data_formatted) > 0) {
+    SS_size_data_formatted <- SS_size_data_formatted[SS_size_data_formatted$yr != -9999, ]
+  }
+}
+# ----------------------------------
 
 
 # cat("nfleets in SS_length_data_formatted:", unique(SS_length_data_formatted$fleet), "\n")
@@ -2679,6 +2829,154 @@ cat("unique fleets in SS_length_data_formatted-SHOULD BE NUMBERS: ",unique(SS_le
 
 ## format age data  -------------
 
+
+# SS_format_age_data <- function(age_data, max_age = SS_n_age_bins, 
+#                                month = 1, part = 2, ageerr = 1, Lbin_lo = -1, Lbin_hi = -1) {
+#   
+#   # Helper function to pad vectors
+#   pad_vector <- function(vec, target_length = (max_age + 1) * 2) {
+#     if (length(vec) < target_length) {
+#       vec <- c(vec, rep(0, target_length - length(vec)))
+#     }
+#     return(vec[1:target_length])
+#   }
+#   
+#   # Check if fleet column exists
+#   if (!"fleet" %in% colnames(age_data)) {
+#     stop("No 'fleet' column found in age_data.")
+#   }
+#   
+#   # Get unique fleets
+#   fleets <- unique(age_data$fleet)
+#   if (length(fleets) == 0) {
+#     # Return a valid empty/terminal structure if no fleet data
+#     terminal_row <- data.frame(
+#       yr = -9999, month = 0, fleet = 0, sex = 0, part = 0, ageerr = 0,
+#       Lbin_lo = 0, Lbin_hi = 0, Nsamp = 0,
+#       datavector = I(list(pad_vector(rep(0, (max_age + 1) * 2))))
+#     )
+#     return(terminal_row)
+#   }
+#   
+#   # Initialize result data frame
+#   result <- data.frame(
+#     yr = integer(),
+#     month = integer(),
+#     fleet = integer(),
+#     sex = integer(),
+#     part = integer(),
+#     ageerr = integer(),
+#     Lbin_lo = integer(),
+#     Lbin_hi = integer(),
+#     Nsamp = integer(),
+#     datavector = I(vector("list", 0))
+#   )
+#   
+#   # Process each fleet
+#   for (fleet_name in fleets) {
+#     # Get fleet index from SS_fleet_details
+#     fleet_idx <- which(SS_fleet_details$fleetname == fleet_name)
+#     if (length(fleet_idx) == 0) {
+#       warning("Fleet name '", fleet_name, "' not found in SS_fleet_details$fleetname. Skipping.")
+#       next
+#     }
+#     
+#     fleet_data <- age_data %>% filter(fleet == fleet_name)
+#     years <- unique(fleet_data$year)
+#     
+#     # Process each year
+#     for (y in years) {
+#       year_data <- fleet_data %>% filter(year == y)
+#       
+#       # --- NEW LOGIC START ---
+#       # # Split data into sexed (M/F) and unsexed (NA)
+#       # sexed_subset <- year_data %>% filter(Sex %in% c("M", "F"))
+#       # unsexed_subset <- year_data %>% filter(is.na(Sex))
+#       
+#       # Split data into sexed (M/F) and unsexed (NA or blanks)
+#       sexed_subset <- year_data %>% filter(Sex %in% c("M", "F"))
+#       unsexed_subset <- year_data %>% filter(is.na(Sex) | !(Sex %in% c("M", "F")))
+#       
+#       # cat("hello unsexed_subset:")
+#       # print(unsexed_subset)
+#       
+#       # 1. Process the SEXED subset (sex_code = 3)
+#       # Process only if both males and females are present in the subset
+#       if (nrow(sexed_subset) > 0 && any(sexed_subset$Sex == "M") && any(sexed_subset$Sex == "F")) {
+#         female_data <- sexed_subset %>% 
+#           filter(Sex == "F") %>%
+#           group_by(IntAge) %>%
+#           summarise(count = n(), .groups = 'drop') %>%
+#           complete(IntAge = 0:max_age, fill = list(count = 0)) %>%
+#           arrange(IntAge)
+#         
+#         male_data <- sexed_subset %>% 
+#           filter(Sex == "M") %>%
+#           group_by(IntAge) %>%
+#           summarise(count = n(), .groups = 'drop') %>%
+#           complete(IntAge = 0:max_age, fill = list(count = 0)) %>%
+#           arrange(IntAge)
+#         
+#         combined_vector <- pad_vector(c(female_data$count, male_data$count))
+#         # new_nsamp <- sum(combined_vector)
+#         new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
+#         
+#         if (new_nsamp > 0) {
+#           new_row <- data.frame(
+#             yr = y, month = month, fleet = fleet_idx, sex = 3, part = part,
+#             ageerr = ageerr, Lbin_lo = Lbin_lo, Lbin_hi = Lbin_hi,
+#             Nsamp = new_nsamp, datavector = I(list(combined_vector))
+#           )
+#           result <- rbind(result, new_row)
+#         }
+#       }
+#       
+#       # 2. Process the UNSEXED subset (sex_code = 0)
+#       if (nrow(unsexed_subset) > 0) {
+#         all_data <- unsexed_subset %>% 
+#           group_by(IntAge) %>%
+#           summarise(count = n(), .groups = 'drop') %>%
+#           complete(IntAge = 0:max_age, fill = list(count = 0)) %>%
+#           arrange(IntAge)
+#         
+#         combined_vector <- pad_vector(c(all_data$count, rep(0, max_age + 1)))
+#         # new_nsamp <- sum(combined_vector)
+#         new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
+#         
+#         if (new_nsamp > 0) {
+#           new_row <- data.frame(
+#             yr = y, month = month, fleet = fleet_idx, sex = 0, part = part,
+#             ageerr = ageerr, Lbin_lo = Lbin_lo, Lbin_hi = Lbin_hi,
+#             Nsamp = new_nsamp, datavector = I(list(combined_vector))
+#           )
+#           result <- rbind(result, new_row)
+#         }
+#       }
+#       # --- NEW LOGIC END ---
+#     }
+#   }
+#   
+#   # Add terminal row required by Stock Synthesis
+#   if (nrow(result) > 0) {
+#     terminal_row <- data.frame(
+#       yr = -9999, month = 0, fleet = 0, sex = 0, part = 0, ageerr = 0,
+#       Lbin_lo = 0, Lbin_hi = 0, Nsamp = 0,
+#       datavector = I(list(pad_vector(rep(0, (max_age + 1) * 2))))
+#     )
+#     result <- result[order(result$fleet, result$yr), ]
+#     result <- rbind(result, terminal_row)
+#   } else {
+#     # If no data, still need a terminal row
+#     terminal_row <- data.frame(
+#       yr = -9999, month = 0, fleet = 0, sex = 0, part = 0, ageerr = 0,
+#       Lbin_lo = 0, Lbin_hi = 0, Nsamp = 0,
+#       datavector = I(list(pad_vector(rep(0, (max_age + 1) * 2))))
+#     )
+#     result <- terminal_row
+#   }
+#   
+#   return(result)
+# }
 
 SS_format_age_data <- function(age_data, max_age = SS_n_age_bins, 
                                month = 1, part = 2, ageerr = 1, Lbin_lo = -1, Lbin_hi = -1) {
@@ -2699,10 +2997,9 @@ SS_format_age_data <- function(age_data, max_age = SS_n_age_bins,
   # Get unique fleets
   fleets <- unique(age_data$fleet)
   if (length(fleets) == 0) {
-    # Return a valid empty/terminal structure if no fleet data
     terminal_row <- data.frame(
       yr = -9999, month = 0, fleet = 0, sex = 0, part = 0, ageerr = 0,
-      Lbin_lo = 0, Lbin_hi = 0, Nsamp = 0,
+      Lbin_lo = 0, Lbin_hi = 0, Nsamp = 0, dbase_comment = "",
       datavector = I(list(pad_vector(rep(0, (max_age + 1) * 2))))
     )
     return(terminal_row)
@@ -2718,7 +3015,8 @@ SS_format_age_data <- function(age_data, max_age = SS_n_age_bins,
     ageerr = integer(),
     Lbin_lo = integer(),
     Lbin_hi = integer(),
-    Nsamp = integer(),
+    Nsamp = numeric(),
+    dbase_comment = character(),
     datavector = I(vector("list", 0))
   )
   
@@ -2738,88 +3036,89 @@ SS_format_age_data <- function(age_data, max_age = SS_n_age_bins,
     for (y in years) {
       year_data <- fleet_data %>% filter(year == y)
       
-      # --- NEW LOGIC START ---
-      # # Split data into sexed (M/F) and unsexed (NA)
-      # sexed_subset <- year_data %>% filter(Sex %in% c("M", "F"))
-      # unsexed_subset <- year_data %>% filter(is.na(Sex))
+      # --- NEW LOGIC: Loop over dbases ---
+      dbases <- if (exists("SS_keep_dbase_separate") && SS_keep_dbase_separate && "dbase" %in% colnames(year_data)) unique(year_data$dbase[!is.na(year_data$dbase)]) else "Combined"
+      if (length(dbases) == 0) dbases <- "Combined"
       
-      # Split data into sexed (M/F) and unsexed (NA or blanks)
-      sexed_subset <- year_data %>% filter(Sex %in% c("M", "F"))
-      unsexed_subset <- year_data %>% filter(is.na(Sex) | !(Sex %in% c("M", "F")))
-      
-      # cat("hello unsexed_subset:")
-      # print(unsexed_subset)
-      
-      # 1. Process the SEXED subset (sex_code = 3)
-      # Process only if both males and females are present in the subset
-      if (nrow(sexed_subset) > 0 && any(sexed_subset$Sex == "M") && any(sexed_subset$Sex == "F")) {
-        female_data <- sexed_subset %>% 
-          filter(Sex == "F") %>%
-          group_by(IntAge) %>%
-          summarise(count = n(), .groups = 'drop') %>%
-          complete(IntAge = 0:max_age, fill = list(count = 0)) %>%
-          arrange(IntAge)
+      for (db in dbases) {
+        db_subset <- if (db == "Combined") year_data else year_data %>% filter(dbase == db)
+        if (nrow(db_subset) == 0) next
         
-        male_data <- sexed_subset %>% 
-          filter(Sex == "M") %>%
-          group_by(IntAge) %>%
-          summarise(count = n(), .groups = 'drop') %>%
-          complete(IntAge = 0:max_age, fill = list(count = 0)) %>%
-          arrange(IntAge)
+        comment_str <- if (db == "Combined") "" else paste("dbase:", db)
         
-        combined_vector <- pad_vector(c(female_data$count, male_data$count))
-        # new_nsamp <- sum(combined_vector)
-        new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
+        # Split data into sexed (M/F) and unsexed (NA or blanks) using db_subset
+        sexed_subset <- db_subset %>% filter(Sex %in% c("M", "F"))
+        unsexed_subset <- db_subset %>% filter(is.na(Sex) | !(Sex %in% c("M", "F")))
         
-        if (new_nsamp > 0) {
-          new_row <- data.frame(
-            yr = y, month = month, fleet = fleet_idx, sex = 3, part = part,
-            ageerr = ageerr, Lbin_lo = Lbin_lo, Lbin_hi = Lbin_hi,
-            Nsamp = new_nsamp, datavector = I(list(combined_vector))
-          )
-          result <- rbind(result, new_row)
+        # 1. Process the SEXED subset (sex_code = 3)
+        if (nrow(sexed_subset) > 0 && any(sexed_subset$Sex == "M") && any(sexed_subset$Sex == "F")) {
+          female_data <- sexed_subset %>% 
+            filter(Sex == "F") %>%
+            group_by(IntAge) %>%
+            summarise(count = n(), .groups = 'drop') %>%
+            complete(IntAge = 0:max_age, fill = list(count = 0)) %>%
+            arrange(IntAge)
+          
+          male_data <- sexed_subset %>% 
+            filter(Sex == "M") %>%
+            group_by(IntAge) %>%
+            summarise(count = n(), .groups = 'drop') %>%
+            complete(IntAge = 0:max_age, fill = list(count = 0)) %>%
+            arrange(IntAge)
+          
+          combined_vector <- pad_vector(c(female_data$count, male_data$count))
+          new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
+          
+          if (new_nsamp > 0) {
+            new_row <- data.frame(
+              yr = y, month = month, fleet = fleet_idx, sex = 3, part = part,
+              ageerr = ageerr, Lbin_lo = Lbin_lo, Lbin_hi = Lbin_hi,
+              Nsamp = new_nsamp, dbase_comment = comment_str,
+              datavector = I(list(combined_vector))
+            )
+            result <- rbind(result, new_row)
+          }
         }
-      }
-      
-      # 2. Process the UNSEXED subset (sex_code = 0)
-      if (nrow(unsexed_subset) > 0) {
-        all_data <- unsexed_subset %>% 
-          group_by(IntAge) %>%
-          summarise(count = n(), .groups = 'drop') %>%
-          complete(IntAge = 0:max_age, fill = list(count = 0)) %>%
-          arrange(IntAge)
         
-        combined_vector <- pad_vector(c(all_data$count, rep(0, max_age + 1)))
-        # new_nsamp <- sum(combined_vector)
-        new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
-        
-        if (new_nsamp > 0) {
-          new_row <- data.frame(
-            yr = y, month = month, fleet = fleet_idx, sex = 0, part = part,
-            ageerr = ageerr, Lbin_lo = Lbin_lo, Lbin_hi = Lbin_hi,
-            Nsamp = new_nsamp, datavector = I(list(combined_vector))
-          )
-          result <- rbind(result, new_row)
+        # 2. Process the UNSEXED subset (sex_code = 0)
+        if (nrow(unsexed_subset) > 0) {
+          all_data <- unsexed_subset %>% 
+            group_by(IntAge) %>%
+            summarise(count = n(), .groups = 'drop') %>%
+            complete(IntAge = 0:max_age, fill = list(count = 0)) %>%
+            arrange(IntAge)
+          
+          combined_vector <- pad_vector(c(all_data$count, rep(0, max_age + 1)))
+          new_nsamp <- round(sum(combined_vector) * SS_nsamp_multiplier, 2)
+          
+          if (new_nsamp > 0) {
+            new_row <- data.frame(
+              yr = y, month = month, fleet = fleet_idx, sex = 0, part = part,
+              ageerr = ageerr, Lbin_lo = Lbin_lo, Lbin_hi = Lbin_hi,
+              Nsamp = new_nsamp, dbase_comment = comment_str,
+              datavector = I(list(combined_vector))
+            )
+            result <- rbind(result, new_row)
+          }
         }
-      }
-      # --- NEW LOGIC END ---
+      } # END DB LOOP
     }
   }
   
-  # Add terminal row required by Stock Synthesis
   if (nrow(result) > 0) {
     terminal_row <- data.frame(
       yr = -9999, month = 0, fleet = 0, sex = 0, part = 0, ageerr = 0,
-      Lbin_lo = 0, Lbin_hi = 0, Nsamp = 0,
+      Lbin_lo = 0, Lbin_hi = 0, Nsamp = 0, dbase_comment = "",
       datavector = I(list(pad_vector(rep(0, (max_age + 1) * 2))))
     )
-    result <- result[order(result$fleet, result$yr), ]
+    # --- FIX: Add result$dbase_comment to the sort order ---
+    result <- result[order(result$dbase_comment, result$fleet, result$yr), ] 
+    # result <- result[order(result$fleet, result$yr), ]
     result <- rbind(result, terminal_row)
   } else {
-    # If no data, still need a terminal row
     terminal_row <- data.frame(
       yr = -9999, month = 0, fleet = 0, sex = 0, part = 0, ageerr = 0,
-      Lbin_lo = 0, Lbin_hi = 0, Nsamp = 0,
+      Lbin_lo = 0, Lbin_hi = 0, Nsamp = 0, dbase_comment = "",
       datavector = I(list(pad_vector(rep(0, (max_age + 1) * 2))))
     )
     result <- terminal_row
@@ -2979,55 +3278,256 @@ pad_vector_optimized <- function(vec, max_age_val) {
   return(vec_padded[1:target_length])
 }
 
+# SS_format_cond_age_length_optimised <- function(age_data, 
+#                                                 SS_length_bins_param, # Kept for signature consistency, not directly used in this optimized logic
+#                                                 max_age,
+#                                                 month_val = 1, 
+#                                                 part_val = 0, 
+#                                                 ageerr_val = 1,
+#                                                 # SS_length_binwidth_val = 1, # Kept for signature consistency
+#                                                 SS_fleet_details_df) { # Pass SS_fleet_details as a data.frame or data.table
+#   
+#   # Convert age_data to data.table
+#   dt <- as.data.table(age_data)
+#   
+#   # 1. Initial Checks and Setup
+#   if (!"fleet" %in% colnames(dt)) {
+#     stop("No 'fleet' column found in age_data.")
+#   }
+#   if (nrow(dt) == 0) { # Handle empty input age_data
+#     terminal_row <- data.frame(
+#       yr = -9999L, month = 0L, fleet = 0L, sex = 0L, part = 0L, ageerr = 0L,
+#       Lbin_lo = 0L, Lbin_hi = 0L, Nsamp = 0L,
+#       datavector = I(list(pad_vector_optimized(rep(0, (as.integer(max_age) + 1L) * 2L), as.integer(max_age))))
+#     )
+#     return(terminal_row)
+#   }
+#   
+#   # Create a mapping for fleet names to fleet indices
+#   fleet_details_dt <- as.data.table(SS_fleet_details_df)
+#   # The original code implies fleet_idx is the row number in SS_fleet_details
+#   # Ensure fleetname in SS_fleet_details_df is unique if using it as a key.
+#   # Here, we assume the order in SS_fleet_details_df corresponds to desired numeric fleet index.
+#   fleet_map <- data.table(
+#     fleet_char_original = fleet_details_dt$fleetname, 
+#     fleet_idx_numeric = seq_len(nrow(fleet_details_dt))
+#   )
+#   
+#   # Merge to get numeric fleet index, keep only matched fleets
+#   dt <- merge(dt, fleet_map, by.x = "fleet", by.y = "fleet_char_original", all.x = FALSE) # inner join
+#   
+#   if (nrow(dt) == 0) { # Handle case where no fleets in age_data match SS_fleet_details_df
+#     terminal_row <- data.frame(
+#       yr = -9999L, month = 0L, fleet = 0L, sex = 0L, part = 0L, ageerr = 0L,
+#       Lbin_lo = 0L, Lbin_hi = 0L, Nsamp = 0L,
+#       datavector = I(list(pad_vector_optimized(rep(0, (as.integer(max_age) + 1L) * 2L), as.integer(max_age))))
+#     )
+#     return(terminal_row)
+#   }
+#   
+#   
+#   # Identify the correct length column (FL or TL)
+#   length_col_name <- NULL
+#   if ("FL" %in% names(dt) && !all(is.na(dt$FL))) {
+#     length_col_name <- "FL"
+#   } else if ("TL" %in% names(dt) && !all(is.na(dt$TL))) {
+#     length_col_name <- "TL"
+#   } else {
+#     stop("No suitable length column (FL or TL) found in age_data or all values are NA.")
+#   }
+#   
+#   # 2. Filter data for valid entries and create Length_bin
+#   # Ensure IntAge and length_col_name are numeric for comparison
+#   dt[, (length_col_name) := as.numeric(get(length_col_name))]
+#   dt[, IntAge := as.integer(IntAge)]
+#   dt <- dt[!is.na(get(length_col_name)) & !is.na(IntAge) & IntAge >= 0L & IntAge <= as.integer(max_age)]
+#   
+#   if (nrow(dt) == 0) { # Early exit if no valid data after filtering
+#     terminal_row <- data.frame(
+#       yr = -9999L, month = 0L, fleet = 0L, sex = 0L, part = 0L, ageerr = 0L,
+#       Lbin_lo = 0L, Lbin_hi = 0L, Nsamp = 0L,
+#       datavector = I(list(pad_vector_optimized(rep(0, (as.integer(max_age) + 1L) * 2L), as.integer(max_age))))
+#     )
+#     return(terminal_row)
+#   }
+#   # dt[, Length_bin := floor(get(length_col_name) / 10)] # Assumes length is in mm, Length_bin in cm
+#   dt[, Length_bin := floor(get(length_col_name) / (SS_length_binwidth*10))] # Assumes length is in mm, Length_bin in cm
+#   
+#   # 3. Determine sex_code for each year within each original fleet name
+#   dt[, `:=`(
+#     has_males_in_year = any(Sex == "M", na.rm = TRUE),
+#     has_females_in_year = any(Sex == "F", na.rm = TRUE)
+#   ), by = .(fleet, year)] # Group by original character fleet name and year
+#   
+#   # dt[, calculated_sex_code := fcase(
+#   #   has_males_in_year & has_females_in_year, 3L,
+#   #   has_females_in_year, 1L,
+#   #   has_males_in_year, 2L,
+#   #   default = 0L
+#   # )]
+#   
+#   dt[, calculated_sex_code := fcase(
+#     is.na(Sex) | !(Sex %in% c("M", "F")), 0L,  # Force unsexed fish to 0
+#     has_males_in_year & has_females_in_year, 3L,
+#     has_females_in_year, 1L,
+#     has_males_in_year, 2L,
+#     default = 0L
+#   )]
+#   
+#   # Create a data.table of all ages from 0 to max_age for joins (completing data)
+#   all_ages_dt <- data.table(IntAge = 0L:as.integer(max_age), key = "IntAge")
+#   
+#   # 4. Group by relevant columns and calculate data_vector for each group
+#   # Group by the numeric fleet index, year, calculated sex code, and length bin
+#   processed_data <- dt[, {
+#     # .SD contains the subset of data for the current group
+#     current_group_data <- .SD 
+#     
+#     # Initialize counts for female and male portions of the data_vector
+#     female_age_counts <- rep(0L, as.integer(max_age) + 1L)
+#     male_age_counts <- rep(0L, as.integer(max_age) + 1L)
+#     
+#     # Use the first value of calculated_sex_code for the group (should be unique per group)
+#     group_sex_code <- .BY$calculated_sex_code 
+#     
+#     if (group_sex_code == 3L) { # Both sexes present in the year's data
+#       # Female data for this bin
+#       f_data_counts <- current_group_data[Sex == "F", .N, by = IntAge]
+#       setkey(f_data_counts, IntAge)
+#       f_data_complete <- f_data_counts[all_ages_dt, roll = FALSE] # Right join
+#       f_data_complete[is.na(N), N := 0L]
+#       female_age_counts <- f_data_complete$N
+#       
+#       # Male data for this bin
+#       m_data_counts <- current_group_data[Sex == "M", .N, by = IntAge]
+#       setkey(m_data_counts, IntAge)
+#       m_data_complete <- m_data_counts[all_ages_dt, roll = FALSE] # Right join
+#       m_data_complete[is.na(N), N := 0L]
+#       male_age_counts <- m_data_complete$N
+#       
+#     } else if (group_sex_code == 1L) { # Females only in the year's data
+#       # Data for this bin (explicitly filter by Sex as per original logic)
+#       f_data_counts <- current_group_data[Sex == "F", .N, by = IntAge]
+#       setkey(f_data_counts, IntAge)
+#       f_data_complete <- f_data_counts[all_ages_dt, roll = FALSE]
+#       f_data_complete[is.na(N), N := 0L]
+#       female_age_counts <- f_data_complete$N
+#       # male_age_counts remains all zeros
+#       
+#     } else if (group_sex_code == 2L) { # Males only in the year's data
+#       # Data for this bin (explicitly filter by Sex as per original logic)
+#       m_data_counts <- current_group_data[Sex == "M", .N, by = IntAge]
+#       setkey(m_data_counts, IntAge)
+#       m_data_complete <- m_data_counts[all_ages_dt, roll = FALSE]
+#       m_data_complete[is.na(N), N := 0L]
+#       male_age_counts <- m_data_complete$N
+#       # female_age_counts remains all zeros
+#       
+#     } else { # sex_code == 0L (Unsexed or combined for the year's data)
+#       # All data in this bin contributes to the 'female' part of the vector
+#       all_data_counts <- current_group_data[, .N, by = IntAge]
+#       setkey(all_data_counts, IntAge)
+#       all_data_complete <- all_data_counts[all_ages_dt, roll = FALSE]
+#       all_data_complete[is.na(N), N := 0L]
+#       female_age_counts <- all_data_complete$N
+#       # male_age_counts remains all zeros
+#     }
+#     
+#     # Combine female and male counts and pad the vector
+#     combined_age_dist <- c(female_age_counts, male_age_counts)
+#     data_vec_padded <- pad_vector_optimized(combined_age_dist, as.integer(max_age))
+#     
+#     # Return a list containing the datavector and calculated Nsamp
+#     list(
+#       datavector_list_col = list(data_vec_padded), 
+#       # Nsamp_calculated = sum(data_vec_padded)
+#       Nsamp_calculated = round(sum(data_vec_padded) * SS_nsamp_multiplier, 2)
+#     )
+#   }, by = .(year, fleet_idx_numeric, calculated_sex_code, Length_bin)] # Grouping variables
+#   
+#   # Filter out groups where Nsamp_calculated is 0 (no actual age data for the bin)
+#   processed_data <- processed_data[Nsamp_calculated > 0]
+#   
+#   if (nrow(processed_data) == 0) { # If all bins ended up with Nsamp = 0
+#     terminal_row <- data.frame(
+#       yr = -9999L, month = 0L, fleet = 0L, sex = 0L, part = 0L, ageerr = 0L,
+#       Lbin_lo = 0L, Lbin_hi = 0L, Nsamp = 0L,
+#       datavector = I(list(pad_vector_optimized(rep(0, (as.integer(max_age) + 1L) * 2L), as.integer(max_age))))
+#     )
+#     return(terminal_row)
+#   }
+#   
+#   # Construct the final result table based on processed_data
+#   final_result_dt <- processed_data[, .(
+#     yr = year, # Original year from the group
+#     month = as.integer(month_val),   # From function argument
+#     fleet = fleet_idx_numeric, # Numeric fleet index from the group
+#     sex = calculated_sex_code, # Calculated sex code from the group
+#     part = as.integer(part_val),     # From function argument
+#     ageerr = as.integer(ageerr_val),   # From function argument
+#     Lbin_lo = Length_bin + 1L, # Original logic: lbin + 1
+#     Lbin_hi = Length_bin + 1L, # Original logic: lbin + 1
+#     Nsamp = Nsamp_calculated,  # Use the sum of the padded data_vector
+#     datavector = datavector_list_col # The list column containing padded vectors
+#   )]
+#   
+#   # 5. Final processing: order and add terminal row
+#   setorderv(final_result_dt, c("fleet", "yr", "Lbin_lo")) # Order as per original function
+#   
+#   terminal_row_dt <- data.table(
+#     yr = -9999L, month = 0L, fleet = 0L, sex = 0L, part = 0L, ageerr = 0L,
+#     Lbin_lo = 0L, Lbin_hi = 0L, Nsamp = 0L,
+#     datavector = list(pad_vector_optimized(rep(0, (as.integer(max_age) + 1L) * 2L), as.integer(max_age)))
+#   )
+#   
+#   # Combine the main results with the terminal row
+#   final_result_dt <- rbindlist(list(final_result_dt, terminal_row_dt), use.names = TRUE, fill = TRUE)
+#   
+#   # Convert to data.frame and ensure datavector column has I() for list column behavior
+#   final_df_output <- as.data.frame(final_result_dt)
+#   final_df_output$datavector <- I(final_df_output$datavector) # Crucial for exact match with original structure
+#   
+#   return(final_df_output)
+# }
+
 SS_format_cond_age_length_optimised <- function(age_data, 
-                                                SS_length_bins_param, # Kept for signature consistency, not directly used in this optimized logic
+                                                SS_length_bins_param, 
                                                 max_age,
                                                 month_val = 1, 
                                                 part_val = 0, 
                                                 ageerr_val = 1,
-                                                # SS_length_binwidth_val = 1, # Kept for signature consistency
-                                                SS_fleet_details_df) { # Pass SS_fleet_details as a data.frame or data.table
+                                                SS_fleet_details_df) {
   
-  # Convert age_data to data.table
   dt <- as.data.table(age_data)
   
-  # 1. Initial Checks and Setup
-  if (!"fleet" %in% colnames(dt)) {
-    stop("No 'fleet' column found in age_data.")
-  }
-  if (nrow(dt) == 0) { # Handle empty input age_data
+  if (!"fleet" %in% colnames(dt)) stop("No 'fleet' column found in age_data.")
+  
+  if (nrow(dt) == 0) { 
     terminal_row <- data.frame(
       yr = -9999L, month = 0L, fleet = 0L, sex = 0L, part = 0L, ageerr = 0L,
-      Lbin_lo = 0L, Lbin_hi = 0L, Nsamp = 0L,
+      Lbin_lo = 0L, Lbin_hi = 0L, Nsamp = 0L, dbase_comment = "",
       datavector = I(list(pad_vector_optimized(rep(0, (as.integer(max_age) + 1L) * 2L), as.integer(max_age))))
     )
     return(terminal_row)
   }
   
-  # Create a mapping for fleet names to fleet indices
   fleet_details_dt <- as.data.table(SS_fleet_details_df)
-  # The original code implies fleet_idx is the row number in SS_fleet_details
-  # Ensure fleetname in SS_fleet_details_df is unique if using it as a key.
-  # Here, we assume the order in SS_fleet_details_df corresponds to desired numeric fleet index.
   fleet_map <- data.table(
     fleet_char_original = fleet_details_dt$fleetname, 
     fleet_idx_numeric = seq_len(nrow(fleet_details_dt))
   )
   
-  # Merge to get numeric fleet index, keep only matched fleets
-  dt <- merge(dt, fleet_map, by.x = "fleet", by.y = "fleet_char_original", all.x = FALSE) # inner join
+  dt <- merge(dt, fleet_map, by.x = "fleet", by.y = "fleet_char_original", all.x = FALSE)
   
-  if (nrow(dt) == 0) { # Handle case where no fleets in age_data match SS_fleet_details_df
+  if (nrow(dt) == 0) { 
     terminal_row <- data.frame(
       yr = -9999L, month = 0L, fleet = 0L, sex = 0L, part = 0L, ageerr = 0L,
-      Lbin_lo = 0L, Lbin_hi = 0L, Nsamp = 0L,
+      Lbin_lo = 0L, Lbin_hi = 0L, Nsamp = 0L, dbase_comment = "",
       datavector = I(list(pad_vector_optimized(rep(0, (as.integer(max_age) + 1L) * 2L), as.integer(max_age))))
     )
     return(terminal_row)
   }
   
-  
-  # Identify the correct length column (FL or TL)
   length_col_name <- NULL
   if ("FL" %in% names(dt) && !all(is.na(dt$FL))) {
     length_col_name <- "FL"
@@ -3037,156 +3537,138 @@ SS_format_cond_age_length_optimised <- function(age_data,
     stop("No suitable length column (FL or TL) found in age_data or all values are NA.")
   }
   
-  # 2. Filter data for valid entries and create Length_bin
-  # Ensure IntAge and length_col_name are numeric for comparison
   dt[, (length_col_name) := as.numeric(get(length_col_name))]
   dt[, IntAge := as.integer(IntAge)]
   dt <- dt[!is.na(get(length_col_name)) & !is.na(IntAge) & IntAge >= 0L & IntAge <= as.integer(max_age)]
   
-  if (nrow(dt) == 0) { # Early exit if no valid data after filtering
+  if (nrow(dt) == 0) {
     terminal_row <- data.frame(
       yr = -9999L, month = 0L, fleet = 0L, sex = 0L, part = 0L, ageerr = 0L,
-      Lbin_lo = 0L, Lbin_hi = 0L, Nsamp = 0L,
+      Lbin_lo = 0L, Lbin_hi = 0L, Nsamp = 0L, dbase_comment = "",
       datavector = I(list(pad_vector_optimized(rep(0, (as.integer(max_age) + 1L) * 2L), as.integer(max_age))))
     )
     return(terminal_row)
   }
-  # dt[, Length_bin := floor(get(length_col_name) / 10)] # Assumes length is in mm, Length_bin in cm
-  dt[, Length_bin := floor(get(length_col_name) / (SS_length_binwidth*10))] # Assumes length is in mm, Length_bin in cm
   
-  # 3. Determine sex_code for each year within each original fleet name
+  dt[, Length_bin := floor(get(length_col_name) / (SS_length_binwidth*10))]
+  
+  # --- NEW: Dynamic grouping for dbases ---
+  group_cols_sex <- c("fleet", "year")
+  group_cols_process <- c("year", "fleet_idx_numeric", "calculated_sex_code", "Length_bin")
+  
+  if (exists("SS_keep_dbase_separate") && SS_keep_dbase_separate && "dbase" %in% names(dt)) {
+    dt[is.na(dbase) | dbase == "", dbase := "Unknown"]
+    group_cols_sex <- c(group_cols_sex, "dbase")
+    group_cols_process <- c(group_cols_process, "dbase")
+  } else {
+    dt[, dbase := "Combined"]
+    group_cols_sex <- c(group_cols_sex, "dbase")
+    group_cols_process <- c(group_cols_process, "dbase")
+  }
+  
   dt[, `:=`(
     has_males_in_year = any(Sex == "M", na.rm = TRUE),
     has_females_in_year = any(Sex == "F", na.rm = TRUE)
-  ), by = .(fleet, year)] # Group by original character fleet name and year
-  
-  # dt[, calculated_sex_code := fcase(
-  #   has_males_in_year & has_females_in_year, 3L,
-  #   has_females_in_year, 1L,
-  #   has_males_in_year, 2L,
-  #   default = 0L
-  # )]
+  ), by = group_cols_sex]
   
   dt[, calculated_sex_code := fcase(
-    is.na(Sex) | !(Sex %in% c("M", "F")), 0L,  # Force unsexed fish to 0
+    is.na(Sex) | !(Sex %in% c("M", "F")), 0L,
     has_males_in_year & has_females_in_year, 3L,
     has_females_in_year, 1L,
     has_males_in_year, 2L,
     default = 0L
   )]
   
-  # Create a data.table of all ages from 0 to max_age for joins (completing data)
   all_ages_dt <- data.table(IntAge = 0L:as.integer(max_age), key = "IntAge")
   
-  # 4. Group by relevant columns and calculate data_vector for each group
-  # Group by the numeric fleet index, year, calculated sex code, and length bin
   processed_data <- dt[, {
-    # .SD contains the subset of data for the current group
     current_group_data <- .SD 
-    
-    # Initialize counts for female and male portions of the data_vector
     female_age_counts <- rep(0L, as.integer(max_age) + 1L)
     male_age_counts <- rep(0L, as.integer(max_age) + 1L)
     
-    # Use the first value of calculated_sex_code for the group (should be unique per group)
     group_sex_code <- .BY$calculated_sex_code 
     
-    if (group_sex_code == 3L) { # Both sexes present in the year's data
-      # Female data for this bin
-      f_data_counts <- current_group_data[Sex == "F", .N, by = IntAge]
-      setkey(f_data_counts, IntAge)
-      f_data_complete <- f_data_counts[all_ages_dt, roll = FALSE] # Right join
-      f_data_complete[is.na(N), N := 0L]
-      female_age_counts <- f_data_complete$N
-      
-      # Male data for this bin
-      m_data_counts <- current_group_data[Sex == "M", .N, by = IntAge]
-      setkey(m_data_counts, IntAge)
-      m_data_complete <- m_data_counts[all_ages_dt, roll = FALSE] # Right join
-      m_data_complete[is.na(N), N := 0L]
-      male_age_counts <- m_data_complete$N
-      
-    } else if (group_sex_code == 1L) { # Females only in the year's data
-      # Data for this bin (explicitly filter by Sex as per original logic)
+    if (group_sex_code == 3L) { 
       f_data_counts <- current_group_data[Sex == "F", .N, by = IntAge]
       setkey(f_data_counts, IntAge)
       f_data_complete <- f_data_counts[all_ages_dt, roll = FALSE]
       f_data_complete[is.na(N), N := 0L]
       female_age_counts <- f_data_complete$N
-      # male_age_counts remains all zeros
       
-    } else if (group_sex_code == 2L) { # Males only in the year's data
-      # Data for this bin (explicitly filter by Sex as per original logic)
       m_data_counts <- current_group_data[Sex == "M", .N, by = IntAge]
       setkey(m_data_counts, IntAge)
       m_data_complete <- m_data_counts[all_ages_dt, roll = FALSE]
       m_data_complete[is.na(N), N := 0L]
       male_age_counts <- m_data_complete$N
-      # female_age_counts remains all zeros
       
-    } else { # sex_code == 0L (Unsexed or combined for the year's data)
-      # All data in this bin contributes to the 'female' part of the vector
+    } else if (group_sex_code == 1L) { 
+      f_data_counts <- current_group_data[Sex == "F", .N, by = IntAge]
+      setkey(f_data_counts, IntAge)
+      f_data_complete <- f_data_counts[all_ages_dt, roll = FALSE]
+      f_data_complete[is.na(N), N := 0L]
+      female_age_counts <- f_data_complete$N
+      
+    } else if (group_sex_code == 2L) { 
+      m_data_counts <- current_group_data[Sex == "M", .N, by = IntAge]
+      setkey(m_data_counts, IntAge)
+      m_data_complete <- m_data_counts[all_ages_dt, roll = FALSE]
+      m_data_complete[is.na(N), N := 0L]
+      male_age_counts <- m_data_complete$N
+      
+    } else { 
       all_data_counts <- current_group_data[, .N, by = IntAge]
       setkey(all_data_counts, IntAge)
       all_data_complete <- all_data_counts[all_ages_dt, roll = FALSE]
       all_data_complete[is.na(N), N := 0L]
       female_age_counts <- all_data_complete$N
-      # male_age_counts remains all zeros
     }
     
-    # Combine female and male counts and pad the vector
     combined_age_dist <- c(female_age_counts, male_age_counts)
     data_vec_padded <- pad_vector_optimized(combined_age_dist, as.integer(max_age))
     
-    # Return a list containing the datavector and calculated Nsamp
     list(
       datavector_list_col = list(data_vec_padded), 
-      # Nsamp_calculated = sum(data_vec_padded)
       Nsamp_calculated = round(sum(data_vec_padded) * SS_nsamp_multiplier, 2)
     )
-  }, by = .(year, fleet_idx_numeric, calculated_sex_code, Length_bin)] # Grouping variables
+  }, by = group_cols_process]
   
-  # Filter out groups where Nsamp_calculated is 0 (no actual age data for the bin)
   processed_data <- processed_data[Nsamp_calculated > 0]
   
-  if (nrow(processed_data) == 0) { # If all bins ended up with Nsamp = 0
+  if (nrow(processed_data) == 0) { 
     terminal_row <- data.frame(
       yr = -9999L, month = 0L, fleet = 0L, sex = 0L, part = 0L, ageerr = 0L,
-      Lbin_lo = 0L, Lbin_hi = 0L, Nsamp = 0L,
+      Lbin_lo = 0L, Lbin_hi = 0L, Nsamp = 0L, dbase_comment = "",
       datavector = I(list(pad_vector_optimized(rep(0, (as.integer(max_age) + 1L) * 2L), as.integer(max_age))))
     )
     return(terminal_row)
   }
   
-  # Construct the final result table based on processed_data
   final_result_dt <- processed_data[, .(
-    yr = year, # Original year from the group
-    month = as.integer(month_val),   # From function argument
-    fleet = fleet_idx_numeric, # Numeric fleet index from the group
-    sex = calculated_sex_code, # Calculated sex code from the group
-    part = as.integer(part_val),     # From function argument
-    ageerr = as.integer(ageerr_val),   # From function argument
-    Lbin_lo = Length_bin + 1L, # Original logic: lbin + 1
-    Lbin_hi = Length_bin + 1L, # Original logic: lbin + 1
-    Nsamp = Nsamp_calculated,  # Use the sum of the padded data_vector
-    datavector = datavector_list_col # The list column containing padded vectors
+    yr = year, 
+    month = as.integer(month_val),   
+    fleet = fleet_idx_numeric, 
+    sex = calculated_sex_code, 
+    part = as.integer(part_val),     
+    ageerr = as.integer(ageerr_val),   
+    Lbin_lo = Length_bin + 1L, 
+    Lbin_hi = Length_bin + 1L, 
+    Nsamp = Nsamp_calculated,
+    dbase_comment = ifelse(dbase == "Combined", "", paste("dbase:", dbase)),
+    datavector = datavector_list_col 
   )]
   
-  # 5. Final processing: order and add terminal row
-  setorderv(final_result_dt, c("fleet", "yr", "Lbin_lo")) # Order as per original function
+  # setorderv(final_result_dt, c("fleet", "yr", "Lbin_lo")) 
+  setorderv(final_result_dt, c("dbase_comment", "fleet", "yr", "Lbin_lo"))
   
   terminal_row_dt <- data.table(
     yr = -9999L, month = 0L, fleet = 0L, sex = 0L, part = 0L, ageerr = 0L,
-    Lbin_lo = 0L, Lbin_hi = 0L, Nsamp = 0L,
+    Lbin_lo = 0L, Lbin_hi = 0L, Nsamp = 0L, dbase_comment = "",
     datavector = list(pad_vector_optimized(rep(0, (as.integer(max_age) + 1L) * 2L), as.integer(max_age)))
   )
   
-  # Combine the main results with the terminal row
   final_result_dt <- rbindlist(list(final_result_dt, terminal_row_dt), use.names = TRUE, fill = TRUE)
-  
-  # Convert to data.frame and ensure datavector column has I() for list column behavior
   final_df_output <- as.data.frame(final_result_dt)
-  final_df_output$datavector <- I(final_df_output$datavector) # Crucial for exact match with original structure
+  final_df_output$datavector <- I(final_df_output$datavector) 
   
   return(final_df_output)
 }
@@ -3285,6 +3767,16 @@ if(fishery_parameters$use_1_sex_model) {
   if (exists("SS_cond_age_length")) {
     SS_cond_age_length$part <- 0
     SS_cond_age_length$sex <- 0
+  }
+  
+  if (exists("SS_cond_age_length")) {
+    SS_cond_age_length$part <- 0
+    SS_cond_age_length$sex <- 0
+  }
+  
+  if (exists("SS_size_data_formatted") && !is.null(SS_size_data_formatted) && nrow(SS_size_data_formatted) > 0) {
+    SS_size_data_formatted$part <- 0
+    SS_size_data_formatted$sex <- 0
   }
   
   SS_cond_age_length$datavector
@@ -3553,17 +4045,41 @@ generate_data_ss <- function(start_year = SS_start_year, end_year = SS_end_year,
     )
     
     
-
     
+    
+    # for (i in 1:nrow(length_composition_data)) {
+    #   
+    #   # --- NEW: Append the comment string if it exists ---
+    #   comment_suffix <- if(!is.null(length_composition_data$dbase_comment[i]) && !is.na(length_composition_data$dbase_comment[i]) && length_composition_data$dbase_comment[i] != "") paste("\t#", length_composition_data$dbase_comment[i]) else ""
+    #   # ---------------------------------------------------
+    #   
+    #   
+    #   lines <- c(lines,
+    #              sprintf("%d\t%d\t%d\t%d\t%d\t%d\t%s",
+    #                      # sprintf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%s",
+    #                      length_composition_data$yr[i], length_composition_data$month[i],
+    #                      length_composition_data$fleet[i], length_composition_data$sex[i],
+    #                      length_composition_data$part[i],
+    #                      length_composition_data$Nsamp[i],
+    #                      paste(length_composition_data$datavector[[i]], collapse = "\t"),
+    #                      comment_suffix))
+    #   
+    # }
     for (i in 1:nrow(length_composition_data)) {
+      
+      # --- NEW: Append the comment string if it exists ---
+      comment_suffix <- if(!is.null(length_composition_data$dbase_comment[i]) && !is.na(length_composition_data$dbase_comment[i]) && length_composition_data$dbase_comment[i] != "") paste("\t#", length_composition_data$dbase_comment[i]) else ""
+      # ---------------------------------------------------
+      
       lines <- c(lines,
-                 sprintf("%d\t%d\t%d\t%d\t%d\t%d\t%s",
-                         # sprintf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%s",
+                 # Notice the %g for Nsamp and the extra %s at the very end
+                 sprintf("%d\t%d\t%d\t%d\t%d\t%g\t%s%s",
                          length_composition_data$yr[i], length_composition_data$month[i],
                          length_composition_data$fleet[i], length_composition_data$sex[i],
                          length_composition_data$part[i],
                          length_composition_data$Nsamp[i],
-                         paste(length_composition_data$datavector[[i]], collapse = "\t")))
+                         paste(length_composition_data$datavector[[i]], collapse = "\t"),
+                         comment_suffix))
       
     }
     
@@ -3601,10 +4117,6 @@ generate_data_ss <- function(start_year = SS_start_year, end_year = SS_end_year,
     
     lines <- c(lines,
                "#",
-               # "## !!!!! AGE COMPOSITION SECTION !!!!! ##",
-               # paste(n_age_bins+1, "#_N_age_bins"),
-               # paste(c(0,age_bins), collapse = "\t"),
-               # "1 #_N_ageerror_definitions",
                "## !!!!! AGE COMPOSITION SECTION !!!!! ##",
                paste(length(age_bins), "#_N_age_bins"),
                paste(age_bins, collapse = "\t"),
@@ -3621,16 +4133,36 @@ generate_data_ss <- function(start_year = SS_start_year, end_year = SS_end_year,
 
     age_composition_data <- SS_age_data_formatted
     
+    # for (i in 1:nrow(age_composition_data)) {
+    #   
+    #   comment_suffix <- if(!is.null(age_composition_data$dbase_comment[i]) && !is.na(age_composition_data$dbase_comment[i]) && age_composition_data$dbase_comment[i] != "") paste("\t#", age_composition_data$dbase_comment[i]) else ""
+    #   
+    #   lines <- c(lines,
+    #              # sprintf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%s",
+    #              sprintf("%d\t%d\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%s",        
+    #                      age_composition_data$yr[i], age_composition_data$month[i],
+    #                      age_composition_data$fleet[i], age_composition_data$sex[i],
+    #                      age_composition_data$part[i], age_composition_data$ageerr[i],
+    #                      age_composition_data$Lbin_lo[i], age_composition_data$Lbin_hi[i],
+    #                      age_composition_data$Nsamp[i],
+    #                      paste(age_composition_data$datavector[[i]], collapse = "\t"),
+    #                      comment_suffix))
+    # }
+    
     for (i in 1:nrow(age_composition_data)) {
+      
+      comment_suffix <- if(!is.null(age_composition_data$dbase_comment[i]) && !is.na(age_composition_data$dbase_comment[i]) && age_composition_data$dbase_comment[i] != "") paste("\t#", age_composition_data$dbase_comment[i]) else ""
+      
       lines <- c(lines,
-                 # sprintf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%s",
-                 sprintf("%d\t%d\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%s",        
+                 # Notice the %g for Nsamp and the extra %s at the very end
+                 sprintf("%d\t%d\t%s\t%d\t%d\t%d\t%d\t%d\t%g\t%s%s",        
                          age_composition_data$yr[i], age_composition_data$month[i],
                          age_composition_data$fleet[i], age_composition_data$sex[i],
                          age_composition_data$part[i], age_composition_data$ageerr[i],
                          age_composition_data$Lbin_lo[i], age_composition_data$Lbin_hi[i],
                          age_composition_data$Nsamp[i],
-                         paste(age_composition_data$datavector[[i]], collapse = "\t")))
+                         paste(age_composition_data$datavector[[i]], collapse = "\t"),
+                         comment_suffix))
     }
     
   } else {
@@ -3650,8 +4182,51 @@ generate_data_ss <- function(start_year = SS_start_year, end_year = SS_end_year,
              "## !!!!! ENVIRONMENTAL DATA !!!!! ##",
              "0 #_N_environ_variables",
              "#",
-             "## !!!!! GENERALISED SIZE COMPOSITION DATA !!!!! ##",
-             "0 # N sizefreq methods to read",
+             "## !!!!! GENERALISED SIZE COMPOSITION DATA !!!!! ##")
+  
+  # --- NEW: Inject Size Comp Data Block ---
+  if (exists("SS_size_data_formatted") && !is.null(SS_size_data_formatted) && nrow(SS_size_data_formatted) > 0) {
+    size_bins <- seq(0, SS_max_size, by = SS_size_binwidth)
+    lines <- c(lines,
+               "1 # N sizefreq methods to read",
+               paste(length(size_bins), "#_nbins_per_method"),
+               "2 #_units_per_method",
+               "3 #_scale_per_method",
+               "1e-04 #_mincomp_per_method",
+               paste(nrow(SS_size_data_formatted), "#_Nobs_per_method"),
+               "#",
+               "#_Sizefreq bins",
+               "#",
+               "#_sizefreq_bins_list",
+               paste(size_bins, collapse = " "),
+               paste("#_method\tyear\tmonth\tfleet\tsex\tpart\tNsamp\t", paste(size_bins, collapse = "\t"))
+    )
+    
+    
+    for (i in 1:nrow(SS_size_data_formatted)) {
+      comment_suffix <- if(!is.null(SS_size_data_formatted$dbase_comment[i]) && !is.na(SS_size_data_formatted$dbase_comment[i]) && SS_size_data_formatted$dbase_comment[i] != "") paste("\t#", SS_size_data_formatted$dbase_comment[i]) else ""
+      
+      # Only truncate to 1x nbins for 1-sex models; 2-sex models always require 2x nbins even when sex = 0
+      vec <- SS_size_data_formatted$datavector[[i]]
+      if (n_genders != 2) {
+        vec <- vec[1:length(size_bins)] 
+      }
+      
+      lines <- c(lines,
+                 sprintf("1\t%d\t%d\t%d\t%d\t%d\t%g\t%s%s",
+                         SS_size_data_formatted$yr[i], SS_size_data_formatted$month[i],
+                         SS_size_data_formatted$fleet[i], SS_size_data_formatted$sex[i],
+                         SS_size_data_formatted$part[i],
+                         SS_size_data_formatted$Nsamp[i],
+                         paste(vec, collapse = "\t"),
+                         comment_suffix))
+    }
+  } else {
+    lines <- c(lines, "0 # N sizefreq methods to read")
+  }
+  # ----------------------------------------
+  
+  lines <- c(lines,
              "#",
              "## !!!!! TAG_RECAPTURE DATA !!!!! ##",
              "0 # do tags (0/1/2); where 2 allows entry of TG_min_recap",

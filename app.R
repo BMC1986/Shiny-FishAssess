@@ -40,6 +40,7 @@ suppressPackageStartupMessages({
   library(future.apply)
   library(processx)
   library(tidyverse)
+  library(sortable) # drag-and-drop UI
 })
 
 round_any = function(x, accuracy, f=round){f(x/ accuracy) * accuracy}
@@ -364,6 +365,11 @@ ui <- function(request) {
                                                              selected = "FL", inline = TRUE),
                                                 numericInput("length_class_input", "Length Class Interval (mm):",
                                                              value = 20, min = 1, max = 100, step = 1, width = '15%'),
+                                                pickerInput("size_comp_fleets", "Fleets for Size Comps (Generalised)",
+                                                            choices = NULL, multiple = TRUE,
+                                                            options = list(`actions-box` = TRUE, `live-search` = TRUE)),
+                                                numericInput("size_class_input", "Size Comp Interval (mm):",
+                                                             value = 20, min = 1, max = 100, step = 1, width = '15%'),
                                                 numericInput("min_length_input", "Minimum Length (mm, applies to length and age)",
                                                              value = 0, min = 0, step = 1, width = '15%'),
                                                 numericInput("min_sample_size_length", "Minimum Sample Size (n):",
@@ -462,6 +468,25 @@ ui <- function(request) {
                                  h5("Modify biological and fishery parameters"),
                                  checkboxInput("use_1_sex_model", "Use 1-sex model", value = FALSE),
                                  checkboxInput("use_combined_sex_length_comps", "Set all length comps to combined sex", value = FALSE),
+                                 
+                                 checkboxInput("keep_dbase_separate", "Keep Composition Sources (dbase) Separate", value = TRUE),
+                                 
+                                 # --- ADD THIS: Custom Fleet Ordering UI ---
+                                 checkboxInput("use_custom_fleet_order", "Specify Custom Fleet Order", value = FALSE),
+                                 conditionalPanel(
+                                   condition = "input.use_custom_fleet_order == true",
+                                   div(style = "padding-left: 30px; margin-bottom: 15px;",
+                                       uiOutput("custom_fleet_order_ui"),
+                                       helpText("Drag and drop to reorder.")
+                                   )
+                                 ),
+                                 # -----------------------------------------
+                                 
+                                 hr(),
+                                 h5("Fleet Selectivity & Retention Settings"),
+                                 uiOutput("dynamic_selex_retention_ui"),
+                                 hr(),
+                                 
                                  checkboxInput("disable_hermaphroditism", "Disable Hermaphroditism", value = FALSE),
                                  checkboxInput("use_custom_max_size", "Specify Custom Max Population Size", value = FALSE),
                                  conditionalPanel(
@@ -764,25 +789,7 @@ server <- function(input, output, session) {
   # Tracks if the full data has been loaded
   data_loaded_trigger <- reactiveVal(FALSE)
   
-  # --- 2. LOAD DATA BUTTON LOGIC ---
-  # output$load_data_ui <- renderUI({
-  #   # Only show button if the file exists and we haven't loaded it yet
-  #   if (file.exists("import_DPIRD_data.R") && !data_loaded_trigger()) {
-  #     actionButton("btn_load_import_data", "Load Full Data (import_DPIRD_data.R)", 
-  #                  icon = icon("database"), 
-  #                  class = "btn-success", 
-  #                  style = "width: 100%; margin-bottom: 10px;")
-  #   } else if (data_loaded_trigger()) {
-  #     div(style="text-align: center; color: green; font-weight: bold; margin-bottom: 10px;",
-  #         icon("check"), " Full Data Loaded")
-  #   } else {
-  #     # File doesn't exist
-  #     div(style="text-align: center; color: orange; font-style: italic; margin-bottom: 10px;",
-  #         "Running in restricted mode (No data script found)")
-  #   }
-  # })
-  
-  # --- 2. LOAD DATA BUTTON LOGIC ---
+
   output$load_data_ui <- renderUI({
     # Only show button if the file exists and we haven't loaded it yet
     if (file.exists("interim_data/Compiled_App_Data.RData") && !data_loaded_trigger()) {
@@ -800,43 +807,7 @@ server <- function(input, output, session) {
     }
   })
   
-  # observeEvent(input$btn_load_import_data, {
-  #   req(file.exists("import_DPIRD_data.R"))
-  #   
-  #   showModal(modalDialog("Loading large datasets, please wait...", footer=NULL))
-  #   
-  #   tryCatch({
-  #     # Source into a temporary environment first to avoid clutter
-  #     temp_env <- new.env()
-  #     source("import_DPIRD_data.R", local = temp_env)
-  #     
-  #     # Update the global/server-scope reactive variables
-  #     # if(exists("Fixedsiteonly", envir = temp_env)) Fixedsiteonly <<- temp_env$Fixedsiteonly
-  #     if(exists("Merged_Kim_Pilb", envir = temp_env)) Merged_Kim_Pilb <<- temp_env$Merged_Kim_Pilb
-  #     # if(exists("FISages", envir = temp_env)) FISages <<- temp_env$FISages
-  #     if(exists("WCD_data", envir = temp_env)) WCD_data <<- temp_env$WCD_data
-  #     if(exists("catch_ts", envir = temp_env)) catch_ts <<- temp_env$catch_ts
-  #     if(exists("effort_ts", envir = temp_env)) effort_ts <<- temp_env$effort_ts
-  #     if(exists("bupBiologicalUnitParam", envir = temp_env)) bupBiologicalUnitParam <<- temp_env$bupBiologicalUnitParam
-  #     if(exists("bib_data", envir = temp_env)) bib_data <<- temp_env$bib_data
-  #     
-  #     data_loaded_trigger(TRUE)
-  #     
-  #     # Trigger a species picker update now that we have data
-  #     # (Accessing the first species to set a default if needed)
-  #     # all_new_species <- unique(c(Fixedsiteonly$SpeciesName, Merged_Kim_Pilb$SpeciesName))
-  #     all_new_species <- unique(Merged_Kim_Pilb$SpeciesName)
-  #     updatePickerInput(session, "species_select", choices = sort(all_new_species))
-  #     
-  #     removeModal()
-  #     showNotification("Data loaded successfully!", type = "message")
-  #     
-  #   }, error = function(e) {
-  #     removeModal()
-  #     showNotification(paste("Error loading data:", e$message), type = "error", duration = 10)
-  #   })
-  # })
-  
+
   observeEvent(input$btn_load_import_data, {
     req(file.exists("interim_data/Compiled_App_Data.RData"))
     
@@ -2132,7 +2103,9 @@ server <- function(input, output, session) {
         if (nrow(base_data) == 0) {
           updatePickerInput(session, "dbase_select_bio", choices = character(0), selected = character(0))
           updatePickerInput(session, "sector_select_bio", choices = character(0), selected = character(0))
+          updatePickerInput(session, "size_comp_fleets", choices = character(0), selected = character(0))
           updatePickerInput(session, "year_select2", choices = character(0), selected = character(0))
+          updatePickerInput(session, "bioregion_select_bio", choices = character(0), selected = character(0))
           updatePickerInput(session, "bioregion_select_bio", choices = character(0), selected = character(0))
           updatePickerInput(session, "zone_select_bio", choices = character(0), selected = character(0))
           updatePickerInput(session, "location_select_bio", choices = character(0), selected = character(0))
@@ -2180,6 +2153,11 @@ server <- function(input, output, session) {
         # --- Update all pickers with the new choices and validated selections ---
         updatePickerInput(session, "dbase_select_bio", choices = dbase_choices, selected = sel_dbases)
         updatePickerInput(session, "sector_select_bio", choices = sector_choices, selected = sel_sectors)
+        
+        # --- NEW: Update the Size Comp Fleets dropdown here ---
+        current_size_comp <- isolate(input$size_comp_fleets)
+        updatePickerInput(session, "size_comp_fleets", choices = sector_choices, selected = intersect(current_size_comp, sector_choices))
+        
         updatePickerInput(session, "bioregion_select_bio", choices = bioregion_choices, selected = sel_bioregions)
         updatePickerInput(session, "zone_select_bio", choices = zone_choices, selected = sel_zones)
         updatePickerInput(session, "location_select_bio", choices = location_choices, selected = sel_locations)
@@ -2472,6 +2450,7 @@ server <- function(input, output, session) {
         
         updatePickerInput(session, "dbase_select_bio", choices = kim_pilb_dbase_choices, selected = kim_pilb_dbase_choices)
         updatePickerInput(session, "sector_select_bio", choices = kim_pilb_sector_choices, selected = kim_pilb_sector_choices)
+        updatePickerInput(session, "size_comp_fleets", choices = kim_pilb_sector_choices, selected = NULL)
         updatePickerInput(session, "year_select2", choices = kim_pilb_year_choices, selected = kim_pilb_year_choices)
         updatePickerInput(session, "bioregion_select_bio", choices = kim_pilb_bioregion_choices, selected = kim_pilb_bioregion_choices)
         updatePickerInput(session, "zone_select_bio", choices = kim_pilb_zone_choices, selected = kim_pilb_zone_choices)
@@ -2903,11 +2882,77 @@ server <- function(input, output, session) {
         
         final_choices <- sort(unique(c("Foreign.Trawl", active_sector_choices, all_defined_fleets)))
         
+
+        
         if (length(final_choices) == 0) {
           return(c("Foreign.Trawl"))
         }
         
         return(final_choices)
+      })
+      
+      # --- ADD THIS: Generate the dynamic sortable list for fleets ---
+      output$custom_fleet_order_ui <- renderUI({
+        # Gather ACTIVE fleets from the user's current selections across all tabs
+        catch_fleets  <- input$catch_sector_select
+        effort_fleets <- input$effort_fleet_select
+        length_fleets <- if ("Length" %in% input$data_include_before) input$sector_select_bio else NULL
+        age_fleets    <- if ("Age" %in% input$data_include_before) input$sector_select_bio_age else NULL
+        
+        # Combine and find unique active fleets
+        all_fleets <- unique(c(catch_fleets, effort_fleets, length_fleets, age_fleets))
+        all_fleets <- all_fleets[!is.na(all_fleets) & all_fleets != ""]
+        
+        # Default order: Surveys (containing "FIS") first, then Catch fleets
+        is_survey <- grepl("FIS", all_fleets, ignore.case = TRUE)
+        default_order <- c(all_fleets[is_survey], all_fleets[!is_survey])
+        
+        if (length(default_order) == 0) return(NULL)
+        
+        sortable::rank_list(
+          text = "",
+          labels = default_order,
+          input_id = "custom_fleet_order"
+        )
+      })
+      # ---------------------------------------------------------------
+      
+      # --- Dynamic Selectivity and Retention UI ---
+      output$dynamic_selex_retention_ui <- renderUI({
+        
+        # Determine fleet order (respecting custom drag-and-drop if enabled)
+        if (isTRUE(input$use_custom_fleet_order) && length(input$custom_fleet_order) > 0) {
+          ordered_fleets <- input$custom_fleet_order
+        } else {
+          catch_fleets  <- input$catch_sector_select
+          effort_fleets <- input$effort_fleet_select
+          length_fleets <- if ("Length" %in% input$data_include_before) input$sector_select_bio else NULL
+          age_fleets    <- if ("Age" %in% input$data_include_before) input$sector_select_bio_age else NULL
+          
+          f_list <- unique(c(catch_fleets, effort_fleets, length_fleets, age_fleets))
+          is_survey <- grepl("FIS", f_list, ignore.case = TRUE)
+          ordered_fleets <- c(f_list[is_survey], f_list[!is_survey])
+        }
+        
+        ordered_fleets <- ordered_fleets[!is.na(ordered_fleets) & ordered_fleets != ""]
+        if (length(ordered_fleets) == 0) return(helpText("No fleets currently active."))
+        
+        ui_elements <- lapply(ordered_fleets, function(flt) {
+          wellPanel(
+            style = "padding: 10px; margin-bottom: 10px;",
+            tags$strong(paste("Fleet:", flt)),
+            selectInput(paste0("selex_type_", flt), "Selectivity Type:", 
+                        choices = c("Logistic (1)" = 1, "Mirror Another Fleet (15)" = 15, "Double Normal (24)" = 24, "Cubic Spline (27)" = 27), 
+                        selected = 1, width = "50%"),
+            conditionalPanel(
+              condition = paste0("input.selex_type_", flt, " == '15'"),
+              selectInput(paste0("mirror_fleet_", flt), "Mirror Selectivity From:",
+                          choices = setdiff(ordered_fleets, flt), width = "50%")
+            ),
+            checkboxInput(paste0("retention_est_", flt), "Estimate Retention (Logistic)", value = FALSE)
+          )
+        })
+        do.call(tagList, ui_elements)
       })
       
       # Observer to update the year0fleet selectizeInput choices and selection
@@ -3406,6 +3451,12 @@ server <- function(input, output, session) {
                       multiple = TRUE,
                       options = list(`actions-box` = TRUE, `live-search` = TRUE)),
           textOutput("bio_length_sectors"),
+          hr(),
+          h5("Generalised Size Comps"),
+          uiOutput("length_histogram_size_comp_ui"),
+          # ----------------------------------------------------
+          
+          hr(),
           # uiOutput("length_histogram2_ui"),
           h5("Retained Catch (Discarded = No)"),
           uiOutput("length_histogram2_retained_ui"),
@@ -3464,55 +3515,46 @@ server <- function(input, output, session) {
         paste("Unique Sectors in Length Data:", paste(sectors, collapse = ", "))
       })
       
-      
-      # Render Retained Catch Plot
-      # output$length_histogram1_retained <- renderPlot({
-      #   req(length_plot_data1_retained())
-      #   plot <- render_length_histogram(length_plot_data1_retained(), length_col = "LengthClass")
-      #   if (!is.null(plot)) {
-      #     plot <- plot + labs(title = "Retained Catch")
-      #   } else {
-      #     plot <- ggplot() + annotate("text", x = 0, y = 0, label = "No retained catch data available") + theme_void()
-      #   }
-      #   plot
-      # })
-      
-      # Render Released Catch Plot
-      # output$length_histogram1_released <- renderPlot({
-      #   req(length_plot_data1_released())
-      #   plot <- render_length_histogram(length_plot_data1_released(), length_col = "LengthClass")
-      #   if (!is.null(plot)) {
-      #     plot <- plot + labs(title = "Released Catch")
-      #   } else {
-      #     plot <- ggplot() + annotate("text", x = 0, y = 0, label = "No released catch data available") + theme_void()
-      #   }
-      #   plot
-      # })
-      
-      # output$length_histogram2_ui <- renderUI({
-      #   plot_data <- length_plot_data2()
-      #   req(plot_data)
-      #   
-      #   dynamic_height <- calculate_plot_height(plot_data)
-      #   
-      #   plotOutput("length_histogram2", width = "800px", height = paste0(dynamic_height, "px"))
-      # })
-      # 
-      # output$length_histogram2 <- renderPlot({
-      #   req(length_plot_data2())
-      #   render_length_histogram(length_plot_data2(), length_col = "LengthClass")
-      # })
+
       
       
-      # --- Retained and Released Data Reactives ---
-      length_plot_data2_retained <- reactive({
+      # --- Split Standard Length Comps vs Generalised Size Comps ---
+      length_plot_data2_standard <- reactive({
         req(length_plot_data2())
-        length_plot_data2() %>% filter(Discarded. == "No")
+        data <- length_plot_data2()
+        if (length(input$size_comp_fleets) > 0) {
+          data <- data %>% filter(!Sector %in% input$size_comp_fleets)
+        }
+        data
+      })
+      
+      length_plot_data2_size_comp <- reactive({
+        req(length_plot_data2())
+        if (length(input$size_comp_fleets) == 0) return(data.frame())
+        
+        data <- length_plot_data2() %>% filter(Sector %in% input$size_comp_fleets)
+        
+        # Re-bin specifically for the size comp interval
+        current_interval <- input$size_class_input
+        if (is.null(current_interval) || is.na(current_interval)) current_interval <- 20
+        metric <- input$length_metric %||% "FL"
+        length_col <- if (metric == "TL") "TL_mm" else "FL_mm"
+        
+        if (nrow(data) > 0) {
+          data$LengthClass <- round_any(data[[length_col]], accuracy = current_interval, f = floor)
+        }
+        data
+      })
+      
+      # --- Retained and Released Data Reactives (excluding size comp fleets) ---
+      length_plot_data2_retained <- reactive({
+        req(length_plot_data2_standard())
+        length_plot_data2_standard() %>% filter(Discarded. == "No")
       })
       
       length_plot_data2_released <- reactive({
-        req(length_plot_data2())
-        length_plot_data2() %>% filter(Discarded. == "Yes")
+        req(length_plot_data2_standard())
+        length_plot_data2_standard() %>% filter(Discarded. == "Yes")
       })
       
       # --- Retained Plot Output ---
@@ -3539,85 +3581,20 @@ server <- function(input, output, session) {
         render_length_histogram(length_plot_data2_released(), length_col = "LengthClass")
       })
       
+      # --- Generalised Size Comp Plot Output ---
+      output$length_histogram_size_comp_ui <- renderUI({
+        plot_data <- length_plot_data2_size_comp()
+        if (nrow(plot_data) == 0) {
+          return(helpText("No fleets currently selected for Generalised Size Comps."))
+        }
+        dynamic_height <- calculate_plot_height(plot_data)
+        plotOutput("length_histogram_size_comp", width = "800px", height = paste0(dynamic_height, "px"))
+      })
       
-      
-      # output$fis_age_plot_ui <- renderUI({
-      #   req(input$use_fis_age, age_plot_data())
-      #   height <- tryCatch({
-      #     fis_age_plot_height()
-      #   }, error = function(e) {
-      #     400
-      #   })
-      #   plotOutput("age_histogram", width = "800px", height = height)
-      # })
-      
-      # output$age_histogram <- renderPlot({
-      #   req(age_plot_data(), input$use_fis_age)
-      #   data <- age_plot_data()
-      #   if (nrow(data) == 0 || !input$use_fis_age) {
-      #     return(ggplot() + annotate("text", x = 0, y = 0, label = "No FIS age data available") + theme_void())
-      #   }
-      #   render_age_histogram(data, age_col = "IntAge")
-      # })
-
-      # --- COMBINED AGE/LENGTH DATA REACTIVE ---
-      # This pulls from FIS, Biological, or both depending on what is checked
-      # combined_age_length_data <- reactive({
-      #   df_list <- list()
-      #   
-      #   # 1. Grab FIS Data (if checked and available)
-      #   if (isTRUE(input$use_fis_age)) {
-      #     fis_data <- age_plot_data()
-      #     if (nrow(fis_data) > 0 && "Age" %in% colnames(fis_data)) {
-      #       # Check length metric for FIS (FL or TL)
-      #       len_col <- if(!is.null(input$length_metric) && input$length_metric == "TL" && "TL" %in% colnames(fis_data)) "TL" else "FL"
-      #       
-      #       if (len_col %in% colnames(fis_data)) {
-      #         temp_fis <- data.frame(
-      #           Year = fis_data$year,
-      #           Age = fis_data$Age,
-      #           Length = fis_data[[len_col]],
-      #           DataSource = "FIS"
-      #         )
-      #         # Handle colouring
-      #         color_var <- input$age_color_by
-      #         temp_fis$ColourGroup <- if(color_var %in% colnames(fis_data)) fis_data[[color_var]] else "Unknown"
-      #         
-      #         df_list[[1]] <- temp_fis
-      #       }
-      #     }
-      #   }
-      #   
-      #   # 2. Grab Biological Data (if checked and available)
-      #   if (isTRUE(input$use_bio_age)) {
-      #     bio_data <- bio_age_plot_data()
-      #     if (nrow(bio_data) > 0 && "Age" %in% colnames(bio_data)) {
-      #       # Check length metric for Bio data (FL_mm or TL_mm)
-      #       len_col <- if(!is.null(input$length_metric) && input$length_metric == "TL" && "TL_mm" %in% colnames(bio_data)) "TL_mm" else "FL_mm"
-      #       
-      #       if (len_col %in% colnames(bio_data)) {
-      #         temp_bio <- data.frame(
-      #           Year = bio_data$year,
-      #           Age = bio_data$Age,
-      #           Length = bio_data[[len_col]],
-      #           DataSource = "Biological"
-      #         )
-      #         # Handle colouring
-      #         color_var <- input$age_color_by
-      #         temp_bio$ColourGroup <- if(color_var %in% colnames(bio_data)) bio_data[[color_var]] else "Unknown"
-      #         
-      #         df_list[[2]] <- temp_bio
-      #       }
-      #     }
-      #   }
-      #   
-      #   # Combine them safely
-      #   if (length(df_list) > 0) {
-      #     dplyr::bind_rows(df_list) %>% filter(!is.na(Age), !is.na(Length))
-      #   } else {
-      #     data.frame() # Return empty if nothing is found
-      #   }
-      # })
+      output$length_histogram_size_comp <- renderPlot({
+        render_length_histogram(length_plot_data2_size_comp(), length_col = "LengthClass")
+      })
+      # -----------------------------------------
       
       combined_age_length_data <- reactive({
         bio_data <- bio_age_plot_data()
@@ -3804,10 +3781,37 @@ server <- function(input, output, session) {
       # })
       
       fishery_params <- reactive({
+        # Capture dynamic fleet parameters respecting order
+        ordered_fleets <- if (isTRUE(input$use_custom_fleet_order) && length(input$custom_fleet_order) > 0) {
+          input$custom_fleet_order
+        } else {
+          catch_fleets  <- input$catch_sector_select
+          effort_fleets <- input$effort_fleet_select
+          length_fleets <- if ("Length" %in% input$data_include_before) input$sector_select_bio else NULL
+          age_fleets    <- if ("Age" %in% input$data_include_before) input$sector_select_bio_age else NULL
+          f_list <- unique(c(catch_fleets, effort_fleets, length_fleets, age_fleets))
+          c(f_list[grepl("FIS", f_list, ignore.case = TRUE)], f_list[!grepl("FIS", f_list, ignore.case = TRUE)])
+        }
+        ordered_fleets <- ordered_fleets[!is.na(ordered_fleets) & ordered_fleets != ""]
+        
+        selex_types_str <- paste(sapply(ordered_fleets, function(flt) paste0(flt, "=", input[[paste0("selex_type_", flt)]] %||% 1)), collapse = ";")
+        mirror_fleets_str <- paste(sapply(ordered_fleets, function(flt) paste0(flt, "=", input[[paste0("mirror_fleet_", flt)]] %||% "")), collapse = ";")
+        retentions_str <- paste(sapply(ordered_fleets, function(flt) paste0(flt, "=", isTRUE(input[[paste0("retention_est_", flt)]]))), collapse = ";")
+        
         params <- data.frame(
           use_initial_catch = isTRUE(input$use_initial_catch),
           use_1_sex_model = isTRUE(input$use_1_sex_model),
           use_combined_sex_length_comps = isTRUE(input$use_combined_sex_length_comps),
+          keep_dbase_separate = isTRUE(input$keep_dbase_separate),
+          use_custom_fleet_order = isTRUE(input$use_custom_fleet_order),
+          custom_fleet_order = if (isTRUE(input$use_custom_fleet_order)) paste(input$custom_fleet_order, collapse = ",") else "",
+          
+          # --- NEW: Store the mapped strings ---
+          custom_selex_types = selex_types_str,
+          custom_mirror_fleets = mirror_fleets_str,
+          custom_retentions = retentions_str,
+          # -------------------------------------
+          
           nsamp_multiplier = input$nsamp_multiplier %||% 1.0,
           disable_hermaphroditism = isTRUE(input$disable_hermaphroditism),
           use_custom_max_size = isTRUE(input$use_custom_max_size),
@@ -4143,6 +4147,10 @@ server <- function(input, output, session) {
                 fishery_params = temp_file7,
                 species_name = species_name,
                 length_class = safe_get("length_class_input", 10),
+                length_metric = safe_get("length_metric", "FL"),
+                size_comp_fleets = safe_get("size_comp_fleets", character(0)),
+                size_comp_fleets = safe_get("size_comp_fleets", character(0)),
+                size_class_input = safe_get("size_class_input", 20),
                 SS_use_cond_age_length = isTRUE(safe_get("conditional_age_select", FALSE)),
                 SS_use_any_age = isTRUE("Age" %in% inc_before),
                 SS_use_bio_age = isTRUE("Age" %in% inc_before), 
@@ -4383,6 +4391,8 @@ server <- function(input, output, session) {
               safe_update_input("updateNumericInput", "initf", choices_arg_name = "value")
               
               safe_update_input("updateCheckboxInput", "use_1_sex_model", choices_arg_name = "value")
+              
+              safe_update_input("updateCheckboxInput", "keep_dbase_separate", choices_arg_name = "value")
               
               safe_update_input("updateCheckboxInput", "use_custom_M", choices_arg_name = "value")
               safe_update_input("updateNumericInput", "custom_M", choices_arg_name = "value")
